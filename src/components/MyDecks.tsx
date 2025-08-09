@@ -72,7 +72,8 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         if (timeout) clearTimeout(timeout);
       };
     }
-  }, [user, activeTab, searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeTab, searchTerm]); // Excluding loadPublicDecks and searchTimeout
 
   // Load public decks when not authenticated (search term changes)
   useEffect(() => {
@@ -89,7 +90,8 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         if (timeout) clearTimeout(timeout);
       };
     }
-  }, [user, searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchTerm]); // Excluding loadPublicDecks and searchTimeout
 
   // Load profile display names when public decks change
   useEffect(() => {

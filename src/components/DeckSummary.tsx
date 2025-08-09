@@ -37,7 +37,8 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     if (!user && deckId) {
       loadPublicDecks();
     }
-  }, [user, deckId, loadPublicDecks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, deckId]); // Excluding loadPublicDecks to prevent infinite loop
 
   // Load deck from URL parameter (check both user decks and public decks)
   useEffect(() => {

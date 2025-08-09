@@ -12,7 +12,8 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
 
   useEffect(() => {
     loadAllProfiles();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only load on mount
 
   useEffect(() => {
     if (searchTerm) {
@@ -20,7 +21,8 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
     } else {
       loadAllProfiles();
     }
-  }, [searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]); // Only run when searchTerm changes
 
   // Since searchProfiles already filters on the server, just use allProfiles directly
   const displayProfiles = allProfiles;

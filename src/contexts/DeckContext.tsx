@@ -109,7 +109,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
         console.error('Error loading public decks:', error);
         console.error('Query error details:', error.message);
       } else if (data) {
-        console.log('Found public decks:', data.length);
+        // console.log('Found public decks:', data.length);
         const convertedDecks = data.map((d: any) => ({
           id: d.id,
           name: d.name,
