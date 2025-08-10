@@ -74,76 +74,92 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (!isMobile || !isVisible || viewMode !== 'foil') return;
-
-      // Convert device orientation to light position
-      // Beta: front-back tilt (-180 to 180)
-      // Gamma: left-right tilt (-90 to 90)
-      const beta = event.beta || 0;   // Front-back tilt
-      const gamma = event.gamma || 0; // Left-right tilt
-
-      // Convert to percentage (50% = center)
-      // Clamp and scale the values for reasonable effect
-      const maxTilt = 30; // Max degrees to consider
-      const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
-      const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
-
-      setTargetLightPosition({ x: lightX, y: lightY });
-    };
-
-    if (isMobile && 'DeviceOrientationEvent' in window) {
-      // Request permission for iOS 13+
-      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        // We'll handle permission request when foil mode is activated
-      } else {
-        window.addEventListener('deviceorientation', handleOrientation);
-      }
-    }
-
     return () => {
       window.removeEventListener('resize', checkMobile);
-      if (isMobile) {
-        window.removeEventListener('deviceorientation', handleOrientation);
-      }
     };
-  }, [isMobile, isVisible, viewMode]);
+  }, []);
 
-  // Request orientation permission and setup listener when foil mode is activated on iOS
+  // Setup gyroscope/orientation when foil mode is activated
   useEffect(() => {
-    if (!isMobile || viewMode !== 'foil') return;
+    if (!isMobile || viewMode !== 'foil' || !isVisible) return;
 
-    const setupOrientationListener = async () => {
-      if ('DeviceOrientationEvent' in window && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        try {
-          const permission = await (DeviceOrientationEvent as any).requestPermission();
-          if (permission === 'granted') {
-            const handleOrientation = (event: DeviceOrientationEvent) => {
-              if (!isVisible || viewMode !== 'foil') return;
+    const setupSensors = async () => {
+      try {
+        // Check for modern Generic Sensor API first (preferred)
+        if ('AbsoluteOrientationSensor' in window) {
+          console.log('Using Generic Sensor API (AbsoluteOrientationSensor)');
+          
+          // Request permissions for all required sensors
+          const permissions = await Promise.all([
+            navigator.permissions.query({ name: 'accelerometer' as PermissionName }),
+            navigator.permissions.query({ name: 'magnetometer' as PermissionName }),
+            navigator.permissions.query({ name: 'gyroscope' as PermissionName })
+          ]);
 
-              const beta = event.beta || 0;
-              const gamma = event.gamma || 0;
-              const maxTilt = 30;
+          if (permissions.every(result => result.state === 'granted')) {
+            const sensor = new (window as any).AbsoluteOrientationSensor({ frequency: 60 });
+            
+            sensor.addEventListener('reading', () => {
+              // Convert quaternion to Euler angles
+              const q = sensor.quaternion;
+              const [x, y, z, w] = q;
               
+              // Calculate approximate beta and gamma from quaternion
+              const beta = Math.asin(2 * (w * x + y * z)) * 180 / Math.PI;
+              const gamma = Math.atan2(2 * (w * y - z * x), 1 - 2 * (x * x + y * y)) * 180 / Math.PI;
+              
+              const maxTilt = 30;
               const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
               const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
-
+              
               setTargetLightPosition({ x: lightX, y: lightY });
-            };
+            });
 
-            window.addEventListener('deviceorientation', handleOrientation);
+            sensor.start();
             
-            return () => {
-              window.removeEventListener('deviceorientation', handleOrientation);
-            };
+            return () => sensor.stop();
           }
-        } catch (error) {
-          console.warn('Device orientation permission denied');
         }
+      } catch (error) {
+        console.warn('Generic Sensor API not available or permission denied:', error);
+      }
+
+      // Fallback to DeviceOrientationEvent
+      try {
+        console.log('Falling back to DeviceOrientationEvent');
+        
+        const handleOrientation = (event: DeviceOrientationEvent) => {
+          const beta = event.beta || 0;   // Front-back tilt
+          const gamma = event.gamma || 0; // Left-right tilt
+
+          const maxTilt = 30;
+          const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
+          const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
+
+          setTargetLightPosition({ x: lightX, y: lightY });
+        };
+
+        // For iOS 13+ - request permission
+        if ('DeviceOrientationEvent' in window && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+          const permission = await (DeviceOrientationEvent as any).requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+            return () => window.removeEventListener('deviceorientation', handleOrientation);
+          }
+        } else {
+          // For Android and older iOS
+          window.addEventListener('deviceorientation', handleOrientation);
+          return () => window.removeEventListener('deviceorientation', handleOrientation);
+        }
+      } catch (error) {
+        console.warn('DeviceOrientation not available:', error);
       }
     };
 
-    setupOrientationListener();
+    const cleanup = setupSensors();
+    return () => {
+      if (cleanup) cleanup.then(cleanupFn => cleanupFn?.());
+    };
   }, [isMobile, viewMode, isVisible]);
 
   // Load foil mask as data URL using CorsProxy.io
