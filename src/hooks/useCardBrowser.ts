@@ -1,68 +1,42 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FilterOptions, SortOption, ConsolidatedCard } from '../types';
 import { consolidatedCards } from '../data/allCards';
 import { useCollection } from '../contexts/CollectionContext';
 import { usePagination } from './usePagination';
 import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils/cardFiltering';
-import { getDefaultFilters } from '../utils/filterDefaults';
+import { getDefaultFilters, parseURLState } from '../utils/filterDefaults';
 
 export const useCardBrowser = () => {
+  // ================================
+  // 1. EXTERNAL DEPENDENCIES
+  // ================================
   const { getVariantQuantities, addVariantToCollection, removeVariantFromCollection } = useCollection();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Initialize state from URL parameters
-  const [searchTerm, setSearchTermState] = useState(() => searchParams.get('search') || '');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (searchParams.get('view') as 'grid' | 'list') || 'grid');
-  const [sortBy, setSortByState] = useState<SortOption>(() => {
-    const field = (searchParams.get('sortField') as SortOption['field']) || 'set';
-    const direction = (searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc';
-    return { field, direction };
-  });
-  const [groupBy, setGroupByState] = useState<string>(() => searchParams.get('groupBy') || 'none');
-  const [filters, setFiltersState] = useState<FilterOptions>(() => {
-    const defaultFilters = getDefaultFilters();
-    // Parse filters from URL params
-    const urlFilters = { ...defaultFilters };
-    
-    // Parse specific filter parameters
-    const sets = searchParams.getAll('set');
-    if (sets.length > 0) urlFilters.sets = sets;
-    
-    const colors = searchParams.getAll('color');
-    if (colors.length > 0) urlFilters.colors = colors;
-    
-    const rarities = searchParams.getAll('rarity');
-    if (rarities.length > 0) urlFilters.rarities = rarities;
-    
-    const types = searchParams.getAll('type');
-    if (types.length > 0) urlFilters.types = types;
-    
-    const collectionFilter = searchParams.get('collection');
-    if (collectionFilter) urlFilters.collectionFilter = collectionFilter as any;
-    
-    const inkable = searchParams.get('inkable');
-    if (inkable === 'true') urlFilters.inkwellOnly = true;
-    if (inkable === 'false') urlFilters.inkwellOnly = false;
-    
-    const minCost = searchParams.get('minCost');
-    if (minCost) urlFilters.costMin = parseInt(minCost);
-    
-    const maxCost = searchParams.get('maxCost');
-    if (maxCost) urlFilters.costMax = parseInt(maxCost);
-    
-    return urlFilters;
-  });
+  // ================================
+  // 2. STATE INITIALIZATION & URL SYNC
+  // ================================
+  const urlState = parseURLState(searchParams);
+  const [searchTerm, setSearchTermState] = useState(urlState.searchTerm);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(urlState.viewMode);
+  const [sortBy, setSortByState] = useState<SortOption>(urlState.sortBy);
+  const [groupBy, setGroupByState] = useState<string>(urlState.groupBy);
+  const [filters, setFiltersState] = useState<FilterOptions>(urlState.filters);
   const [showFilters, setShowFilters] = useState(false);
   
-  // Stale card state for handling cards that no longer match filters
+  // ================================  
+  // 3. STALE CARD TRACKING STATE
+  // ================================
   const [staleCardIds, setStaleCardIds] = useState<Set<number>>(new Set());
   const [showFilterNotification, setShowFilterNotification] = useState(false);
   const [staleCardCount, setStaleCardCount] = useState(0);
   
+  // ================================
+  // 4. COMPUTED VALUES & EFFECTS
+  // ================================
   const cardsPerPage = 100;
 
-  // Computed values using utility functions
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
     const filtered = filterCards(consolidatedCards, searchTerm, filters, staleCardIds, getVariantQuantities);
     const sorted = sortCards(filtered, sortBy);
@@ -77,45 +51,61 @@ export const useCardBrowser = () => {
     };
   }, [searchTerm, filters, sortBy, groupBy, getVariantQuantities, staleCardIds]);
   
-  // Pagination
   const pagination = usePagination({
     totalItems: totalCards,
     itemsPerPage: cardsPerPage,
     resetTriggers: [searchTerm, filters, sortBy, groupBy]
   });
   
-  // Get paginated cards for current page
   const paginatedCards = useMemo(() => {
     return sortedCards.slice(pagination.startIndex, pagination.endIndex);
   }, [sortedCards, pagination.startIndex, pagination.endIndex]);
 
-  // Clear stale cards when filters change (user is intentionally refreshing)
-  useEffect(() => {
-    setStaleCardIds(new Set());
-    setShowFilterNotification(false);
-    setStaleCardCount(0);
-  }, [filters, searchTerm, sortBy, groupBy]);
+  // ================================
+  // 5. URL UPDATE UTILITIES
+  // ================================
+  const updateURLParams = useCallback((params: Record<string, string | string[] | undefined>) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      
+      Object.entries(params).forEach(([key, value]) => {
+        newParams.delete(key);
+        
+        if (value !== undefined) {
+          if (Array.isArray(value)) {
+            value.forEach(v => newParams.append(key, v));
+          } else {
+            newParams.set(key, value);
+          }
+        }
+      });
+      
+      return newParams;
+    });
+  }, [setSearchParams]);
 
-  // Functions to update state and URL params
-  const setSearchTerm = (term: string) => {
+  // ================================
+  // 6. STATE SETTERS (URL-synced)
+  // ================================
+  const setSearchTerm = useCallback((term: string) => {
     setSearchTermState(term);
     updateURLParams({ search: term || undefined });
-  };
+  }, [updateURLParams]);
 
-  const setSortBy = (sort: SortOption) => {
+  const setSortBy = useCallback((sort: SortOption) => {
     setSortByState(sort);
     updateURLParams({ 
       sortField: sort.field, 
       sortDirection: sort.direction 
     });
-  };
+  }, [updateURLParams]);
 
-  const setGroupBy = (group: string) => {
+  const setGroupBy = useCallback((group: string) => {
     setGroupByState(group);
     updateURLParams({ groupBy: group === 'none' ? undefined : group });
-  };
+  }, [updateURLParams]);
 
-  const setFilters = (newFilters: FilterOptions) => {
+  const setFilters = useCallback((newFilters: FilterOptions) => {
     setFiltersState(newFilters);
     const defaultFilters = getDefaultFilters();
     
@@ -131,36 +121,17 @@ export const useCardBrowser = () => {
     };
     
     updateURLParams(params);
-  };
+  }, [updateURLParams]);
 
-  const updateURLParams = (params: Record<string, string | string[] | undefined>) => {
-    setSearchParams(prev => {
-      const newParams = new URLSearchParams(prev);
-      
-      Object.entries(params).forEach(([key, value]) => {
-        // Remove existing parameters with this key
-        newParams.delete(key);
-        
-        if (value !== undefined) {
-          if (Array.isArray(value)) {
-            value.forEach(v => newParams.append(key, v));
-          } else {
-            newParams.set(key, value);
-          }
-        }
-      });
-      
-      return newParams;
-    });
-  };
-
-  // Event handlers
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilters(getDefaultFilters());
     setSearchTerm('');
-  };
+  }, [setFilters, setSearchTerm]);
 
-  const handleVariantQuantityChange = (
+  // ================================
+  // 7. STALE CARD BUSINESS LOGIC
+  // ================================  
+  const handleVariantQuantityChange = useCallback((
     consolidatedCard: ConsolidatedCard, 
     variantType: 'regular' | 'foil' | 'enchanted' | 'special', 
     change: number
@@ -216,19 +187,31 @@ export const useCardBrowser = () => {
         setShowFilterNotification(true);
       }
     }
-  };
+  }, [filters.collectionFilter, getVariantQuantities, staleCardIds, addVariantToCollection, removeVariantFromCollection]);
 
-  const refreshStaleCards = () => {
+  const refreshStaleCards = useCallback(() => {
     setStaleCardIds(new Set());
     setShowFilterNotification(false);
     setStaleCardCount(0);
-  };
+  }, []);
 
-  const dismissFilterNotification = () => {
+  const dismissFilterNotification = useCallback(() => {
     setShowFilterNotification(false);
-  };
+  }, []);
 
-  // Return clean interface
+  // ================================
+  // 8. EFFECTS
+  // ================================
+  // Clear stale cards when filters change (user is intentionally refreshing)
+  useEffect(() => {
+    setStaleCardIds(new Set());
+    setShowFilterNotification(false);
+    setStaleCardCount(0);
+  }, [filters, searchTerm, sortBy, groupBy]);
+
+  // ================================
+  // 9. RETURN INTERFACE
+  // ================================
   return {
     // State
     searchTerm,
