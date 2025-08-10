@@ -14,6 +14,7 @@ import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProfileProvider, useProfile } from './contexts/ProfileContext';
 import ProfileEditModal from './components/ProfileEditModal';
+import { ImageLoadProvider } from './contexts/ImageLoadContext';
 
 function AppContent() {
   const location = useLocation();
@@ -336,11 +337,13 @@ function App() {
     <AuthProvider>
       <ProfileProvider>
         <CollectionProvider>
-          <DeckProvider>
-            <Router>
-              <AppContent />
-            </Router>
-          </DeckProvider>
+          <ImageLoadProvider>
+            <DeckProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </DeckProvider>
+          </ImageLoadProvider>
         </CollectionProvider>
       </ProfileProvider>
     </AuthProvider>

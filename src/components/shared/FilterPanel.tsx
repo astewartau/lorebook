@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FilterOptions } from '../../types';
-import { rarities, colors, cardTypes, stories, subtypes, costs, sets, costRange, strengthRange, willpowerRange, loreRange } from '../../data/allCards';
+import { cardTypes, stories, subtypes, sets, strengthRange, willpowerRange, loreRange } from '../../data/allCards';
 import MultiSelectFilter from '../MultiSelectFilter';
 import RangeFilter from '../RangeFilter';
 import { CollectionFilter } from '../filters';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
+import { useFilterToggle } from '../../hooks/useFilterToggle';
+import { INK_COLORS, INK_COSTS, RARITIES } from '../../utils/filterHelpers';
 
 interface FilterPanelProps {
   filters: FilterOptions;
@@ -29,6 +31,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   showCollectionFilters = true
 }) => {
   const [illumineerQuestExpanded, setIllumineerQuestExpanded] = useState(false);
+  const {
+    toggleColorFilter,
+    toggleCostFilter,
+    toggleRarityFilter,
+    toggleInkwellFilter,
+    isCostSelected
+  } = useFilterToggle(filters, setFilters);
+  
   return (
     <div className="space-y-4">
       {/* Quick Icon Filters Section */}
@@ -48,15 +58,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         
         {/* Ink Colors Row */}
         <div className="flex gap-1">
-          {['Amber', 'Amethyst', 'Emerald', 'Ruby', 'Sapphire', 'Steel'].map(color => (
+          {INK_COLORS.map(color => (
             <button
               key={color}
-              onClick={() => {
-                const newColors = filters.colors.includes(color)
-                  ? filters.colors.filter(c => c !== color)
-                  : [...filters.colors, color];
-                setFilters({ ...filters, colors: newColors });
-              }}
+              onClick={() => toggleColorFilter(color)}
               className={`flex-1 p-1 rounded-sm transition-all hover:scale-110 flex items-center justify-center ${
                 filters.colors.includes(color)
                   ? 'bg-lorcana-purple-light shadow-lg'
@@ -75,15 +80,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         
         {/* Rarities Row */}
         <div className="flex gap-1">
-          {['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Enchanted', 'Special'].map(rarity => (
+          {RARITIES.map(rarity => (
             <button
               key={rarity}
-              onClick={() => {
-                const newRarities = filters.rarities.includes(rarity)
-                  ? filters.rarities.filter(r => r !== rarity)
-                  : [...filters.rarities, rarity];
-                setFilters({ ...filters, rarities: newRarities });
-              }}
+              onClick={() => toggleRarityFilter(rarity)}
               className={`flex-1 p-1 rounded-sm transition-all hover:scale-110 flex items-center justify-center ${
                 filters.rarities.includes(rarity)
                   ? 'bg-lorcana-purple-light shadow-lg'
@@ -102,36 +102,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         
         {/* Ink Costs Row */}
         <div className="flex gap-1">
-          {[1, 2, 3, 4, 5, 6, 7].map(cost => {
-            const isSelected = cost === 7 
-              ? [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].some(c => filters.costs.includes(c))
-              : filters.costs.includes(cost);
+          {INK_COSTS.map(cost => {
+            const isSelected = isCostSelected(cost);
             
             return (
               <button
                 key={cost}
-                onClick={() => {
-                  if (cost === 7) {
-                    // Handle 7+ costs (7, 8, 9, 10+)
-                    const highCosts = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-                    const hasAnyHighCost = highCosts.some(c => filters.costs.includes(c));
-                    
-                    if (hasAnyHighCost) {
-                      // Remove all high costs
-                      const newCosts = filters.costs.filter(c => !highCosts.includes(c));
-                      setFilters({ ...filters, costs: newCosts });
-                    } else {
-                      // Add all high costs
-                      const newCosts = [...filters.costs, ...highCosts.filter(c => !filters.costs.includes(c))];
-                      setFilters({ ...filters, costs: newCosts });
-                    }
-                  } else {
-                    const newCosts = filters.costs.includes(cost)
-                      ? filters.costs.filter(c => c !== cost)
-                      : [...filters.costs, cost];
-                    setFilters({ ...filters, costs: newCosts });
-                  }
-                }}
+                onClick={() => toggleCostFilter(cost)}
                 className={`flex-1 p-1 rounded-sm transition-all hover:scale-110 flex items-center justify-center relative ${
                   isSelected
                     ? 'bg-lorcana-purple-light shadow-lg'
@@ -155,10 +132,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         {/* Inkwell Row */}
         <div className="flex gap-1">
           <button
-            onClick={() => {
-              const newInkwellOnly = filters.inkwellOnly === true ? null : true;
-              setFilters({ ...filters, inkwellOnly: newInkwellOnly });
-            }}
+            onClick={() => toggleInkwellFilter(true)}
             className={`flex-1 p-1 rounded-sm transition-all hover:scale-110 flex items-center justify-center ${
               filters.inkwellOnly === true
                 ? 'bg-lorcana-purple-light shadow-lg'
@@ -173,10 +147,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             />
           </button>
           <button
-            onClick={() => {
-              const newInkwellOnly = filters.inkwellOnly === false ? null : false;
-              setFilters({ ...filters, inkwellOnly: newInkwellOnly });
-            }}
+            onClick={() => toggleInkwellFilter(false)}
             className={`flex-1 p-1 rounded-sm transition-all hover:scale-110 flex items-center justify-center ${
               filters.inkwellOnly === false
                 ? 'bg-lorcana-purple-light shadow-lg'

@@ -4,6 +4,8 @@ import { ConsolidatedCard } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeck } from '../contexts/DeckContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { useProgressiveImage, useInViewport } from '../hooks';
+import CardFallback from './CardFallback';
 
 interface ConsolidatedCardProps {
   consolidatedCard: ConsolidatedCard;
@@ -27,6 +29,32 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   const [transform, setTransform] = useState('');
   const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 });
   const [showEnchanted, setShowEnchanted] = useState(false);
+  
+  // Single viewport detection for the entire card
+  const [viewportRef, isInViewport] = useInViewport<HTMLDivElement>({ 
+    rootMargin: '200px' // Start loading 200px before entering viewport
+  });
+  
+  // Generate a unique card ID for the image manager
+  const cardUniqueId = `card-${baseCard.id}`;
+  
+  // Progressive image loading for base card
+  const baseImageProps = useProgressiveImage({
+    thumbnail: baseCard.images.thumbnail,
+    full: baseCard.images.full,
+    cardId: cardUniqueId,
+    isInViewport,
+    imageType: 'regular'
+  });
+  
+  // Progressive image loading for enchanted card (if exists)
+  const enchantedImageProps = useProgressiveImage({
+    thumbnail: enchantedCard?.images.thumbnail || baseCard.images.thumbnail,
+    full: enchantedCard?.images.full || baseCard.images.full,
+    cardId: cardUniqueId,
+    isInViewport: isInViewport && hasEnchanted, // Only load if card has enchanted version
+    imageType: 'enchanted'
+  });
   
   // Get deck quantity for this card
   const deckQuantity = currentDeck?.cards.find(c => c.id === baseCard.id)?.quantity || 0;
@@ -181,7 +209,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   };
 
   return (
-    <div className="flex flex-col space-y-2">
+    <div className="flex flex-col space-y-2" ref={viewportRef}>
       {/* Card Image */}
       <div 
         ref={cardRef}
@@ -196,34 +224,66 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
         onMouseLeave={handleMouseLeave}
         onClick={() => onCardClick?.(consolidatedCard)}
       >
-        {/* Base card image */}
-        <img 
-          src={baseCard.images.full} 
-          alt={baseCard.fullName}
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-          style={{ 
-            pointerEvents: 'none',
-            opacity: hasEnchanted && showEnchanted ? 0 : 1,
-            transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-        />
-        
-        {/* Enchanted card image (only rendered if available) */}
-        {hasEnchanted && enchantedCard && (
+        {/* Base card image or fallback */}
+        {!baseImageProps.src ? (
+          <div className="absolute inset-0">
+            <CardFallback
+              name={baseCard.name}
+              version={baseCard.version}
+              className="w-full h-full"
+            />
+          </div>
+        ) : (
           <img 
-            src={enchantedCard.images.full} 
-            alt={enchantedCard.fullName}
-            className="absolute inset-0 w-full h-full object-cover"
+            src={baseImageProps.src} 
+            alt={baseCard.fullName}
+            className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
             loading="lazy"
             style={{ 
               pointerEvents: 'none',
-              opacity: showEnchanted ? 1 : 0,
-              transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-              transform: showEnchanted ? 'scale(1)' : 'scale(1.05)',
-              filter: showEnchanted ? 'none' : 'brightness(1.2) saturate(1.3)'
+              opacity: hasEnchanted && showEnchanted && enchantedImageProps.src ? 0 : 1,
+              transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease-out'
             }}
           />
+        )}
+        
+        {/* Enchanted card image (only render if we have enchanted and it's loaded) */}
+        {hasEnchanted && enchantedCard && (
+          enchantedImageProps.src ? (
+            <img 
+              src={enchantedImageProps.src} 
+              alt={enchantedCard.fullName}
+              className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
+              loading="lazy"
+              style={{ 
+                pointerEvents: 'none',
+                opacity: showEnchanted ? 1 : 0,
+                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease-out',
+                transform: showEnchanted ? 'scale(1)' : 'scale(1.05)',
+                filter: showEnchanted ? 'none' : 'brightness(1.2) saturate(1.3)'
+              }}
+            />
+          ) : (
+            showEnchanted && !baseImageProps.src && (
+              <div className="absolute inset-0" style={{ 
+                opacity: 1,
+                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}>
+                <CardFallback
+                  name={enchantedCard.name}
+                  version={enchantedCard.version}
+                  className="w-full h-full"
+                />
+              </div>
+            )
+          )
+        )}
+        
+        {/* Loading indicator overlay */}
+        {(baseImageProps.isLoading || (hasEnchanted && enchantedImageProps.isLoading)) && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-8 h-8 border-2 border-lorcana-gold border-t-transparent rounded-full animate-spin opacity-30" />
+          </div>
         )}
         
         {/* Light overlay effect */}
@@ -236,7 +296,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
               }}
             />
             {/* Enchanted shimmer effect */}
-            {hasEnchanted && showEnchanted && (
+            {hasEnchanted && showEnchanted && enchantedImageProps.src && (
               <div 
                 className="absolute inset-0 pointer-events-none"
                 style={{

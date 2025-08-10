@@ -1,6 +1,8 @@
 import React from 'react';
 import { FilterOptions } from '../types';
 import CustomDropdown from './CustomDropdown';
+import { useFilterToggle } from '../hooks/useFilterToggle';
+import { INK_COLORS, INK_COSTS, RARITIES } from '../utils/filterHelpers';
 
 interface QuickFiltersProps {
   filters: FilterOptions;
@@ -15,52 +17,13 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
   colorIconMap,
   rarityIconMap
 }) => {
-  const inkColors = ['Amber', 'Amethyst', 'Emerald', 'Ruby', 'Sapphire', 'Steel'];
-  const inkCosts = [1, 2, 3, 4, 5, 6, 7];
-  const rarities = ['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Enchanted', 'Special'];
-
-  const toggleColorFilter = (color: string) => {
-    const newColors = filters.colors.includes(color)
-      ? filters.colors.filter(c => c !== color)
-      : [...filters.colors, color];
-    setFilters({ ...filters, colors: newColors });
-  };
-
-  const toggleCostFilter = (cost: number) => {
-    if (cost === 7) {
-      // Handle 7+ costs (7, 8, 9, 10+)
-      const highCosts = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-      const hasAnyHighCost = highCosts.some(c => filters.costs.includes(c));
-      
-      if (hasAnyHighCost) {
-        // Remove all high costs
-        const newCosts = filters.costs.filter(c => !highCosts.includes(c));
-        setFilters({ ...filters, costs: newCosts });
-      } else {
-        // Add all high costs
-        const newCosts = [...filters.costs, ...highCosts.filter(c => !filters.costs.includes(c))];
-        setFilters({ ...filters, costs: newCosts });
-      }
-    } else {
-      const newCosts = filters.costs.includes(cost)
-        ? filters.costs.filter(c => c !== cost)
-        : [...filters.costs, cost];
-      setFilters({ ...filters, costs: newCosts });
-    }
-  };
-
-  const toggleRarityFilter = (rarity: string) => {
-    const newRarities = filters.rarities.includes(rarity)
-      ? filters.rarities.filter(r => r !== rarity)
-      : [...filters.rarities, rarity];
-    setFilters({ ...filters, rarities: newRarities });
-  };
-
-
-  const toggleInkwellFilter = (inkwellOnly: boolean) => {
-    const newInkwellOnly = filters.inkwellOnly === inkwellOnly ? null : inkwellOnly;
-    setFilters({ ...filters, inkwellOnly: newInkwellOnly });
-  };
+  const {
+    toggleColorFilter,
+    toggleCostFilter,
+    toggleRarityFilter,
+    toggleInkwellFilter,
+    isCostSelected
+  } = useFilterToggle(filters, setFilters);
 
   return (
     <div className="bg-lorcana-navy border-2 border-lorcana-gold border-t-0 rounded-b-sm shadow-xl p-3 mb-6 relative">
@@ -85,7 +48,7 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
 
         {/* Ink Colors */}
         <div className="flex gap-1">
-          {inkColors.map(color => (
+          {INK_COLORS.map(color => (
             <button
               key={color}
               onClick={() => toggleColorFilter(color)}
@@ -110,10 +73,8 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
 
         {/* Ink Costs */}
         <div className="flex gap-1">
-          {inkCosts.map(cost => {
-            const isSelected = cost === 7 
-              ? [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].some(c => filters.costs.includes(c))
-              : filters.costs.includes(cost);
+          {INK_COSTS.map(cost => {
+            const isSelected = isCostSelected(cost);
             
             return (
               <button
@@ -181,7 +142,7 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
 
         {/* Rarities */}
         <div className="flex gap-1">
-          {rarities.map(rarity => (
+          {RARITIES.map(rarity => (
             <button
               key={rarity}
               onClick={() => toggleRarityFilter(rarity)}
