@@ -22,6 +22,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
   const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 }); // Virtual position for foil effects
   const [targetLightPosition, setTargetLightPosition] = useState({ x: 50, y: 50 }); // Real mouse position
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const animationFrameRef = useRef<number | null>(null);
 
   // Smooth interpolation for light position
@@ -61,6 +62,89 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHovered, targetLightPosition, lightPosition]);
+
+  // Detect mobile device and setup orientation handlers
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     window.innerWidth <= 768;
+      setIsMobile(mobile);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (!isMobile || !isVisible || viewMode !== 'foil') return;
+
+      // Convert device orientation to light position
+      // Beta: front-back tilt (-180 to 180)
+      // Gamma: left-right tilt (-90 to 90)
+      const beta = event.beta || 0;   // Front-back tilt
+      const gamma = event.gamma || 0; // Left-right tilt
+
+      // Convert to percentage (50% = center)
+      // Clamp and scale the values for reasonable effect
+      const maxTilt = 30; // Max degrees to consider
+      const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
+      const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
+
+      setTargetLightPosition({ x: lightX, y: lightY });
+    };
+
+    if (isMobile && 'DeviceOrientationEvent' in window) {
+      // Request permission for iOS 13+
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        // We'll handle permission request when foil mode is activated
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      if (isMobile) {
+        window.removeEventListener('deviceorientation', handleOrientation);
+      }
+    };
+  }, [isMobile, isVisible, viewMode]);
+
+  // Request orientation permission and setup listener when foil mode is activated on iOS
+  useEffect(() => {
+    if (!isMobile || viewMode !== 'foil') return;
+
+    const setupOrientationListener = async () => {
+      if ('DeviceOrientationEvent' in window && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        try {
+          const permission = await (DeviceOrientationEvent as any).requestPermission();
+          if (permission === 'granted') {
+            const handleOrientation = (event: DeviceOrientationEvent) => {
+              if (!isVisible || viewMode !== 'foil') return;
+
+              const beta = event.beta || 0;
+              const gamma = event.gamma || 0;
+              const maxTilt = 30;
+              
+              const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
+              const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
+
+              setTargetLightPosition({ x: lightX, y: lightY });
+            };
+
+            window.addEventListener('deviceorientation', handleOrientation);
+            
+            return () => {
+              window.removeEventListener('deviceorientation', handleOrientation);
+            };
+          }
+        } catch (error) {
+          console.warn('Device orientation permission denied');
+        }
+      }
+    };
+
+    setupOrientationListener();
+  }, [isMobile, viewMode, isVisible]);
 
   // Load foil mask as data URL using CorsProxy.io
   const loadFoilMaskAsDataUrl = async (maskUrl: string) => {
@@ -167,11 +251,13 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
 
   // 3D tilt effect handlers
   const handleMouseEnter = () => {
-    setIsHovered(true);
+    if (!isMobile) {
+      setIsHovered(true);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
+    if (isMobile || !cardRef.current) return;
     
     const card = cardRef.current;
     const rect = card.getBoundingClientRect();
@@ -193,9 +279,11 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
   };
   
   const handleMouseLeave = () => {
-    setIsHovered(false);
-    setTransform('');
-    setTargetLightPosition({ x: 50, y: 50 }); // Virtual position will smoothly return to center
+    if (!isMobile) {
+      setIsHovered(false);
+      setTransform('');
+      setTargetLightPosition({ x: 50, y: 50 }); // Virtual position will smoothly return to center
+    }
   };
 
   if (!shouldRender || !currentCard) return null;
@@ -460,10 +548,14 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
                     ? 'bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-white shadow-lg transform scale-105'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
-                title={foilMaskLoading ? 'Loading foil mask...' : foilMaskDataUrl ? 'Foil mask loaded' : 'Using fallback foil effect'}
+                title={
+                  isMobile 
+                    ? 'Foil effect - tilt your device to see the shimmer!' 
+                    : foilMaskLoading ? 'Loading foil mask...' : foilMaskDataUrl ? 'Foil mask loaded' : 'Using fallback foil effect'
+                }
               >
                 <Zap size={16} />
-                Foil
+                Foil{isMobile && ' 📱'}
                 {foilMaskLoading && <span className="text-xs animate-pulse">⏳</span>}
                 {!foilMaskLoading && !foilMaskDataUrl && <span className="text-xs">⚠</span>}
               </button>
