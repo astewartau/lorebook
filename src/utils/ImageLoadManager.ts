@@ -271,8 +271,16 @@ class ImageLoadManager {
       }
     };
 
+    // Determine which URL to use based on retry count
+    let imageUrl = request.url;
+    
+    // After first failure, try CorsProxy.io for subsequent retries
+    if (request.retryCount > 0) {
+      imageUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
+    }
+
     // Start loading
-    img.src = request.url;
+    img.src = imageUrl;
   }
 
   private updateFailedThumbnailPriority(fullImageUrl: string): void {
