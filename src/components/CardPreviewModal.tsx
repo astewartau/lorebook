@@ -79,86 +79,64 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     };
   }, []);
 
-  // Setup gyroscope/orientation when foil mode is activated
+  // Setup simple device orientation when foil mode is activated
   useEffect(() => {
     if (!isMobile || viewMode !== 'foil' || !isVisible) return;
 
-    const setupSensors = async () => {
-      try {
-        // Check for modern Generic Sensor API first (preferred)
-        if ('AbsoluteOrientationSensor' in window) {
-          console.log('Using Generic Sensor API (AbsoluteOrientationSensor)');
-          
-          // Request permissions for all required sensors
-          const permissions = await Promise.all([
-            navigator.permissions.query({ name: 'accelerometer' as PermissionName }),
-            navigator.permissions.query({ name: 'magnetometer' as PermissionName }),
-            navigator.permissions.query({ name: 'gyroscope' as PermissionName })
-          ]);
+    console.log('Setting up device orientation for mobile foil effect');
 
-          if (permissions.every(result => result.state === 'granted')) {
-            const sensor = new (window as any).AbsoluteOrientationSensor({ frequency: 60 });
-            
-            sensor.addEventListener('reading', () => {
-              // Convert quaternion to Euler angles
-              const q = sensor.quaternion;
-              const [x, y, z, w] = q;
-              
-              // Calculate approximate beta and gamma from quaternion
-              const beta = Math.asin(2 * (w * x + y * z)) * 180 / Math.PI;
-              const gamma = Math.atan2(2 * (w * y - z * x), 1 - 2 * (x * x + y * y)) * 180 / Math.PI;
-              
-              const maxTilt = 30;
-              const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
-              const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
-              
-              setTargetLightPosition({ x: lightX, y: lightY });
-            });
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      console.log('🔥 DeviceOrientationEvent fired!', event);
+      
+      const alpha = event.alpha || 0; // Z axis (0-360)
+      const beta = event.beta || 0;   // X axis (-180 to 180) - front/back tilt
+      const gamma = event.gamma || 0; // Y axis (-90 to 90) - left/right tilt
 
-            sensor.start();
-            
-            return () => sensor.stop();
-          }
-        }
-      } catch (error) {
-        console.warn('Generic Sensor API not available or permission denied:', error);
+      console.log(`📱 Orientation: Alpha=${alpha.toFixed(1)}°, Beta=${beta.toFixed(1)}°, Gamma=${gamma.toFixed(1)}°`);
+
+      // Test if values are actually changing
+      if (alpha === 0 && beta === 0 && gamma === 0) {
+        console.warn('⚠️ All orientation values are 0 - sensor might not be working');
       }
 
-      // Fallback to DeviceOrientationEvent
-      try {
-        console.log('Falling back to DeviceOrientationEvent');
-        
-        const handleOrientation = (event: DeviceOrientationEvent) => {
-          const beta = event.beta || 0;   // Front-back tilt
-          const gamma = event.gamma || 0; // Left-right tilt
+      // Convert to light position (50% = center)
+      const maxTilt = 30; // Max degrees to consider for effect
+      const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
+      const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
 
-          const maxTilt = 30;
-          const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
-          const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
-
-          setTargetLightPosition({ x: lightX, y: lightY });
-        };
-
-        // For iOS 13+ - request permission
-        if ('DeviceOrientationEvent' in window && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-          const permission = await (DeviceOrientationEvent as any).requestPermission();
-          if (permission === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation);
-            return () => window.removeEventListener('deviceorientation', handleOrientation);
-          }
-        } else {
-          // For Android and older iOS
-          window.addEventListener('deviceorientation', handleOrientation);
-          return () => window.removeEventListener('deviceorientation', handleOrientation);
-        }
-      } catch (error) {
-        console.warn('DeviceOrientation not available:', error);
-      }
+      console.log(`✨ Light position: X=${lightX.toFixed(1)}%, Y=${lightY.toFixed(1)}%`);
+      setTargetLightPosition({ x: lightX, y: lightY });
     };
 
-    const cleanup = setupSensors();
+    // Check for DeviceOrientationEvent support
+    if (window.DeviceOrientationEvent) {
+      console.log('DeviceOrientationEvent is supported');
+      
+      // For iOS 13+ - request permission first
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        console.log('iOS device detected - requesting permission');
+        (DeviceOrientationEvent as any).requestPermission()
+          .then((permission: string) => {
+            if (permission === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation);
+            } else {
+              console.warn('Device orientation permission denied');
+            }
+          })
+          .catch((error: any) => console.error('Error requesting orientation permission:', error));
+      } else {
+        // For Android and older iOS - just add the listener
+        console.log('Android device detected - adding orientation listener');
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    } else {
+      console.warn('DeviceOrientationEvent is not supported on this device');
+    }
+
+    // Cleanup
     return () => {
-      if (cleanup) cleanup.then(cleanupFn => cleanupFn?.());
+      window.removeEventListener('deviceorientation', handleOrientation);
+      console.log('Device orientation listener removed');
     };
   }, [isMobile, viewMode, isVisible]);
 
