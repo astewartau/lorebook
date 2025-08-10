@@ -5,6 +5,7 @@ import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
+import { DECK_RULES } from '../constants';
 
 interface DeckSummaryProps {
   onBack: () => void;
@@ -182,8 +183,8 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                 <div className="flex flex-wrap items-center gap-4 text-sm text-lorcana-purple">
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">Cards:</span>
-                    <span className={`font-semibold ${totalCards === 60 ? 'text-green-600' : totalCards > 60 ? 'text-red-600' : 'text-lorcana-navy'}`}>
-                      {totalCards}/60
+                    <span className={`font-semibold ${totalCards === DECK_RULES.MAX_CARDS ? 'text-green-600' : totalCards > DECK_RULES.MAX_CARDS ? 'text-red-600' : 'text-lorcana-navy'}`}>
+                      {totalCards}/{DECK_RULES.MAX_CARDS}
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">

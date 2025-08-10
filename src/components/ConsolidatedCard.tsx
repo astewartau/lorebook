@@ -6,6 +6,7 @@ import { useDeck } from '../contexts/DeckContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useProgressiveImage, useInViewport } from '../hooks';
 import CardFallback from './CardFallback';
+import { DECK_RULES } from '../constants';
 
 interface ConsolidatedCardProps {
   consolidatedCard: ConsolidatedCard;
@@ -103,7 +104,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   const handleAddToDeck = () => {
     if (currentDeck) {
       const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
-      if (deckQuantity < 4 && totalCards < 60) {
+      if (deckQuantity < DECK_RULES.MAX_COPIES_PER_CARD && totalCards < DECK_RULES.MAX_CARDS) {
         addCardToDeck(baseCard);
       }
     }
@@ -123,7 +124,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   const canAddToDeck = () => {
     if (!currentDeck) return false;
     const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
-    return deckQuantity < 4 && totalCards < 60;
+    return deckQuantity < DECK_RULES.MAX_COPIES_PER_CARD && totalCards < DECK_RULES.MAX_CARDS;
   };
 
   const getVariantBackground = (variantType: 'regular' | 'foil' | 'enchanted' | 'special') => {

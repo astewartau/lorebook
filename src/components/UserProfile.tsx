@@ -7,6 +7,7 @@ import { useDeck } from '../contexts/DeckContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
 import ProfileEditModal from './ProfileEditModal';
+import { DECK_RULES } from '../constants';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -210,11 +211,11 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                   
                   <div className="flex items-center justify-between mb-4">
                     <span className={`px-2 py-1 text-xs rounded-sm font-medium ${
-                      cardCount === 60 
+                      cardCount === DECK_RULES.MAX_CARDS 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {cardCount}/60 cards
+                      {cardCount}/{DECK_RULES.MAX_CARDS} cards
                     </span>
                     
                     {/* Ink Colors */}

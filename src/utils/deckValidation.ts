@@ -1,4 +1,5 @@
 import { Deck } from '../types';
+import { DECK_RULES } from '../constants';
 
 export interface DeckValidationResult {
   isValid: boolean;
@@ -12,20 +13,20 @@ export const validateDeck = (deck: Deck): DeckValidationResult => {
   
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   
-  // Rule 1: Deck must have exactly 60 cards
-  if (totalCards !== 60) {
-    if (totalCards < 60) {
-      errors.push(`Deck needs ${60 - totalCards} more cards (currently ${totalCards}/60)`);
+  // Rule 1: Deck must have exactly the required number of cards
+  if (totalCards !== DECK_RULES.MAX_CARDS) {
+    if (totalCards < DECK_RULES.MIN_CARDS) {
+      errors.push(`Deck needs ${DECK_RULES.MIN_CARDS - totalCards} more cards (currently ${totalCards}/${DECK_RULES.MIN_CARDS})`);
     } else {
-      errors.push(`Deck has ${totalCards - 60} too many cards (currently ${totalCards}/60)`);
+      errors.push(`Deck has ${totalCards - DECK_RULES.MAX_CARDS} too many cards (currently ${totalCards}/${DECK_RULES.MAX_CARDS})`);
     }
   }
   
-  // Rule 2: No more than 4 copies of any card
-  const overLimitCards = deck.cards.filter(card => card.quantity > 4);
+  // Rule 2: No more than maximum copies of any card
+  const overLimitCards = deck.cards.filter(card => card.quantity > DECK_RULES.MAX_COPIES_PER_CARD);
   if (overLimitCards.length > 0) {
     overLimitCards.forEach(card => {
-      errors.push(`"${card.name}" exceeds 4-copy limit (${card.quantity} copies)`);
+      errors.push(`"${card.name}" exceeds ${DECK_RULES.MAX_COPIES_PER_CARD}-copy limit (${card.quantity} copies)`);
     });
   }
   

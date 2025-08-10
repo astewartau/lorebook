@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { Deck } from '../types';
 import DeckBox3D from './DeckBox3D';
+import { DECK_RULES } from '../constants';
 
 interface MyDecksProps {
   onBuildDeck: (deckId?: string) => void;
@@ -285,11 +286,11 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
                   
                   <div className="flex items-center justify-between mb-4">
                     <span className={`px-2 py-1 text-xs rounded ${
-                      cardCount === 60 
+                      cardCount === DECK_RULES.MAX_CARDS 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {cardCount}/60 cards
+                      {cardCount}/{DECK_RULES.MAX_CARDS} cards
                     </span>
                     <span className="text-xs text-lorcana-navy">
                       Updated {new Date(deck.updatedAt).toLocaleDateString()}
@@ -487,7 +488,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {summary?.cardCount || 0}/60
+                        {summary?.cardCount || 0}/{DECK_RULES.MAX_CARDS}
                       </span>
                     </div>
                     
@@ -596,11 +597,11 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
                   
                   <div className="flex items-center justify-between mb-4">
                     <span className={`px-2 py-1 text-xs rounded ${
-                      cardCount === 60 
+                      cardCount === DECK_RULES.MAX_CARDS 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {cardCount}/60 cards
+                      {cardCount}/{DECK_RULES.MAX_CARDS} cards
                     </span>
                     <span className="text-xs text-lorcana-navy">
                       Updated {new Date(deck.updatedAt).toLocaleDateString()}

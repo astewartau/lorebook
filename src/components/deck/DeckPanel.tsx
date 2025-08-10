@@ -3,6 +3,7 @@ import { Trash2, X, Edit3, Check, X as XIcon } from 'lucide-react';
 import { Deck } from '../../types';
 import DeckStatistics from './DeckStatistics';
 import DeckCardList from './DeckCardList';
+import { DECK_RULES } from '../../constants';
 
 interface DeckPanelProps {
   deck: Deck;
@@ -291,7 +292,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm font-medium text-lorcana-navy">
-              Cards: {totalCards}/60
+              Cards: {totalCards}/{DECK_RULES.MAX_CARDS}
             </span>
             <span className="text-sm text-lorcana-purple">
               Avg: {averageCost}
@@ -300,9 +301,9 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
           <div className="w-full bg-lorcana-cream border-2 border-lorcana-gold rounded-sm h-2">
             <div
               className={`h-2 rounded-sm transition-all ${
-                totalCards === 60 ? 'bg-green-500' : totalCards > 60 ? 'bg-red-500' : 'bg-blue-500'
+                totalCards === DECK_RULES.MAX_CARDS ? 'bg-green-500' : totalCards > DECK_RULES.MAX_CARDS ? 'bg-red-500' : 'bg-blue-500'
               }`}
-              style={{ width: `${Math.min((totalCards / 60) * 100, 100)}%` }}
+              style={{ width: `${Math.min((totalCards / DECK_RULES.MAX_CARDS) * 100, 100)}%` }}
             />
           </div>
         </div>

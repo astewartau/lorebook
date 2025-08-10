@@ -4,6 +4,7 @@ import { validateDeck as validateDeckUtil } from '../utils/deckValidation';
 import { supabase, UserDeck, TABLES } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import { DECK_RULES } from '../constants';
 
 interface DeckContextType {
   decks: Deck[];
@@ -278,7 +279,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const existingCard = targetDeck.cards.find(c => c.id === card.id);
     
     if (existingCard) {
-      if (existingCard.quantity >= 4) return false;
+      if (existingCard.quantity >= DECK_RULES.MAX_COPIES_PER_CARD) return false;
       existingCard.quantity++;
     } else {
       targetDeck.cards.push({ ...card, quantity: 1 });

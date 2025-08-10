@@ -6,6 +6,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import { usePagination } from './usePagination';
 import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils/cardFiltering';
 import { getDefaultFilters, parseURLState } from '../utils/filterDefaults';
+import { PAGINATION } from '../constants';
 
 export const useCardBrowser = () => {
   // ================================
@@ -35,7 +36,7 @@ export const useCardBrowser = () => {
   // ================================
   // 4. COMPUTED VALUES & EFFECTS
   // ================================
-  const cardsPerPage = 100;
+  const cardsPerPage = PAGINATION.CARDS_PER_PAGE;
 
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
     const filtered = filterCards(consolidatedCards, searchTerm, filters, staleCardIds, getVariantQuantities);

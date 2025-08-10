@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import { Deck } from '../../types';
 import { COLOR_ICONS } from '../../constants/icons';
+import { DECK_RULES } from '../../constants';
 
 interface DeckCardListProps {
   deck: Deck;
@@ -164,7 +165,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                               </span>
                               <button
                                 onClick={() => onUpdateQuantity(card.id, card.quantity + 1)}
-                                disabled={card.quantity >= 4 || totalCards >= 60}
+                                disabled={card.quantity >= DECK_RULES.MAX_COPIES_PER_CARD || totalCards >= DECK_RULES.MAX_CARDS}
                                 className="w-6 h-6 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed rounded-sm transition-colors"
                               >
                                 <Plus size={12} />
