@@ -2,6 +2,103 @@ import { ConsolidatedCard, FilterOptions, SortOption } from '../types';
 import { rarityOrder, sets, costRange, strengthRange, willpowerRange, loreRange } from '../data/allCards';
 import { consolidatedCardMatchesFilters } from './cardConsolidation';
 
+// Helper function to check if a card matches search criteria
+const matchesSearchFilter = (baseCard: any, searchTerm: string): boolean => {
+  return baseCard.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         (baseCard.version?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+         (baseCard.story?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+};
+
+// Helper function to check if a card matches color filters
+const matchesColorFilter = (baseCard: any, filters: FilterOptions): boolean => {
+  const isDualInk = baseCard.color.includes('-');
+  
+  // If no colors are selected, handle based on mode
+  if (filters.colors.length === 0) {
+    switch (filters.colorMatchMode) {
+      case 'dual-only':
+        // Show all dual-ink cards when no specific colors selected
+        return isDualInk;
+      case 'any':
+      case 'only':
+      default:
+        // Show all cards when no colors selected
+        return true;
+    }
+  }
+  
+  // Colors are selected, apply filtering logic
+  switch (filters.colorMatchMode) {
+    case 'any':
+      // Match any card that includes any selected color
+      return filters.colors.some(color => baseCard.color.includes(color));
+      
+    case 'only':
+      // Show only cards with the exact selected colors
+      if (filters.colors.length === 1) {
+        // Single color selected: only show single-ink cards of that color
+        return !isDualInk && baseCard.color === filters.colors[0];
+      } else {
+        // Multiple colors selected: show single-ink cards of selected colors 
+        // AND dual-ink cards with combinations of only the selected colors
+        if (isDualInk) {
+          // For dual-ink: both colors must be in the selected colors
+          const [color1, color2] = baseCard.color.split('-');
+          return filters.colors.includes(color1) && filters.colors.includes(color2);
+        } else {
+          // For single-ink: must be one of the selected colors
+          return filters.colors.includes(baseCard.color);
+        }
+      }
+      
+    case 'dual-only':
+      // Only show dual-ink cards
+      if (!isDualInk) return false;
+      
+      if (filters.colors.length === 1) {
+        // Single color selected: show any dual-ink that includes that color
+        return baseCard.color.includes(filters.colors[0]);
+      } else if (filters.colors.length === 2) {
+        // Two colors selected: show only the exact dual-ink combination
+        const [color1, color2] = baseCard.color.split('-');
+        const sortedCardColors = [color1, color2].sort();
+        const sortedSelectedColors = [...filters.colors].sort();
+        return sortedCardColors.join('-') === sortedSelectedColors.join('-');
+      } else {
+        // More than 2 colors selected: no dual-ink can match exactly
+        return false;
+      }
+      
+    default:
+      return true;
+  }
+};
+
+// Helper function to check if a card matches collection filters
+const matchesCollectionFilter = (
+  consolidatedCard: ConsolidatedCard,
+  filters: FilterOptions,
+  getVariantQuantities: (fullName: string) => { regular: number; foil: number; enchanted: number; special: number }
+): boolean => {
+  if (filters.collectionFilter === 'all') return true;
+  
+  const quantities = getVariantQuantities(consolidatedCard.fullName);
+  const totalOwned = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
+  const isInCollection = totalOwned > 0;
+  
+  return filters.collectionFilter === 'owned' ? isInCollection : !isInCollection;
+};
+
+// Helper function to check if a card matches range filters
+const matchesRangeFilters = (baseCard: any, filters: FilterOptions): boolean => {
+  const matchesCostRange = baseCard.cost >= filters.costMin && baseCard.cost <= filters.costMax;
+  const matchesStrength = baseCard.strength === undefined || (baseCard.strength >= filters.strengthMin && baseCard.strength <= filters.strengthMax);
+  const matchesWillpower = baseCard.willpower === undefined || (baseCard.willpower >= filters.willpowerMin && baseCard.willpower <= filters.willpowerMax);
+  const matchesLore = baseCard.lore === undefined || (baseCard.lore >= filters.loreMin && baseCard.lore <= filters.loreMax);
+  
+  return matchesCostRange && matchesStrength && matchesWillpower && matchesLore;
+};
+
 // Filter cards based on search term and filters
 export const filterCards = (
   cards: ConsolidatedCard[],
@@ -19,102 +116,25 @@ export const filterCards = (
       return true;
     }
     
-    const matchesSearch = baseCard.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (baseCard.version?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-                         (baseCard.story?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-    
+    const matchesSearch = matchesSearchFilter(baseCard, searchTerm);
     const matchesSet = filters.sets.length === 0 || filters.sets.includes(baseCard.setCode);
+    
     // Handle Illumineer's Quest cards (no ink color) separately
     const isIllumineerQuest = baseCard.color === '';
     const matchesIllumineerQuest = isIllumineerQuest ? filters.includeIllumineerQuest : true;
     
     // Color filtering - only apply to non-Illumineer's Quest cards
-    const matchesColor = isIllumineerQuest || (() => {
-      const isDualInk = baseCard.color.includes('-');
-      
-      // If no colors are selected, handle based on mode
-      if (filters.colors.length === 0) {
-        switch (filters.colorMatchMode) {
-          case 'dual-only':
-            // Show all dual-ink cards when no specific colors selected
-            return isDualInk;
-          case 'any':
-          case 'only':
-          default:
-            // Show all cards when no colors selected
-            return true;
-        }
-      }
-      
-      // Colors are selected, apply filtering logic
-      switch (filters.colorMatchMode) {
-        case 'any':
-          // Match any card that includes any selected color
-          return filters.colors.some(color => baseCard.color.includes(color));
-          
-        case 'only':
-          // Show only cards with the exact selected colors
-          if (filters.colors.length === 1) {
-            // Single color selected: only show single-ink cards of that color
-            return !isDualInk && baseCard.color === filters.colors[0];
-          } else {
-            // Multiple colors selected: show single-ink cards of selected colors 
-            // AND dual-ink cards with combinations of only the selected colors
-            if (isDualInk) {
-              // For dual-ink: both colors must be in the selected colors
-              const [color1, color2] = baseCard.color.split('-');
-              return filters.colors.includes(color1) && filters.colors.includes(color2);
-            } else {
-              // For single-ink: must be one of the selected colors
-              return filters.colors.includes(baseCard.color);
-            }
-          }
-          
-        case 'dual-only':
-          // Only show dual-ink cards
-          if (!isDualInk) return false;
-          
-          if (filters.colors.length === 1) {
-            // Single color selected: show any dual-ink that includes that color
-            return baseCard.color.includes(filters.colors[0]);
-          } else if (filters.colors.length === 2) {
-            // Two colors selected: show only the exact dual-ink combination
-            const [color1, color2] = baseCard.color.split('-');
-            const sortedCardColors = [color1, color2].sort();
-            const sortedSelectedColors = [...filters.colors].sort();
-            return sortedCardColors.join('-') === sortedSelectedColors.join('-');
-          } else {
-            // More than 2 colors selected: no dual-ink can match exactly
-            return false;
-          }
-          
-        default:
-          return true;
-      }
-    })();
+    const matchesColor = isIllumineerQuest || matchesColorFilter(baseCard, filters);
+    
     const matchesType = filters.types.length === 0 || filters.types.includes(baseCard.type);
     const matchesStory = filters.stories.length === 0 || (baseCard.story && filters.stories.includes(baseCard.story));
     const matchesSubtype = filters.subtypes.length === 0 || (baseCard.subtypes && baseCard.subtypes.some(st => filters.subtypes.includes(st)));
     
     const matchesCostList = filters.costs.length === 0 || filters.costs.includes(baseCard.cost);
-    const matchesCostRange = baseCard.cost >= filters.costMin && baseCard.cost <= filters.costMax;
-    
-    const matchesStrength = baseCard.strength === undefined || (baseCard.strength >= filters.strengthMin && baseCard.strength <= filters.strengthMax);
-    const matchesWillpower = baseCard.willpower === undefined || (baseCard.willpower >= filters.willpowerMin && baseCard.willpower <= filters.willpowerMax);
-    const matchesLore = baseCard.lore === undefined || (baseCard.lore >= filters.loreMin && baseCard.lore <= filters.loreMax);
+    const matchesRanges = matchesRangeFilters(baseCard, filters);
     
     const matchesInkwell = filters.inkwellOnly === null || baseCard.inkwell === filters.inkwellOnly;
-    
-    // Check if card is in collection
-    const matchesInCollection = (() => {
-      if (filters.collectionFilter === 'all') return true;
-      
-      const quantities = getVariantQuantities(consolidatedCard.fullName);
-      const totalOwned = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
-      const isInCollection = totalOwned > 0;
-      
-      return filters.collectionFilter === 'owned' ? isInCollection : !isInCollection;
-    })();
+    const matchesInCollection = matchesCollectionFilter(consolidatedCard, filters, getVariantQuantities);
     
     // Check card count filter
     const matchesCardCount = filters.cardCountOperator === null || (() => {
@@ -133,9 +153,8 @@ export const filterCards = (
     const matchesConsolidatedFilters = consolidatedCardMatchesFilters(consolidatedCard, filters);
 
     return matchesSearch && matchesSet && matchesColor && matchesIllumineerQuest && matchesType && 
-           matchesStory && matchesSubtype && matchesCostList && matchesCostRange &&
-           matchesStrength && matchesWillpower && matchesLore && matchesInkwell &&
-           matchesInCollection && matchesCardCount && matchesConsolidatedFilters;
+           matchesStory && matchesSubtype && matchesCostList && matchesRanges &&
+           matchesInkwell && matchesInCollection && matchesCardCount && matchesConsolidatedFilters;
   });
 };
 
