@@ -313,9 +313,9 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     
-    // Calculate rotation based on touch position (reduced intensity for larger modal)
-    const rotateX = ((y - centerY) / centerY) * -8; // Max 8 degrees
-    const rotateY = ((x - centerX) / centerX) * 8; // Max 8 degrees
+    // Calculate rotation based on touch position (increased intensity for mobile)
+    const rotateX = ((y - centerY) / centerY) * -20; // Max 20 degrees (was 8)
+    const rotateY = ((x - centerX) / centerX) * 20; // Max 20 degrees (was 8)
     
     setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
     
