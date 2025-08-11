@@ -15,6 +15,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
   const [viewMode, setViewMode] = useState<'normal' | 'foil' | 'enchanted'>('normal');
   const [foilMaskDataUrl, setFoilMaskDataUrl] = useState<string | null>(null);
   const [foilMaskLoading, setFoilMaskLoading] = useState(false);
+  const [invertedFoilMaskDataUrl, setInvertedFoilMaskDataUrl] = useState<string | null>(null);
   
   // 3D tilt effect state
   const cardRef = useRef<HTMLDivElement>(null);
@@ -191,11 +192,53 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       });
       
       setFoilMaskDataUrl(dataUrl);
+      
+      // Create inverted version using canvas
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          // Draw the image
+          ctx.drawImage(img, 0, 0);
+          
+          // Get image data and invert it
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          // Invert luminance values
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            // Calculate luminance and invert it
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            const invertedLuminance = 255 - luminance;
+            // Set all RGB channels to the inverted luminance (grayscale)
+            data[i] = invertedLuminance;     // R
+            data[i + 1] = invertedLuminance; // G
+            data[i + 2] = invertedLuminance; // B
+            // Keep alpha unchanged
+          }
+          
+          // Put the modified data back
+          ctx.putImageData(imageData, 0, 0);
+          
+          // Convert to data URL
+          setInvertedFoilMaskDataUrl(canvas.toDataURL());
+        }
+      };
+      img.src = dataUrl;
+      
       setFoilMaskLoading(false);
       
     } catch (error) {
       setFoilMaskLoading(false);
       setFoilMaskDataUrl(null);
+      setInvertedFoilMaskDataUrl(null);
     }
   };
 
@@ -442,19 +485,26 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
                 })
               }}
             >
-              {/* Main holographic rainbow sweep */}
+              {/* Main holographic rainbow sweep - wider band */}
               <div
                 className="absolute inset-0 opacity-60"
                 style={{
                   background: `
                     linear-gradient(
-                      ${(lightPosition.x - 50) * 0.6 + (lightPosition.y + 15) * 0.4}deg,
+                      ${(lightPosition.x - 50) * 0.6 + (lightPosition.y - 30) * 0.4}deg,
                       transparent 0%,
-                      rgba(255, 0, 150, 0.6) 15%,
-                      rgba(0, 255, 255, 0.7) 25%,
-                      rgba(255, 255, 0, 0.6) 35%,
-                      rgba(255, 0, 255, 0.6) 45%,
-                      rgba(0, 255, 0, 0.5) 55%,
+                      transparent 15%,
+                      rgba(255, 0, 150, 0.6) 25%,
+                      rgba(255, 0, 150, 0.65) 30%,
+                      rgba(0, 255, 255, 0.7) 40%,
+                      rgba(0, 255, 255, 0.7) 45%,
+                      rgba(255, 255, 0, 0.6) 50%,
+                      rgba(255, 255, 0, 0.65) 55%,
+                      rgba(255, 0, 255, 0.6) 60%,
+                      rgba(255, 0, 255, 0.65) 65%,
+                      rgba(0, 255, 0, 0.5) 70%,
+                      rgba(0, 255, 0, 0.4) 75%,
+                      transparent 85%,
                       transparent 100%
                     )
                   `,
@@ -463,39 +513,40 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
                 }}
               />
               
-              {/* Directional light reflection */}
+              {/* Directional light reflection - increased shininess */}
               <div
-                className="absolute inset-0 opacity-50"
+                className="absolute inset-0 opacity-80"
                 style={{
                   background: `
                     radial-gradient(
-                      ellipse ${Math.abs(lightPosition.x - 50) * 0.6 + 25}% ${Math.abs(lightPosition.y - 50) * 0.6 + 15}% at ${lightPosition.x}% ${lightPosition.y}%,
-                      rgba(255, 255, 255, 0.7) 0%,
-                      rgba(255, 255, 255, 0.2) 20%,
-                      transparent 50%
+                      ellipse ${Math.abs(lightPosition.x - 50) * 0.8 + 30}% ${Math.abs(lightPosition.y - 50) * 0.8 + 20}% at ${lightPosition.x}% ${lightPosition.y}%,
+                      rgba(255, 255, 255, 0.9) 0%,
+                      rgba(255, 255, 255, 0.4) 15%,
+                      rgba(255, 255, 255, 0.15) 30%,
+                      transparent 45%
                     )
                   `,
                   mixBlendMode: 'overlay'
                 }}
               />
               
-              {/* Rotating prismatic rainbow */}
+              {/* Rotating prismatic rainbow - more subtle */}
               <div
-                className="absolute inset-0 opacity-35"
+                className="absolute inset-0 opacity-15"
                 style={{
                   background: `
                     conic-gradient(
                       from ${((lightPosition.x - 50) * 0.8 + (lightPosition.y + 15) * 0.5) + 45}deg at ${lightPosition.x}% ${Math.max(lightPosition.y - 50, 0)}%,
-                      rgba(255, 0, 128, 0.6) 0deg,
-                      rgba(0, 255, 128, 0.6) 60deg,
-                      rgba(128, 0, 255, 0.6) 120deg,
-                      rgba(255, 128, 0, 0.6) 180deg,
-                      rgba(0, 128, 255, 0.6) 240deg,
-                      rgba(255, 0, 128, 0.6) 360deg
+                      rgba(255, 0, 128, 0.3) 0deg,
+                      rgba(0, 255, 128, 0.3) 60deg,
+                      rgba(128, 0, 255, 0.3) 120deg,
+                      rgba(255, 128, 0, 0.3) 180deg,
+                      rgba(0, 128, 255, 0.3) 240deg,
+                      rgba(255, 0, 128, 0.3) 360deg
                     )
                   `,
                   mixBlendMode: 'color-dodge',
-                  filter: 'blur(1px)'
+                  filter: 'blur(2px)'
                 }}
               />
               
@@ -523,27 +574,86 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
                 }}
               />
               
-              {/* Sparkle highlights */}
+              {/* Sparkle highlights - enhanced for more shine */}
               <div
-                className="absolute inset-0 opacity-40"
+                className="absolute inset-0 opacity-70"
                 style={{
                   background: `
                     radial-gradient(
                       circle at ${lightPosition.x + 10}% ${lightPosition.y - 10}%,
-                      rgba(255, 255, 255, 0.8) 0%,
-                      transparent 3%
+                      rgba(255, 255, 255, 1) 0%,
+                      transparent 2.5%
                     ),
                     radial-gradient(
                       circle at ${lightPosition.x - 15}% ${lightPosition.y + 15}%,
-                      rgba(255, 255, 255, 0.6) 0%,
+                      rgba(255, 255, 255, 0.9) 0%,
                       transparent 2%
                     ),
                     radial-gradient(
                       circle at ${lightPosition.x + 5}% ${lightPosition.y + 20}%,
-                      rgba(255, 255, 255, 0.7) 0%,
-                      transparent 2.5%
+                      rgba(255, 255, 255, 0.95) 0%,
+                      transparent 2%
+                    ),
+                    radial-gradient(
+                      circle at ${lightPosition.x - 8}% ${lightPosition.y - 5}%,
+                      rgba(255, 255, 255, 0.85) 0%,
+                      transparent 1.5%
                     )
                   `
+                }}
+              />
+            </div>
+          )}
+          
+          {/* Inverse foil effect using mix-blend-mode approach */}
+          {hasFoil && viewMode === 'foil' && foilMaskDataUrl && (
+            <div
+              className="absolute inset-0 rounded-lg pointer-events-none overflow-hidden"
+              style={{
+                // Use the original mask as a background and blend it to create inverse effect
+                backgroundImage: `url(${foilMaskDataUrl})`,
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center center',
+                // Use difference blend mode to invert the effect
+                mixBlendMode: 'difference',
+                opacity: 0.3
+              }}
+            >
+              {/* Rainbow sweep effect */}
+              <div
+                className="absolute inset-0 opacity-60"
+                style={{
+                  background: `
+                    linear-gradient(
+                      ${(lightPosition.x - 50) * -0.8 + (lightPosition.y - 50) * 0.6 + 90}deg,
+                      transparent 0%,
+                      transparent 15%,
+                      rgba(0, 255, 128, 0.7) 25%,
+                      rgba(255, 128, 0, 0.7) 40%,
+                      rgba(128, 0, 255, 0.7) 55%,
+                      rgba(0, 128, 255, 0.6) 70%,
+                      transparent 80%,
+                      transparent 100%
+                    )
+                  `,
+                  mixBlendMode: 'screen'
+                }}
+              />
+              
+              {/* Bright white highlights */}
+              <div
+                className="absolute inset-0 opacity-50"
+                style={{
+                  background: `
+                    radial-gradient(
+                      circle at ${100 - lightPosition.x}% ${100 - lightPosition.y}%,
+                      rgba(255, 255, 255, 0.8) 0%,
+                      rgba(255, 255, 255, 0.3) 15%,
+                      transparent 30%
+                    )
+                  `,
+                  mixBlendMode: 'overlay'
                 }}
               />
             </div>
