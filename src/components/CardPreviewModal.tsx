@@ -23,6 +23,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
   const [targetLightPosition, setTargetLightPosition] = useState({ x: 50, y: 50 }); // Real mouse position
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isTouching, setIsTouching] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
   // Smooth interpolation for light position
@@ -49,9 +51,9 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     animationFrameRef.current = requestAnimationFrame(animateLightPosition);
   };
 
-  // Start/stop animation based on hover state
+  // Start/stop animation based on hover/touch state
   useEffect(() => {
-    if (isHovered || (lightPosition.x !== 50 || lightPosition.y !== 50)) {
+    if (isHovered || isTouching || (lightPosition.x !== 50 || lightPosition.y !== 50)) {
       animationFrameRef.current = requestAnimationFrame(animateLightPosition);
     }
     
@@ -61,7 +63,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHovered, targetLightPosition, lightPosition]);
+  }, [isHovered, isTouching, targetLightPosition, lightPosition]);
 
   // Detect mobile device and setup orientation handlers
   useEffect(() => {
@@ -86,6 +88,9 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     console.log('Setting up device orientation for mobile foil effect');
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
+      // Skip gyroscope updates when user is touching the screen
+      if (isTouching) return;
+      
       console.log('🔥 DeviceOrientationEvent fired!', event);
       
       const alpha = event.alpha || 0; // Z axis (0-360)
@@ -138,7 +143,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       window.removeEventListener('deviceorientation', handleOrientation);
       console.log('Device orientation listener removed');
     };
-  }, [isMobile, viewMode, isVisible]);
+  }, [isMobile, viewMode, isVisible, isTouching]);
 
   // Load foil mask as data URL using CorsProxy.io
   const loadFoilMaskAsDataUrl = async (maskUrl: string) => {
@@ -280,6 +285,55 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     }
   };
 
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || !cardRef.current) return;
+    
+    e.preventDefault(); // Prevent scrolling
+    const touch = e.touches[0];
+    const rect = cardRef.current.getBoundingClientRect();
+    
+    touchStartRef.current = {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    };
+    
+    setIsTouching(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || !cardRef.current || !touchStartRef.current) return;
+    
+    e.preventDefault(); // Prevent scrolling
+    const touch = e.touches[0];
+    const card = cardRef.current;
+    const rect = card.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Calculate rotation based on touch position (reduced intensity for larger modal)
+    const rotateX = ((y - centerY) / centerY) * -8; // Max 8 degrees
+    const rotateY = ((x - centerX) / centerX) * 8; // Max 8 degrees
+    
+    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
+    
+    // Update target light position - the virtual position will smoothly follow
+    const lightX = (x / rect.width) * 100;
+    const lightY = (y / rect.height) * 100;
+    setTargetLightPosition({ x: lightX, y: lightY });
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile) return;
+    
+    setIsTouching(false);
+    touchStartRef.current = null;
+    setTransform('');
+    setTargetLightPosition({ x: 50, y: 50 }); // Virtual position will smoothly return to center
+  };
+
   if (!shouldRender || !currentCard) return null;
 
   const hasEnchanted = currentCard.hasEnchanted && currentCard.enchantedCard;
@@ -308,9 +362,12 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
           onMouseEnter={handleMouseEnter}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           style={{
             transform: transform,
-            transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            transition: isHovered || isTouching ? 'transform 0.1s ease-out' : 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
           }}
         >
           {/* Holographic light effect overlay for non-foil modes */}
