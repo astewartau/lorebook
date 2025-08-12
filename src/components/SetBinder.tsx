@@ -7,24 +7,117 @@ import { consolidatedCards, sets } from '../data/allCards';
 import CardImage from './CardImage';
 import CardPreviewModal from './CardPreviewModal';
 import { ConsolidatedCard } from '../types';
+import { supabase, TABLES, UserBinder } from '../lib/supabase';
 
 const SetBinder: React.FC = () => {
-  const { setCode } = useParams<{ setCode: string }>();
+  const { setCode, binderId } = useParams<{ setCode?: string; binderId?: string }>();
   const navigate = useNavigate();
   const { getVariantQuantities } = useCollection();
   const imageLoad = useImageLoad();
   const [currentPageSpread, setCurrentPageSpread] = useState(0);
+  const [currentMobilePage, setCurrentMobilePage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<ConsolidatedCard | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [publishedBinder, setPublishedBinder] = useState<UserBinder | null>(null);
+  const [publishedBinderOwner, setPublishedBinderOwner] = useState<any>(null);
+  const [ownerCollection, setOwnerCollection] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  const setData = sets.find(set => set.code === setCode);
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Load published binder data if we have a binderId
+  useEffect(() => {
+    if (binderId) {
+      loadPublishedBinder();
+    }
+  }, [binderId]);
+
+  // Sync mobile page with desktop page on initial load
+  useEffect(() => {
+    setCurrentMobilePage(currentPageSpread * 2);
+  }, []);
+
+  const loadPublishedBinder = async () => {
+    if (!binderId) return;
+    
+    setLoading(true);
+    try {
+      // Load binder data
+      const { data: binderData, error: binderError } = await supabase
+        .from(TABLES.USER_BINDERS)
+        .select('*')
+        .eq('id', binderId)
+        .eq('is_public', true)
+        .single();
+
+      if (binderError) throw binderError;
+      setPublishedBinder(binderData);
+
+      // Load owner profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from(TABLES.USER_PROFILES)
+        .select('display_name, user_id')
+        .eq('user_id', binderData.user_id)
+        .single();
+
+      if (profileError) throw profileError;
+      setPublishedBinderOwner(profileData);
+
+      // Load owner's collection data
+      const { data: collectionData, error: collectionError } = await supabase
+        .from(TABLES.USER_COLLECTIONS)
+        .select('*')
+        .eq('user_id', binderData.user_id);
+
+      if (collectionError) throw collectionError;
+      setOwnerCollection(collectionData || []);
+
+    } catch (error) {
+      console.error('Error loading published binder:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Determine the actual setCode to use (from URL param or from published binder)
+  const effectiveSetCode = setCode || publishedBinder?.set_code;
+  const setData = effectiveSetCode ? sets.find(set => set.code === effectiveSetCode) : null;
   
-  const setCards = !setCode ? [] : consolidatedCards
-    .filter(card => card.baseCard.setCode === setCode)
+  const setCards = !effectiveSetCode ? [] : consolidatedCards
+    .filter(card => card.baseCard.setCode === effectiveSetCode)
     .sort((a, b) => a.baseCard.number - b.baseCard.number);
 
   const cardsWithOwnership = setCards.map(card => {
-    const quantities = getVariantQuantities(card.fullName);
+    let quantities;
+    
+    if (binderId && ownerCollection.length > 0) {
+      // For published binders, use owner's collection data
+      const ownerCard = ownerCollection.find(c => c.card_name === card.fullName);
+      quantities = {
+        regular: ownerCard?.regular_count || 0,
+        foil: ownerCard?.foil_count || 0,
+        enchanted: ownerCard?.enchanted_count || 0,
+        special: ownerCard?.special_count || 0
+      };
+    } else {
+      // For own binders, use collection context
+      quantities = getVariantQuantities(card.fullName);
+    }
+    
     const totalOwned = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
     
     return {
@@ -37,7 +130,9 @@ const SetBinder: React.FC = () => {
   // Calculate derived values
   const ownedCount = cardsWithOwnership.filter(card => card.owned).length;
   const completionPercentage = setCards.length > 0 ? (ownedCount / setCards.length) * 100 : 0;
+  // Desktop: 18 cards per spread (9 left + 9 right), Mobile: 9 cards per page
   const totalPageSpreads = Math.ceil(cardsWithOwnership.length / 18);
+  const totalMobilePages = Math.ceil(cardsWithOwnership.length / 9);
 
   // Preload adjacent pages for smooth navigation
   useEffect(() => {
@@ -85,6 +180,8 @@ const SetBinder: React.FC = () => {
     if (currentPageSpread < totalPageSpreads - 1) {
       console.log(`[SetBinder] Navigating to next page: ${currentPageSpread} → ${currentPageSpread + 1}`);
       setCurrentPageSpread(prev => prev + 1);
+      // Update mobile page to show equivalent content
+      setCurrentMobilePage(prev => Math.min(prev + 2, totalMobilePages - 1));
     }
   };
   
@@ -92,6 +189,56 @@ const SetBinder: React.FC = () => {
     if (currentPageSpread > 0) {
       console.log(`[SetBinder] Navigating to prev page: ${currentPageSpread} → ${currentPageSpread - 1}`);
       setCurrentPageSpread(prev => prev - 1);
+      // Update mobile page to show equivalent content
+      setCurrentMobilePage(prev => Math.max(prev - 2, 0));
+    }
+  };
+
+  const handleNextMobilePage = () => {
+    if (currentMobilePage < totalMobilePages - 1) {
+      console.log(`[SetBinder] Mobile navigating to next page: ${currentMobilePage} → ${currentMobilePage + 1}`);
+      setCurrentMobilePage(prev => prev + 1);
+      // Update desktop spread to show equivalent content
+      setCurrentPageSpread(Math.floor(currentMobilePage / 2));
+    }
+  };
+  
+  const handlePrevMobilePage = () => {
+    if (currentMobilePage > 0) {
+      console.log(`[SetBinder] Mobile navigating to prev page: ${currentMobilePage} → ${currentMobilePage - 1}`);
+      setCurrentMobilePage(prev => prev - 1);
+      // Update desktop spread to show equivalent content
+      setCurrentPageSpread(Math.floor((currentMobilePage - 1) / 2));
+    }
+  };
+
+  // Swipe detection
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isMobile) {
+      if (isLeftSwipe) {
+        // Swipe left = next page
+        handleNextMobilePage();
+      } else if (isRightSwipe) {
+        // Swipe right = previous page
+        handlePrevMobilePage();
+      }
     }
   };
 
@@ -103,6 +250,18 @@ const SetBinder: React.FC = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedCard(null);
+  };
+
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>, cardId: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setMousePosition({ x, y });
+    setHoveredCard(cardId);
+  };
+
+  const handleCardMouseLeave = () => {
+    setHoveredCard(null);
   };
 
 
@@ -122,16 +281,38 @@ const SetBinder: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [handlePrevPage, handleNextPage]);
 
-  if (!setData || !setCode) {
+  // Show loading spinner while loading published binder
+  if (loading && binderId) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-lorcana-ink mb-2">Set not found</h2>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-lorcana-gold mb-4"></div>
+          <p className="text-lorcana-ink">Loading binder...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error cases
+  if (!setData || (!setCode && !effectiveSetCode)) {
+    const isBinderNotFound = binderId && !publishedBinder;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-lorcana-ink mb-2">
+            {isBinderNotFound ? 'Binder not found' : 'Set not found'}
+          </h2>
+          <p className="text-lorcana-navy mb-4">
+            {isBinderNotFound 
+              ? 'This binder may have been deleted or made private.'
+              : 'The requested set could not be found.'
+            }
+          </p>
           <button 
-            onClick={() => navigate('/collection')}
+            onClick={() => navigate(binderId ? '/users' : '/collections')}
             className="btn-lorcana"
           >
-            Back to Collection
+            {binderId ? 'Back to Users' : 'Back to Collections'}
           </button>
         </div>
       </div>
@@ -140,25 +321,17 @@ const SetBinder: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen" style={{
+    <div className="min-h-screen w-screen fixed inset-0 overflow-auto" style={{
       background: 'linear-gradient(135deg, #2c1810 0%, #3d2817 25%, #4a3320 50%, #3d2817 75%, #2c1810 100%)',
-      position: 'relative'
+      margin: 0,
+      padding: 0
     }}>
-      {/* Wood grain texture overlay */}
-      <div className="absolute inset-0 opacity-20" style={{
-        backgroundImage: `repeating-linear-gradient(
-          90deg,
-          transparent,
-          transparent 2px,
-          rgba(0,0,0,0.1) 2px,
-          rgba(0,0,0,0.1) 4px
-        ), repeating-linear-gradient(
-          0deg,
-          transparent,
-          transparent 1px,
-          rgba(0,0,0,0.05) 1px,
-          rgba(0,0,0,0.05) 2px
-        )`
+      {/* Leather texture overlay for background - TEST */}
+      <div className="fixed inset-0 opacity-70" style={{
+        background: `url('/imgs/leather.png')`,
+        backgroundSize: '100px 100px',
+        mixBlendMode: 'normal',
+        zIndex: -1
       }} />
       {/* Header - floating above the binder */}
       <div className="relative z-10 p-4 pb-0">
@@ -167,19 +340,29 @@ const SetBinder: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => navigate('/collection')}
+                  onClick={() => navigate(binderId ? '/users' : '/collections')}
                   className="flex items-center gap-2 text-lorcana-navy hover:text-lorcana-gold transition-colors"
                 >
                   <ArrowLeft size={20} />
-                  <span>Back to Collection</span>
+                  <span>{binderId ? 'Back to Users' : 'Back to Collections'}</span>
                 </button>
                 <div className="w-px h-8 bg-lorcana-gold"></div>
                 <div className="flex items-center gap-3">
                   <Book size={24} className="text-lorcana-gold" />
                   <div>
-                    <h1 className="text-2xl font-bold text-lorcana-ink">{setData.name} Binder</h1>
+                    <h1 className="text-2xl font-bold text-lorcana-ink">
+                      {publishedBinder ? publishedBinder.name : `${setData.name} Binder`}
+                    </h1>
                     <p className="text-lorcana-navy">
-                      Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
+                      {publishedBinder && publishedBinderOwner ? (
+                        <>
+                          {publishedBinderOwner.display_name}'s Collection • Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
+                        </>
+                      ) : (
+                        <>
+                          Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -190,13 +373,16 @@ const SetBinder: React.FC = () => {
       </div>
 
       {/* Page Navigation - Above Binder */}
-      <div className="p-4 pb-2">
+      <div className="sm:p-4 sm:pb-2 p-2 pb-1">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center sm:mb-4 mb-2">
+            {/* Desktop navigation buttons */}
             <button
-              onClick={handlePrevPage}
+              onClick={() => {
+                handlePrevPage();
+              }}
               disabled={currentPageSpread === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                 currentPageSpread === 0
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
                   : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700 hover:scale-105 shadow-lg'
@@ -205,16 +391,36 @@ const SetBinder: React.FC = () => {
               <ChevronLeft size={20} />
               <span>Previous</span>
             </button>
+            
+            {/* Mobile: Empty space for centering */}
+            <div className="sm:hidden w-8"></div>
 
             <div className="text-center text-amber-100">
-              <div className="text-lg font-semibold">
-                Pages {currentPageSpread * 2 + 1}-{Math.min(currentPageSpread * 2 + 2, totalPageSpreads * 2)}
+              {/* Desktop navigation display */}
+              <div className="hidden sm:block">
+                <div className="text-lg font-semibold">
+                  Pages {currentPageSpread * 2 + 1}-{Math.min(currentPageSpread * 2 + 2, totalPageSpreads * 2)}
+                </div>
+                <div className="text-sm opacity-80 mb-2">
+                  Spread {currentPageSpread + 1} of {totalPageSpreads}
+                </div>
               </div>
-              <div className="text-sm opacity-80 mb-2">
-                Spread {currentPageSpread + 1} of {totalPageSpreads}
+              
+              {/* Mobile navigation display */}
+              <div className="sm:hidden">
+                <div className="text-lg font-semibold">
+                  Page {currentMobilePage + 1}
+                </div>
+                <div className="text-sm opacity-80 mb-2">
+                  {currentMobilePage + 1} of {totalMobilePages}
+                </div>
+                <div className="text-xs opacity-60 text-amber-200">
+                  Swipe left/right to navigate
+                </div>
               </div>
-              {/* Progress dots */}
-              <div className="flex justify-center gap-1">
+              
+              {/* Progress dots - Desktop */}
+              <div className="hidden sm:flex justify-center gap-1">
                 {Array.from({ length: totalPageSpreads }, (_, i) => (
                   <button
                     key={i}
@@ -222,6 +428,7 @@ const SetBinder: React.FC = () => {
                       if (i !== currentPageSpread) {
                         console.log(`[SetBinder] Navigating via dot: ${currentPageSpread} → ${i}`);
                         setCurrentPageSpread(i);
+                        setCurrentMobilePage(i * 2);
                       }
                     }}
                     className={`w-2 h-2 rounded-full transition-all duration-200 ${
@@ -232,15 +439,39 @@ const SetBinder: React.FC = () => {
                   />
                 ))}
               </div>
-              <div className="text-xs opacity-60 mt-2 text-amber-200">
+              
+              {/* Progress dots - Mobile */}
+              <div className="sm:hidden flex justify-center gap-1">
+                {Array.from({ length: totalMobilePages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (i !== currentMobilePage) {
+                        console.log(`[SetBinder] Mobile navigating via dot: ${currentMobilePage} → ${i}`);
+                        setCurrentMobilePage(i);
+                        setCurrentPageSpread(Math.floor(i / 2));
+                      }
+                    }}
+                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                      i === currentMobilePage 
+                        ? 'bg-amber-300 scale-125' 
+                        : 'bg-amber-600/60 hover:bg-amber-400'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="text-xs opacity-60 mt-2 text-amber-200 hidden sm:block">
                 Use ← → arrow keys to navigate
               </div>
             </div>
 
+            {/* Desktop navigation buttons */}
             <button
-              onClick={handleNextPage}
+              onClick={() => {
+                handleNextPage();
+              }}
               disabled={currentPageSpread >= totalPageSpreads - 1}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                 currentPageSpread >= totalPageSpreads - 1
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
                   : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700 hover:scale-105 shadow-lg'
@@ -249,94 +480,88 @@ const SetBinder: React.FC = () => {
               <span>Next</span>
               <ChevronRight size={20} />
             </button>
+            
+            {/* Mobile: Empty space for centering */}
+            <div className="sm:hidden w-8"></div>
           </div>
         </div>
       </div>
 
       {/* Binder Physical Representation */}
-      <div className="p-4 pt-0">
+      <div className="sm:p-4 sm:pt-0 p-2 pt-0">
         <div className="max-w-7xl mx-auto">
           {/* Binder Cover/Spine Effect */}
           <div 
             className="relative flex flex-col"
             style={{
-              background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 25%, #CD853F  50%, #DEB887 75%, #F5DEB3 100%), linear-gradient(90deg, #2C1810 0%, #5D2E14 5%, #8B4513 15%, #A0522D 85%, #5D2E14 95%, #2C1810 100%)',
-              backgroundBlendMode: 'multiply',
+              background: `
+                url('/imgs/leather.png'),
+                linear-gradient(135deg, #2C1810 0%, #4A2C1A 25%, #6B3A20 50%, #4A2C1A 75%, #2C1810 100%)
+              `,
+              backgroundSize: '100px 100px, 100% 100%',
+              backgroundBlendMode: 'normal, multiply',
               borderRadius: '12px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3), inset 0 2px 10px rgba(255,255,255,0.1)',
-              border: '3px solid #8B4513'
+              boxShadow: `
+                0 25px 50px rgba(0,0,0,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                inset 0 -1px 0 rgba(0,0,0,0.8),
+                inset 2px 0 4px rgba(0,0,0,0.3),
+                inset -2px 0 4px rgba(0,0,0,0.3)
+              `,
+              border: '2px solid #1A0F08'
             }}
           >
             
-            {/* Binder binding holes and spine details */}
-            <div className="absolute left-4 top-8 bottom-8 w-8 flex flex-col justify-center items-center space-y-6">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="relative">
-                  {/* Ring base */}
-                  <div
-                    className="w-6 h-6 rounded-full"
-                    style={{
-                      background: 'linear-gradient(145deg, #C0C0C0 0%, #808080 50%, #404040 100%)',
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.5)'
-                    }}
-                  >
-                    {/* Inner ring hole */}
-                    <div
-                      className="absolute inset-1 rounded-full"
-                      style={{
-                        background: 'radial-gradient(circle at 30% 30%, #2A2A2A, #0A0A0A)',
-                        boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.9), inset 0 -1px 2px rgba(255,255,255,0.1)'
-                      }}
-                    />
-                    {/* Metallic highlight */}
-                    <div
-                      className="absolute top-1 left-1 w-2 h-2 rounded-full opacity-70"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.8), transparent)',
-                        filter: 'blur(1px)'
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
             
-            {/* Spine stitching */}
-            <div className="absolute left-12 top-4 bottom-4 w-px flex flex-col justify-between">
+            {/* Desktop spine stitching - left side */}
+            <div className="hidden sm:flex absolute left-8 top-4 bottom-4 w-px flex-col justify-between">
               {[...Array(20)].map((_, i) => (
                 <div
                   key={i}
                   className="h-2 w-px"
                   style={{
-                    background: 'linear-gradient(to bottom, #8B6B47, #6B5B37)',
-                    boxShadow: '1px 1px 2px rgba(0,0,0,0.3)'
+                    background: 'linear-gradient(to bottom, #D4AF37, #B8941F)',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.3)'
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Mobile top stitching */}
+            <div className="sm:hidden absolute top-4 left-4 right-4 h-px flex justify-between">
+              {[...Array(15)].map((_, i) => (
+                <div
+                  key={i}
+                  className="w-2 h-px"
+                  style={{
+                    background: 'linear-gradient(to right, #D4AF37, #B8941F)',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.3)'
                   }}
                 />
               ))}
             </div>
 
             {/* Main binder content area */}
-            <div className="pl-16 pr-8 py-8 flex-1 flex flex-col">
+            <div className="sm:pl-16 sm:pr-8 sm:py-8 pl-4 pr-4 pt-8 pb-4 flex-1 flex flex-col">
 
               {/* Binder Page Spread */}
               <div className="page-container relative flex-1">
-                <div
-                  className="page-spread flex gap-0 h-full relative"
-                >
-                  {/* Left Page */}
-                  <div className="flex-1 flex flex-col" style={{
-                    position: 'relative',
-                    zIndex: 1,
+                {/* Desktop: Two-page spread with 3D effects */}
+                <div className="hidden sm:flex page-spread gap-0 h-full relative">
+                  {/* Page stack effects - multiple layers for deeper 3D effect */}
+                  
+                  {/* Third layer - deepest pages */}
+                  <div className="absolute z-0" style={{ 
+                    left: '-8px', 
+                    right: '50%', 
+                    top: '5px', 
+                    bottom: '-9px',
                     background: `
-                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%),
-                      repeating-linear-gradient(
-                        0deg,
-                        transparent,
-                        transparent 2px,
-                        rgba(218,165,32,0.03) 2px,
-                        rgba(218,165,32,0.03) 4px
-                      )
+                      url('/imgs/paper.png'),
+                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
                     `,
+                    backgroundSize: '80px 80px, 100% 100%',
+                    backgroundBlendMode: 'normal, multiply',
                     border: '2px solid #D4AF37',
                     borderRadius: '8px 2px 2px 8px',
                     boxShadow: `
@@ -344,19 +569,105 @@ const SetBinder: React.FC = () => {
                       inset -2px 0 4px rgba(0,0,0,0.1),
                       inset 0 1px 3px rgba(212,175,55,0.3),
                       2px 0 8px rgba(0,0,0,0.1)
+                    `
+                  }} />
+                  <div className="absolute z-0" style={{ 
+                    right: '-8px', 
+                    left: '50%', 
+                    top: '5px', 
+                    bottom: '-9px',
+                    background: `
+                      url('/imgs/paper.png'),
+                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
                     `,
-                    padding: '24px'
-                  }}>
+                    backgroundSize: '80px 80px, 100% 100%',
+                    backgroundBlendMode: 'normal, multiply',
+                    border: '2px solid #D4AF37',
+                    borderRadius: '2px 8px 8px 2px',
+                    boxShadow: `
+                      0 4px 8px rgba(0,0,0,0.2),
+                      inset 2px 0 4px rgba(0,0,0,0.1),
+                      inset 0 1px 3px rgba(212,175,55,0.3),
+                      -2px 0 8px rgba(0,0,0,0.1)
+                    `
+                  }} />
+                  
+                  {/* Second layer - middle pages */}
+                  <div className="absolute z-0" style={{ 
+                    left: '-4px', 
+                    right: '50%', 
+                    top: '2px', 
+                    bottom: '-5px',
+                    background: `
+                      url('/imgs/paper.png'),
+                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
+                    `,
+                    backgroundSize: '80px 80px, 100% 100%',
+                    backgroundBlendMode: 'normal, multiply',
+                    border: '2px solid #D4AF37',
+                    borderRadius: '8px 2px 2px 8px',
+                    boxShadow: `
+                      0 4px 8px rgba(0,0,0,0.2),
+                      inset -2px 0 4px rgba(0,0,0,0.1),
+                      inset 0 1px 3px rgba(212,175,55,0.3),
+                      2px 0 8px rgba(0,0,0,0.1)
+                    `
+                  }} />
+                  <div className="absolute z-0" style={{ 
+                    right: '-4px', 
+                    left: '50%', 
+                    top: '2px', 
+                    bottom: '-5px',
+                    background: `
+                      url('/imgs/paper.png'),
+                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
+                    `,
+                    backgroundSize: '80px 80px, 100% 100%',
+                    backgroundBlendMode: 'normal, multiply',
+                    border: '2px solid #D4AF37',
+                    borderRadius: '2px 8px 8px 2px',
+                    boxShadow: `
+                      0 4px 8px rgba(0,0,0,0.2),
+                      inset 2px 0 4px rgba(0,0,0,0.1),
+                      inset 0 1px 3px rgba(212,175,55,0.3),
+                      -2px 0 8px rgba(0,0,0,0.1)
+                    `
+                  }} />
+                  
+                  {/* Left Page */}
+                  <div className="relative flex-1">
+                    
+                    <div className="h-full flex flex-col relative z-10" style={{
+                      position: 'relative',
+                      background: `
+                        url('/imgs/paper.png'),
+                        linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
+                      `,
+                      backgroundSize: '80px 80px, 100% 100%',
+                      backgroundBlendMode: 'normal, multiply',
+                      border: '2px solid #D4AF37',
+                      borderRadius: '8px 2px 2px 8px',
+                      boxShadow: `
+                        0 4px 8px rgba(0,0,0,0.2),
+                        inset -2px 0 4px rgba(0,0,0,0.1),
+                        inset 0 1px 3px rgba(212,175,55,0.3),
+                        2px 0 8px rgba(0,0,0,0.1)
+                      `,
+                      padding: '24px'
+                    }}>
                     {/* Page edge effect */}
                     <div className="absolute right-0 top-0 bottom-0 w-px" style={{
                       background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.05), rgba(0,0,0,0.1))',
                       boxShadow: '-1px 0 2px rgba(0,0,0,0.05)'
                     }} />
                     
-                    {/* Paper fiber texture */}
-                    <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")`,
-                      mixBlendMode: 'multiply'
+                    {/* Paper texture enhancement - TEST */}
+                    <div className="absolute inset-0 opacity-50 pointer-events-none" style={{
+                      background: `
+                        url('/imgs/paper.png')
+                      `,
+                      backgroundSize: '50px 50px',
+                      mixBlendMode: 'normal'
                     }} />
                     {/* Page content */}
                     <div className="grid grid-cols-3 gap-3 flex-1">
@@ -367,6 +678,8 @@ const SetBinder: React.FC = () => {
                             key={cardData.baseCard.id}
                             className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
                             onClick={() => handleCardClick(cardData)}
+                            onMouseMove={(e) => handleCardMouseMove(e, cardData.baseCard.id.toString())}
+                            onMouseLeave={handleCardMouseLeave}
                             style={{
                               border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
                               background: cardData.owned 
@@ -406,20 +719,52 @@ const SetBinder: React.FC = () => {
 
                               {/* Plastic sleeve shine effect for owned cards */}
                               {cardData.owned && (
-                                <div 
-                                  className="absolute inset-0 pointer-events-none"
-                                  style={{
-                                    background: `linear-gradient(
-                                      135deg,
-                                      transparent 0%,
-                                      rgba(255,255,255,0.2) 45%,
-                                      rgba(255,255,255,0.3) 50%,
-                                      rgba(255,255,255,0.2) 55%,
-                                      transparent 100%
-                                    )`,
-                                    opacity: 0.6
-                                  }}
-                                />
+                                <>
+                                  {/* Rectangular border shine - like light hitting the raised sleeve edges */}
+                                  <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                      background: `
+                                        linear-gradient(to right, rgba(255,255,255,0.4) 0%, transparent 8%),
+                                        linear-gradient(to left, rgba(255,255,255,0.4) 0%, transparent 8%),
+                                        linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 6%),
+                                        linear-gradient(to top, rgba(255,255,255,0.3) 0%, transparent 6%)
+                                      `,
+                                      opacity: 0.6
+                                    }}
+                                  />
+                                  {/* Corner highlights */}
+                                  <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                      background: `
+                                        radial-gradient(circle at top left, rgba(255,255,255,0.5) 0%, transparent 25%),
+                                        radial-gradient(circle at top right, rgba(255,255,255,0.5) 0%, transparent 25%),
+                                        radial-gradient(circle at bottom left, rgba(255,255,255,0.3) 0%, transparent 25%),
+                                        radial-gradient(circle at bottom right, rgba(255,255,255,0.3) 0%, transparent 25%)
+                                      `,
+                                      opacity: 0.4
+                                    }}
+                                  />
+                                  {/* Dynamic mouse light effect */}
+                                  {hoveredCard === cardData.baseCard.id.toString() && (
+                                    <div 
+                                      className="absolute inset-0 pointer-events-none transition-opacity duration-150"
+                                      style={{
+                                        background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 20%, rgba(255,255,255,0.1) 40%, transparent 60%)`,
+                                        opacity: 0.8
+                                      }}
+                                    />
+                                  )}
+                                  {/* Subtle overall gloss */}
+                                  <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                      background: 'rgba(255,255,255,0.05)',
+                                      opacity: 0.8
+                                    }}
+                                  />
+                                </>
                               )}
                               
                               {/* Card number at bottom */}
@@ -445,42 +790,43 @@ const SetBinder: React.FC = () => {
                     <div className="mt-auto pt-4 text-center text-amber-800 text-sm font-medium relative z-10">
                       Page {currentPageSpread * 2 + 1}
                     </div>
+                    </div>
                   </div>
 
                   {/* Right Page */}
-                  <div className="flex-1 flex flex-col" style={{
-                    position: 'relative',
-                    zIndex: 1,
-                    background: `
-                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%),
-                      repeating-linear-gradient(
-                        0deg,
-                        transparent,
-                        transparent 2px,
-                        rgba(218,165,32,0.03) 2px,
-                        rgba(218,165,32,0.03) 4px
-                      )
-                    `,
-                    border: '2px solid #D4AF37',
-                    borderRadius: '2px 8px 8px 2px',
-                    boxShadow: `
-                      0 4px 8px rgba(0,0,0,0.2),
-                      inset 2px 0 4px rgba(0,0,0,0.1),
-                      inset 0 1px 3px rgba(212,175,55,0.3),
-                      -2px 0 8px rgba(0,0,0,0.1)
-                    `,
-                    padding: '24px'
-                  }}>
+                  <div className="relative flex-1">
+                    
+                    <div className="h-full flex flex-col relative z-10" style={{
+                      position: 'relative',
+                      background: `
+                        url('/imgs/paper.png'),
+                        linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
+                      `,
+                      backgroundSize: '80px 80px, 100% 100%',
+                      backgroundBlendMode: 'normal, multiply',
+                      border: '2px solid #D4AF37',
+                      borderRadius: '2px 8px 8px 2px',
+                      boxShadow: `
+                        0 4px 8px rgba(0,0,0,0.2),
+                        inset 2px 0 4px rgba(0,0,0,0.1),
+                        inset 0 1px 3px rgba(212,175,55,0.3),
+                        -2px 0 8px rgba(0,0,0,0.1)
+                      `,
+                      padding: '24px'
+                    }}>
                     {/* Page edge effect */}
                     <div className="absolute left-0 top-0 bottom-0 w-px" style={{
                       background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.05), rgba(0,0,0,0.1))',
                       boxShadow: '1px 0 2px rgba(0,0,0,0.05)'
                     }} />
                     
-                    {/* Paper fiber texture */}
-                    <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")`,
-                      mixBlendMode: 'multiply'
+                    {/* Paper texture enhancement - TEST */}
+                    <div className="absolute inset-0 opacity-50 pointer-events-none" style={{
+                      background: `
+                        url('/imgs/paper.png')
+                      `,
+                      backgroundSize: '50px 50px',
+                      mixBlendMode: 'normal'
                     }} />
                     {/* Page content */}
                     <div className="grid grid-cols-3 gap-3 flex-1">
@@ -491,6 +837,8 @@ const SetBinder: React.FC = () => {
                             key={cardData.baseCard.id}
                             className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
                             onClick={() => handleCardClick(cardData)}
+                            onMouseMove={(e) => handleCardMouseMove(e, cardData.baseCard.id.toString())}
+                            onMouseLeave={handleCardMouseLeave}
                             style={{
                               border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
                               background: cardData.owned 
@@ -530,20 +878,52 @@ const SetBinder: React.FC = () => {
 
                               {/* Plastic sleeve shine effect for owned cards */}
                               {cardData.owned && (
-                                <div 
-                                  className="absolute inset-0 pointer-events-none"
-                                  style={{
-                                    background: `linear-gradient(
-                                      135deg,
-                                      transparent 0%,
-                                      rgba(255,255,255,0.2) 45%,
-                                      rgba(255,255,255,0.3) 50%,
-                                      rgba(255,255,255,0.2) 55%,
-                                      transparent 100%
-                                    )`,
-                                    opacity: 0.6
-                                  }}
-                                />
+                                <>
+                                  {/* Rectangular border shine - like light hitting the raised sleeve edges */}
+                                  <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                      background: `
+                                        linear-gradient(to right, rgba(255,255,255,0.4) 0%, transparent 8%),
+                                        linear-gradient(to left, rgba(255,255,255,0.4) 0%, transparent 8%),
+                                        linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 6%),
+                                        linear-gradient(to top, rgba(255,255,255,0.3) 0%, transparent 6%)
+                                      `,
+                                      opacity: 0.6
+                                    }}
+                                  />
+                                  {/* Corner highlights */}
+                                  <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                      background: `
+                                        radial-gradient(circle at top left, rgba(255,255,255,0.5) 0%, transparent 25%),
+                                        radial-gradient(circle at top right, rgba(255,255,255,0.5) 0%, transparent 25%),
+                                        radial-gradient(circle at bottom left, rgba(255,255,255,0.3) 0%, transparent 25%),
+                                        radial-gradient(circle at bottom right, rgba(255,255,255,0.3) 0%, transparent 25%)
+                                      `,
+                                      opacity: 0.4
+                                    }}
+                                  />
+                                  {/* Dynamic mouse light effect */}
+                                  {hoveredCard === cardData.baseCard.id.toString() && (
+                                    <div 
+                                      className="absolute inset-0 pointer-events-none transition-opacity duration-150"
+                                      style={{
+                                        background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 20%, rgba(255,255,255,0.1) 40%, transparent 60%)`,
+                                        opacity: 0.8
+                                      }}
+                                    />
+                                  )}
+                                  {/* Subtle overall gloss */}
+                                  <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                      background: 'rgba(255,255,255,0.05)',
+                                      opacity: 0.8
+                                    }}
+                                  />
+                                </>
                               )}
                               
                               {/* Card number at bottom */}
@@ -569,6 +949,108 @@ const SetBinder: React.FC = () => {
                     <div className="mt-auto pt-4 text-center text-amber-800 text-sm font-medium relative z-10">
                       Page {currentPageSpread * 2 + 2}
                     </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Mobile: Single page view */}
+                <div 
+                  className="sm:hidden relative h-full"
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  style={{ touchAction: 'pan-y pinch-zoom' }}
+                >
+                  <div className="h-full flex flex-col relative z-10" style={{
+                    background: `
+                      url('/imgs/paper.png'),
+                      linear-gradient(135deg, #FFFEF7 0%, #FFF8DC 25%, #F5F5DC 100%)
+                    `,
+                    backgroundSize: '60px 60px, 100% 100%',
+                    backgroundBlendMode: 'normal, multiply',
+                    border: '2px solid #D4AF37',
+                    borderRadius: '8px',
+                    boxShadow: `
+                      0 4px 8px rgba(0,0,0,0.2),
+                      inset 0 1px 3px rgba(212,175,55,0.3)
+                    `,
+                    padding: '8px'
+                  }}>
+                    {/* Paper texture enhancement */}
+                    <div className="absolute inset-0 opacity-40 pointer-events-none" style={{
+                      background: `url('/imgs/paper.png')`,
+                      backgroundSize: '40px 40px',
+                      mixBlendMode: 'normal'
+                    }} />
+                    
+                    {/* Page content - show 9 cards per mobile page */}
+                    <div className="grid grid-cols-3 gap-1 flex-1">
+                      {cardsWithOwnership
+                        .slice(currentMobilePage * 9, (currentMobilePage + 1) * 9)
+                        .map((cardData, index) => (
+                          <div
+                            key={cardData.baseCard.id}
+                            className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
+                            onClick={() => handleCardClick(cardData)}
+                            style={{
+                              border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
+                              background: cardData.owned 
+                                ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,248,248,0.95) 100%)' 
+                                : 'linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%)',
+                              boxShadow: cardData.owned 
+                                ? 'inset 0 1px 3px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.1)'
+                                : 'inset 0 1px 3px rgba(0,0,0,0.3)'
+                            }}
+                          >
+                            <div className="absolute inset-0" style={{
+                              boxShadow: cardData.owned ? 'inset 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 1px 3px rgba(0,0,0,0.3)',
+                              backgroundImage: 'url(/imgs/cardback.svg)',
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center'
+                            }}>
+                              {/* Card image */}
+                              <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
+                                <CardImage
+                                  card={cardData.baseCard}
+                                  enchantedCard={cardData.enchantedCard}
+                                  size="full"
+                                  enableHover={false}
+                                  enableTilt={false}
+                                  className="w-full h-full"
+                                />
+                              </div>
+                              
+                              {cardData.owned && (
+                                /* Quantity badge */
+                                <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1 py-0.5 rounded shadow-lg">
+                                  {cardData.quantities.regular + cardData.quantities.foil + cardData.quantities.enchanted + cardData.quantities.special}
+                                </div>
+                              )}
+                              
+                              {/* Card number */}
+                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1 py-0.5 rounded">
+                                #{cardData.baseCard.number}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {/* Fill empty slots */}
+                      {Array.from({ 
+                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentMobilePage * 9, (currentMobilePage + 1) * 9).length) 
+                      }, (_, i) => (
+                        <div
+                          key={`empty-mobile-${i}`}
+                          className="border-2 border-dashed border-gray-300 bg-gray-50 opacity-30"
+                          style={{ aspectRatio: '5/7' }}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Page number */}
+                    <div className="mt-auto pt-1 text-center text-amber-800 text-sm font-medium relative z-10">
+                      Page {currentMobilePage + 1}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -576,6 +1058,9 @@ const SetBinder: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Extra whitespace for scrolling */}
+      <div className="sm:h-20 h-24"></div>
 
       {/* Card Preview Modal */}
       <CardPreviewModal

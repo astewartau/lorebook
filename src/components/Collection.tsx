@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Package, Upload, Trash2, TrendingUp, Star, Book } from 'lucide-react';
+import { Package, Upload, Trash2, TrendingUp, Star, Book, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase, TABLES } from '../lib/supabase';
 import { consolidatedCards, sets } from '../data/allCards';
 import { RARITY_ICONS } from '../constants/icons';
 import DreambornImport from './DreambornImport';
@@ -127,6 +128,66 @@ const Collection: React.FC = () => {
     setShowDeleteConfirm(false);
   };
 
+  const handlePublishBinder = async (setCode: string, setName: string) => {
+    if (!user) {
+      alert('You must be logged in to publish a binder');
+      return;
+    }
+
+    try {
+      // Check if this binder is already published
+      const { data: existingBinder, error: checkError } = await supabase
+        .from(TABLES.USER_BINDERS)
+        .select('id, is_public')
+        .eq('user_id', user.id)
+        .eq('set_code', setCode)
+        .eq('binder_type', 'set')
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned", which is expected if binder doesn't exist
+        throw checkError;
+      }
+
+      if (existingBinder) {
+        if (existingBinder.is_public) {
+          alert(`${setName} binder is already published!`);
+          return;
+        } else {
+          // Update existing binder to make it public
+          const { error: updateError } = await supabase
+            .from(TABLES.USER_BINDERS)
+            .update({ is_public: true })
+            .eq('id', existingBinder.id);
+
+          if (updateError) throw updateError;
+          alert(`${setName} binder has been published successfully!`);
+          return;
+        }
+      }
+
+      // Create new published binder
+      const { error: insertError } = await supabase
+        .from(TABLES.USER_BINDERS)
+        .insert({
+          user_id: user.id,
+          name: setName,
+          description: `My ${setName} collection binder`,
+          binder_type: 'set',
+          set_code: setCode,
+          cards: [],
+          is_public: true
+        });
+
+      if (insertError) throw insertError;
+
+      alert(`${setName} binder has been published successfully!`);
+    } catch (error) {
+      console.error('Error publishing binder:', error);
+      alert('Failed to publish binder. Please try again.');
+    }
+  };
+
 
   const getProgressBarColor = (percentage: number) => {
     if (percentage === 100) return 'bg-lorcana-gold';
@@ -136,35 +197,18 @@ const Collection: React.FC = () => {
     return 'bg-red-500';
   };
 
-  // Show auth required if not signed in
-  if (!user) {
-    return (
-      <AuthRequired 
-        feature="collection" 
-        onSignIn={() => {
-          // Open login modal - need to pass this from App.tsx
-          const signInButton = document.querySelector('[data-sign-in-button]') as HTMLButtonElement;
-          if (signInButton) signInButton.click();
-        }}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-lorcana-navy border-2 border-lorcana-gold rounded-sm shadow-xl p-6 art-deco-corner">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h2 className="text-3xl font-bold text-lorcana-gold mb-2 tracking-wider">My Collection</h2>
-            <div className="flex gap-6 text-sm text-lorcana-cream">
-              <div className="flex items-center gap-2">
-                <Package size={16} />
-                <span>{totalCards} total cards</span>
-              </div>
-              <div>
-                <span>{uniqueCards} unique cards</span>
-              </div>
+      {/* Collection Stats and Actions */}
+      <div className="bg-white border-2 border-lorcana-gold rounded-sm shadow-lg p-6 art-deco-corner">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="flex gap-6 text-sm text-lorcana-ink">
+            <div className="flex items-center gap-2">
+              <Package size={16} />
+              <span>{totalCards} total cards</span>
+            </div>
+            <div>
+              <span>{uniqueCards} unique cards</span>
             </div>
           </div>
           <div className="flex space-x-2 mt-4 md:mt-0">
@@ -239,14 +283,21 @@ const Collection: React.FC = () => {
                 </div>
               </div>
 
-              {/* View Binder Button */}
-              <div className="mb-4">
+              {/* Binder Actions */}
+              <div className="mb-4 flex gap-2">
                 <button
                   onClick={() => navigate(`/collection/binder/${setData.code}`)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-lorcana-gold text-lorcana-ink font-medium rounded-sm hover:bg-lorcana-gold/90 transition-colors border-2 border-lorcana-gold"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-lorcana-gold text-lorcana-ink font-medium rounded-sm hover:bg-lorcana-gold/90 transition-colors border-2 border-lorcana-gold"
                 >
                   <Book size={16} />
-                  <span>View Binder</span>
+                  <span>View</span>
+                </button>
+                <button
+                  onClick={() => handlePublishBinder(setData.code, setData.name)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-lorcana-navy text-lorcana-cream font-medium rounded-sm hover:bg-lorcana-purple transition-colors border-2 border-lorcana-navy"
+                >
+                  <Share2 size={16} />
+                  <span>Publish</span>
                 </button>
               </div>
 

@@ -43,7 +43,7 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
               <UsersIcon size={32} className="mr-3 text-lorcana-gold" />
               Community Users
             </h1>
-            <p className="text-lorcana-navy">Discover fellow Lorcana enthusiasts and their published decks</p>
+            <p className="text-lorcana-navy">Discover fellow Lorcana enthusiasts and their published decks and binders</p>
           </div>
           
           {/* Art Deco Decoration */}

@@ -13,6 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export const TABLES = {
   USER_COLLECTIONS: 'user_collections',
   USER_DECKS: 'user_decks',
+  USER_BINDERS: 'user_binders',
   USER_PROFILES: 'user_profiles',
 } as const
 
@@ -35,6 +36,19 @@ export interface UserDeck {
   name: string
   description?: string
   cards: any[] // JSON array of deck cards
+  is_public: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface UserBinder {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  binder_type: 'set' | 'custom'
+  set_code?: string
+  cards: any[] // JSON array for custom binders
   is_public: boolean
   created_at: string
   updated_at: string

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, Package, Layers3, Users } from 'lucide-react';
 import CardBrowser from './components/CardBrowser';
-import Collection from './components/Collection';
+import Collections from './components/Collections';
 import SetBinder from './components/SetBinder';
 import MyDecks from './components/MyDecks';
 import DeckSummary from './components/DeckSummary';
@@ -32,6 +32,9 @@ function AppContent() {
   const isActivePath = (path: string) => {
     if (path === '/cards') {
       return location.pathname === '/' || location.pathname === '/cards';
+    }
+    if (path === '/collections') {
+      return location.pathname.startsWith('/collections') || location.pathname.startsWith('/collection');
     }
     return location.pathname.startsWith(path);
   };
@@ -138,7 +141,7 @@ function AppContent() {
                         <div className="flex space-x-1">
                           {[
                             { id: '/cards', label: 'Cards', icon: BookOpen },
-                            { id: '/collection', label: 'Collection', icon: Package },
+                            { id: '/collections', label: 'Collections', icon: Package },
                             { id: '/decks', label: 'Decks', icon: Layers3 },
                             { id: '/users', label: 'Users', icon: Users },
                           ].map((tab) => {
@@ -169,8 +172,9 @@ function AppContent() {
                 <Routes>
                   <Route path="/" element={<CardBrowser />} />
                   <Route path="/cards" element={<CardBrowser />} />
-                  <Route path="/collection" element={<Collection />} />
+                  <Route path="/collections" element={<Collections />} />
                   <Route path="/collection/binder/:setCode" element={<SetBinder />} />
+                  <Route path="/binder/:binderId" element={<SetBinder />} />
                   <Route path="/decks" element={<MyDecks onBuildDeck={() => {}} onViewDeck={(deckId: string) => navigate(`/deck/${deckId}`)} />} />
                   <Route path="/deck/:deckId" element={<DeckSummary onBack={() => navigate('/decks')} onEditDeck={() => {}} />} />
                   <Route path="/users" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/users/${userId}`)} />} />

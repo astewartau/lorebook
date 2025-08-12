@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Calendar, Edit3, Eye } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Edit3, Eye, Book } from 'lucide-react';
 import { UserProfile, Deck } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeck } from '../contexts/DeckContext';
@@ -8,6 +8,7 @@ import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
 import ProfileEditModal from './ProfileEditModal';
 import { DECK_RULES } from '../constants';
+import { supabase, TABLES, UserBinder } from '../lib/supabase';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -21,6 +22,7 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
   const { loadUserProfile } = useProfile();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userDecks, setUserDecks] = useState<Deck[]>([]);
+  const [userBinders, setUserBinders] = useState<UserBinder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
@@ -48,6 +50,30 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
       setUserDecks(userPublicDecks);
     }
   }, [userId, publicDecks]);
+
+  // Load user's public binders
+  useEffect(() => {
+    if (userId) {
+      loadUserBinders(userId);
+    }
+  }, [userId]);
+
+  const loadUserBinders = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.USER_BINDERS)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUserBinders(data || []);
+    } catch (error) {
+      console.error('Error loading user binders:', error);
+      setUserBinders([]);
+    }
+  };
 
   if (loading) {
     return (
@@ -251,6 +277,61 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Published Binders Section */}
+      <div className="card-lorcana p-6 art-deco-corner">
+        <h2 className="text-xl font-bold text-lorcana-ink mb-6 flex items-center">
+          <div className="w-1 h-6 bg-lorcana-gold mr-3"></div>
+          Published Binders
+          <span className="ml-2 px-2 py-1 bg-lorcana-gold text-lorcana-ink text-sm font-medium rounded-sm">
+            {userBinders.length}
+          </span>
+        </h2>
+
+        {userBinders.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-lorcana-navy">
+              {isOwnProfile ? "You haven't published any binders yet." : "This user hasn't published any binders yet."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {userBinders.map(binder => (
+              <div key={binder.id} className="bg-lorcana-cream border-2 border-lorcana-gold rounded-sm p-4 hover:shadow-lg transition-all duration-300 art-deco-corner">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-lorcana-ink truncate">{binder.name}</h3>
+                  <div className="flex items-center space-x-1 text-xs text-lorcana-navy bg-lorcana-purple/20 px-2 py-1 rounded-sm">
+                    <Book size={12} />
+                    <span>{binder.binder_type === 'set' ? 'Set' : 'Custom'}</span>
+                  </div>
+                </div>
+                
+                {binder.description && (
+                  <p className="text-sm text-lorcana-navy mb-3 line-clamp-2">{binder.description}</p>
+                )}
+                
+                {binder.set_code && (
+                  <div className="text-xs text-lorcana-purple mb-4">
+                    Set: {binder.set_code.toUpperCase()}
+                  </div>
+                )}
+                
+                <div className="text-xs text-lorcana-purple mb-4">
+                  Published {new Date(binder.created_at).toLocaleDateString()}
+                </div>
+                
+                <button 
+                  onClick={() => navigate(`/binder/${binder.id}`)}
+                  className="btn-lorcana-gold-sm w-full flex items-center justify-center gap-1"
+                >
+                  <Eye size={14} />
+                  View Binder
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
