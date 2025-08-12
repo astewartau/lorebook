@@ -26,7 +26,7 @@ function AppContent() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { isEditingDeck, currentDeck, stopEditingDeck, removeCardFromDeck, updateCardQuantity, updateDeck, validateDeck } = useDeck();
+  const { isEditingDeck, currentDeck, stopEditingDeck, removeCardFromDeck, updateCardQuantity, updateDeck, validateDeck, deleteDeck } = useDeck();
 
   const isActivePath = (path: string) => {
     if (path === '/cards') {
@@ -38,13 +38,15 @@ function AppContent() {
   const isDeckPage = location.pathname.includes('/deck/');
   const shouldHideNavigation = isDeckPage;
   
-  const handleClearDeck = () => {
+  const handleDeleteDeck = async () => {
     if (currentDeck) {
-      updateDeck({
-        ...currentDeck,
-        cards: [],
-        updatedAt: new Date()
-      });
+      try {
+        await deleteDeck(currentDeck.id);
+        stopEditingDeck();
+        setSidebarCollapsed(false);
+      } catch (error) {
+        console.error('Error deleting deck:', error);
+      }
     }
   };
   
@@ -183,12 +185,13 @@ function AppContent() {
             setSidebarCollapsed={setSidebarCollapsed}
             onRemoveCard={removeCardFromDeck}
             onUpdateQuantity={updateCardQuantity}
-            onClearDeck={handleClearDeck}
+            onDeleteDeck={handleDeleteDeck}
             onViewDeck={handleViewDeck}
             onStopEditing={handleStopEditingDeck}
             onUpdateDeckName={handleUpdateDeckName}
             onUpdateDeckDescription={handleUpdateDeckDescription}
             deckValidation={currentDeck ? validateDeck(currentDeck) : { isValid: false, errors: [] }}
+            navVisible={navVisible}
           />
 
           {/* Mobile Navigation - sticky and scroll-responsive */}

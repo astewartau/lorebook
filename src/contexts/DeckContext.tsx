@@ -13,11 +13,13 @@ interface DeckContextType {
   isEditingDeck: boolean;
   loading: boolean;
   createDeck: (name: string, description?: string) => Promise<string>;
+  createDeckAndStartEditing: (name: string, description?: string, initialCard?: LorcanaCard) => Promise<Deck>;
   deleteDeck: (deckId: string) => Promise<void>;
   duplicateDeck: (deckId: string) => Promise<string>;
   updateDeck: (deck: Deck) => Promise<void>;
   setCurrentDeck: (deck: Deck | null) => void;
   startEditingDeck: (deckId: string) => void;
+  startEditingDeckObject: (deck: Deck) => void;
   stopEditingDeck: () => void;
   addCardToDeck: (card: LorcanaCard, deckId?: string) => boolean;
   removeCardFromDeck: (cardId: number, deckId?: string) => void;
@@ -171,6 +173,50 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     }
   };
 
+  const createDeckAndStartEditing = async (name: string, description?: string, initialCard?: LorcanaCard): Promise<Deck> => {
+    if (!user) throw new Error('Authentication required');
+    
+    const initialCards = initialCard ? [{ ...initialCard, quantity: 1 }] : [];
+    
+    const newDeck: Deck = {
+      id: uuidv4(),
+      name,
+      description,
+      cards: initialCards,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isPublic: false,
+      userId: user.id,
+      authorEmail: user.email
+    };
+
+    try {
+      const { error } = await supabase
+        .from(TABLES.USER_DECKS)
+        .insert({
+          id: newDeck.id,
+          user_id: user.id,
+          name: newDeck.name,
+          description: newDeck.description,
+          cards: newDeck.cards,
+          is_public: false
+        });
+
+      if (error) {
+        console.error('Error creating deck:', error);
+        throw error;
+      }
+
+      setDecks(prev => [...prev, newDeck]);
+      setCurrentDeck(newDeck);
+      setIsEditingDeck(true);
+      return newDeck;
+    } catch (error) {
+      console.error('Error creating deck:', error);
+      throw error;
+    }
+  };
+
   const updateDeck = async (deck: Deck): Promise<void> => {
     if (!user) throw new Error('Authentication required');
     
@@ -263,6 +309,11 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const deck = decks.find(d => d.id === deckId);
     if (!deck) return;
     
+    setCurrentDeck(deck);
+    setIsEditingDeck(true);
+  };
+
+  const startEditingDeckObject = (deck: Deck): void => {
     setCurrentDeck(deck);
     setIsEditingDeck(true);
   };
@@ -398,11 +449,13 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     isEditingDeck,
     loading,
     createDeck,
+    createDeckAndStartEditing,
     deleteDeck,
     duplicateDeck,
     updateDeck,
     setCurrentDeck,
     startEditingDeck,
+    startEditingDeckObject,
     stopEditingDeck,
     addCardToDeck,
     removeCardFromDeck,

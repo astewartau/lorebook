@@ -6,6 +6,7 @@ import { useDeck } from '../contexts/DeckContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useProgressiveImage, useInViewport } from '../hooks';
 import CardFallback from './CardFallback';
+import ContextMenu from './ContextMenu';
 import { DECK_RULES } from '../constants';
 
 interface ConsolidatedCardProps {
@@ -22,7 +23,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   onCardClick
 }) => {
   const { user } = useAuth();
-  const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
+  const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity, createDeckAndStartEditing } = useDeck();
   const { getVariantQuantities } = useCollection();
   const { baseCard, hasEnchanted, hasSpecial, enchantedCard } = consolidatedCard;
   const cardRef = useRef<HTMLDivElement>(null);
@@ -30,6 +31,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   const [transform, setTransform] = useState('');
   const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 });
   const [showEnchanted, setShowEnchanted] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   
   // Single viewport detection for the entire card
   const [viewportRef, isInViewport] = useInViewport<HTMLDivElement>({ 
@@ -125,6 +127,21 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
     if (!currentDeck) return false;
     const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
     return deckQuantity < DECK_RULES.MAX_COPIES_PER_CARD && totalCards < DECK_RULES.MAX_CARDS;
+  };
+
+  const handleRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleAddToNewDeck = async () => {
+    try {
+      // Create a new deck with the card already included
+      const deckName = `New Deck - ${baseCard.name}`;
+      await createDeckAndStartEditing(deckName, `Deck featuring ${baseCard.name}`, baseCard);
+    } catch (error) {
+      console.error('Error creating new deck:', error);
+    }
   };
 
   const getVariantBackground = (variantType: 'regular' | 'foil' | 'enchanted' | 'special') => {
@@ -224,6 +241,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={() => onCardClick?.(consolidatedCard)}
+        onContextMenu={handleRightClick}
       >
         {/* Base card image or fallback */}
         {!baseImageProps.src ? (
@@ -331,6 +349,23 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
             </>
           )}
         </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && user && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            {
+              label: 'Add to new deck',
+              icon: <Plus size={14} />,
+              onClick: handleAddToNewDeck,
+              disabled: isEditingDeck
+            }
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   );

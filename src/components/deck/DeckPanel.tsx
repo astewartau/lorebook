@@ -9,7 +9,7 @@ interface DeckPanelProps {
   deck: Deck;
   onRemoveCard: (cardId: number) => void;
   onUpdateQuantity: (cardId: number, quantity: number) => void;
-  onClearDeck: () => void;
+  onDeleteDeck: () => void;
   onViewDeck?: (deckId?: string) => void;
   onStopEditing?: () => void;
   onUpdateDeckName?: (name: string) => void;
@@ -22,7 +22,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
   deck,
   onRemoveCard,
   onUpdateQuantity,
-  onClearDeck,
+  onDeleteDeck,
   onViewDeck,
   onStopEditing,
   onUpdateDeckName,
@@ -42,6 +42,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
   const [editedName, setEditedName] = useState(deck.name);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(deck.description || '');
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // State for custom tooltip
   const [tooltip, setTooltip] = useState<{
@@ -128,6 +129,19 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
       y: y || 0,
       imageUrl: imageUrl || ''
     });
+  };
+
+  const handleDeleteDeck = () => {
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteDeck = () => {
+    onDeleteDeck();
+    setShowDeleteConfirmation(false);
+  };
+
+  const cancelDeleteDeck = () => {
+    setShowDeleteConfirmation(false);
   };
 
   return (
@@ -222,9 +236,9 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
             </div>
           </div>
           <button
-            onClick={onClearDeck}
+            onClick={handleDeleteDeck}
             className="p-2 text-red-600 hover:bg-red-100 rounded-sm transition-colors"
-            title="Clear deck"
+            title="Delete deck"
           >
             <Trash2 size={16} />
           </button>
@@ -375,6 +389,32 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
           >
             <span>View Deck</span>
           </button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-lorcana-gold rounded-sm shadow-2xl max-w-md w-full p-6 art-deco-corner">
+            <h3 className="text-lg font-bold text-lorcana-ink mb-4">Delete Deck</h3>
+            <p className="text-lorcana-navy mb-6">
+              Are you sure you want to delete "<strong>{deck.name}</strong>"? This action cannot be undone.
+            </p>
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={cancelDeleteDeck}
+                className="px-4 py-2 bg-lorcana-cream text-lorcana-navy border-2 border-lorcana-gold rounded-sm hover:bg-lorcana-gold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteDeck}
+                className="px-4 py-2 bg-red-600 text-white border-2 border-red-700 rounded-sm hover:bg-red-700 transition-colors"
+              >
+                Delete Deck
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
