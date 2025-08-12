@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Package, Upload, Trash2, TrendingUp, Star } from 'lucide-react';
+import { Package, Upload, Trash2, TrendingUp, Star, Book } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { consolidatedCards, sets } from '../data/allCards';
@@ -20,6 +21,7 @@ interface SetSummary {
 
 const Collection: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     getVariantQuantities,
     totalCards,
@@ -235,6 +237,17 @@ const Collection: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* View Binder Button */}
+              <div className="mb-4">
+                <button
+                  onClick={() => navigate(`/collection/binder/${setData.code}`)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-lorcana-gold text-lorcana-ink font-medium rounded-sm hover:bg-lorcana-gold/90 transition-colors border-2 border-lorcana-gold"
+                >
+                  <Book size={16} />
+                  <span>View Binder</span>
+                </button>
               </div>
 
               {/* Rarity Breakdown Table */}

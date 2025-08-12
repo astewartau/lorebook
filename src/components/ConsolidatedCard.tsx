@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import { ConsolidatedCard } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeck } from '../contexts/DeckContext';
 import { useCollection } from '../contexts/CollectionContext';
-import { useProgressiveImage, useInViewport } from '../hooks';
-import CardFallback from './CardFallback';
+import CardImage from './CardImage';
 import ContextMenu from './ContextMenu';
 import { DECK_RULES } from '../constants';
 
@@ -26,38 +25,7 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity, createDeckAndStartEditing } = useDeck();
   const { getVariantQuantities } = useCollection();
   const { baseCard, hasEnchanted, hasSpecial, enchantedCard } = consolidatedCard;
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [transform, setTransform] = useState('');
-  const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 });
-  const [showEnchanted, setShowEnchanted] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  
-  // Single viewport detection for the entire card
-  const [viewportRef, isInViewport] = useInViewport<HTMLDivElement>({ 
-    rootMargin: '200px' // Start loading 200px before entering viewport
-  });
-  
-  // Generate a unique card ID for the image manager
-  const cardUniqueId = `card-${baseCard.id}`;
-  
-  // Progressive image loading for base card
-  const baseImageProps = useProgressiveImage({
-    thumbnail: baseCard.images.thumbnail,
-    full: baseCard.images.full,
-    cardId: cardUniqueId,
-    isInViewport,
-    imageType: 'regular'
-  });
-  
-  // Progressive image loading for enchanted card (if exists)
-  const enchantedImageProps = useProgressiveImage({
-    thumbnail: enchantedCard?.images.thumbnail || baseCard.images.thumbnail,
-    full: enchantedCard?.images.full || baseCard.images.full,
-    cardId: cardUniqueId,
-    isInViewport: isInViewport && hasEnchanted, // Only load if card has enchanted version
-    imageType: 'enchanted'
-  });
   
   // Get deck quantity for this card
   const deckQuantity = currentDeck?.cards.find(c => c.id === baseCard.id)?.quantity || 0;
@@ -66,42 +34,6 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   const collectionQuantities = getVariantQuantities(consolidatedCard.fullName);
   const totalCollectionQuantity = collectionQuantities.regular + collectionQuantities.foil + 
                                   collectionQuantities.enchanted + collectionQuantities.special;
-  
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    
-    const card = cardRef.current;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // Calculate rotation based on mouse position
-    const rotateX = ((y - centerY) / centerY) * -15; // Max 15 degrees
-    const rotateY = ((x - centerX) / centerX) * 15; // Max 15 degrees
-    
-    // Calculate light position as percentage
-    const lightX = (x / rect.width) * 100;
-    const lightY = (y / rect.height) * 100;
-    
-    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
-    setLightPosition({ x: lightX, y: lightY });
-  };
-  
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    if (hasEnchanted) {
-      setShowEnchanted(true);
-    }
-  };
-  
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    setTransform('');
-    setLightPosition({ x: 50, y: 50 });
-    setShowEnchanted(false);
-  };
   
   const handleAddToDeck = () => {
     if (currentDeck) {
@@ -227,112 +159,21 @@ const ConsolidatedCardComponent: React.FC<ConsolidatedCardProps> = ({
   };
 
   return (
-    <div className="flex flex-col space-y-2" ref={viewportRef}>
+    <div className="flex flex-col space-y-2">
       {/* Card Image */}
       <div 
-        ref={cardRef}
         className="relative rounded-sm shadow-lg hover:shadow-2xl transition-all duration-300 ease-out aspect-[2.5/3.5] overflow-hidden cursor-pointer transform-gpu select-none border-2 border-lorcana-gold"
-        style={{
-          transform: transform,
-          transformOrigin: 'center center',
-          transition: isHovered ? 'transform 0.1s ease-out, box-shadow 0.3s ease-out' : 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease-out'
-        }}
-        onMouseMove={handleMouseMove}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
         onClick={() => onCardClick?.(consolidatedCard)}
         onContextMenu={handleRightClick}
       >
-        {/* Base card image or fallback */}
-        {!baseImageProps.src ? (
-          <div className="absolute inset-0">
-            <CardFallback
-              name={baseCard.name}
-              version={baseCard.version}
-              className="w-full h-full"
-            />
-          </div>
-        ) : (
-          <img 
-            src={baseImageProps.src} 
-            alt={baseCard.fullName}
-            className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
-            loading="lazy"
-            style={{ 
-              pointerEvents: 'none',
-              opacity: hasEnchanted && showEnchanted && enchantedImageProps.src ? 0 : 1,
-              transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease-out'
-            }}
-          />
-        )}
-        
-        {/* Enchanted card image (only render if we have enchanted and it's loaded) */}
-        {hasEnchanted && enchantedCard && (
-          enchantedImageProps.src ? (
-            <img 
-              src={enchantedImageProps.src} 
-              alt={enchantedCard.fullName}
-              className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
-              loading="lazy"
-              style={{ 
-                pointerEvents: 'none',
-                opacity: showEnchanted ? 1 : 0,
-                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease-out',
-                transform: showEnchanted ? 'scale(1)' : 'scale(1.05)',
-                filter: showEnchanted ? 'none' : 'brightness(1.2) saturate(1.3)'
-              }}
-            />
-          ) : (
-            showEnchanted && !baseImageProps.src && (
-              <div className="absolute inset-0" style={{ 
-                opacity: 1,
-                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}>
-                <CardFallback
-                  name={enchantedCard.name}
-                  version={enchantedCard.version}
-                  className="w-full h-full"
-                />
-              </div>
-            )
-          )
-        )}
-        
-        {/* Loading indicator overlay */}
-        {(baseImageProps.isLoading || (hasEnchanted && enchantedImageProps.isLoading)) && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-8 h-8 border-2 border-lorcana-gold border-t-transparent rounded-full animate-spin opacity-30" />
-          </div>
-        )}
-        
-        {/* Light overlay effect */}
-        {isHovered && (
-          <>
-            <div 
-              className="absolute inset-0 pointer-events-none opacity-30 transition-opacity duration-300"
-              style={{
-                background: `radial-gradient(circle at ${lightPosition.x}% ${lightPosition.y}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 30%, transparent 60%)`
-              }}
-            />
-            {/* Enchanted shimmer effect */}
-            {hasEnchanted && showEnchanted && enchantedImageProps.src && (
-              <div 
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: `linear-gradient(105deg, 
-                    transparent 40%, 
-                    rgba(255, 255, 255, 0.7) 45%, 
-                    rgba(255, 255, 255, 0.9) 50%, 
-                    rgba(255, 255, 255, 0.7) 55%, 
-                    transparent 60%)`,
-                  transform: 'translateX(-100%)',
-                  animation: 'shimmer 1.5s ease-out'
-                }}
-              />
-            )}
-          </>
-        )}
-        
+        <CardImage
+          card={baseCard}
+          enchantedCard={enchantedCard}
+          enableHover={true}
+          enableTilt={true}
+          size="full"
+          className="w-full h-full"
+        />
       </div>
 
       {/* Quantity controls below card - show deck controls in edit mode, collection controls otherwise */}

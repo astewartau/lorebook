@@ -26,14 +26,19 @@ class ImageLoadManager {
   private queue: Map<ImagePriority, LoadRequest[]> = new Map();
   private activeLoads: Map<string, HTMLImageElement> = new Map();
   private loadStates: Map<string, LoadState> = new Map();
-  private maxConcurrent = 4;
-  private maxRetries = 3;
+  private maxConcurrent = 6;
+  private maxRetries = 2;
   private registeredImages: Map<string, LoadRequest> = new Map();
+  private debug = true; // Enable debug logging
 
   private constructor() {
     // Initialize priority queues
     for (let i = 1; i <= 8; i++) {
       this.queue.set(i as ImagePriority, []);
+    }
+    
+    if (this.debug) {
+      console.log('[ImageLoadManager] Instance created');
     }
   }
 
@@ -72,15 +77,26 @@ class ImageLoadManager {
     onLoad: (url: string) => void,
     onError: (url: string) => void
   ): void {
+    if (this.debug) {
+      console.log(`[ImageLoadManager] Registering image: ${url.split('/').pop()} (${imageType}, viewport: ${isInViewport}, cardId: ${cardId})`);
+    }
+
     // Check if already loaded
     const state = this.loadStates.get(url);
     if (state?.isLoaded) {
+      if (this.debug) {
+        console.log(`[ImageLoadManager] Already loaded: ${url.split('/').pop()}`);
+      }
       onLoad(url);
       return;
     }
 
     // Calculate priority
     const priority = this.calculatePriority(imageType, isInViewport, state?.hasFailed);
+
+    if (this.debug) {
+      console.log(`[ImageLoadManager] Priority ${priority} for ${url.split('/').pop()}`);
+    }
 
     // Create or update request
     const request: LoadRequest = {
@@ -99,6 +115,9 @@ class ImageLoadManager {
     const existingRequest = this.registeredImages.get(url);
     if (existingRequest) {
       this.removeFromQueue(existingRequest);
+      if (this.debug) {
+        console.log(`[ImageLoadManager] Updated existing request for ${url.split('/').pop()}`);
+      }
     }
 
     // Add to new priority queue
@@ -147,8 +166,14 @@ class ImageLoadManager {
     // Cancel active load
     const img = this.activeLoads.get(url);
     if (img) {
+      // Properly abort the image loading
+      img.onload = null;
+      img.onerror = null;
       img.src = '';
       this.activeLoads.delete(url);
+      
+      // Process next item in queue since we freed up a slot
+      this.processQueue();
     }
   }
 
@@ -181,14 +206,32 @@ class ImageLoadManager {
   }
 
   private processQueue(): void {
+    if (this.debug) {
+      const totalQueued = Array.from(this.queue.values()).reduce((sum, queue) => sum + queue.length, 0);
+      console.log(`[ImageLoadManager] Processing queue: ${this.activeLoads.size}/${this.maxConcurrent} active, ${totalQueued} queued, ${this.registeredImages.size} registered`);
+    }
+
     // Start new loads up to max concurrent
     while (this.activeLoads.size < this.maxConcurrent) {
       const request = this.getNextRequest();
-      if (!request) break;
+      if (!request) {
+        if (this.debug && this.activeLoads.size === 0) {
+          console.log('[ImageLoadManager] No requests in queue');
+        }
+        break;
+      }
 
       // Skip if already loading
-      if (this.activeLoads.has(request.url)) continue;
+      if (this.activeLoads.has(request.url)) {
+        if (this.debug) {
+          console.log(`[ImageLoadManager] Skipping already loading: ${request.url.split('/').pop()}`);
+        }
+        continue;
+      }
 
+      if (this.debug) {
+        console.log(`[ImageLoadManager] Starting load: ${request.url.split('/').pop()} (priority ${request.priority})`);
+      }
       this.loadImage(request);
     }
   }
@@ -207,6 +250,10 @@ class ImageLoadManager {
     this.activeLoads.set(request.url, img);
 
     img.onload = () => {
+      if (this.debug) {
+        console.log(`[ImageLoadManager] ✅ Loaded: ${request.url.split('/').pop()}`);
+      }
+
       // Update state
       this.loadStates.set(request.url, {
         isLoading: false,
@@ -229,6 +276,10 @@ class ImageLoadManager {
     img.onerror = () => {
       const retryCount = request.retryCount + 1;
 
+      if (this.debug) {
+        console.log(`[ImageLoadManager] ❌ Failed: ${request.url.split('/').pop()} (attempt ${retryCount}/${this.maxRetries})`);
+      }
+
       // Update state
       this.loadStates.set(request.url, {
         isLoading: false,
@@ -242,8 +293,13 @@ class ImageLoadManager {
 
       if (retryCount < this.maxRetries) {
         // Retry with exponential backoff
-        const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
+        const delay = Math.min(500 * Math.pow(2, retryCount - 1), 3000);
         setTimeout(() => {
+          // Check if request is still registered (might have been cancelled)
+          if (!this.registeredImages.has(request.url)) {
+            return;
+          }
+          
           request.retryCount = retryCount;
           
           // If this is a thumbnail that failed, bump up the priority of the full image
@@ -271,16 +327,8 @@ class ImageLoadManager {
       }
     };
 
-    // Determine which URL to use based on retry count
-    let imageUrl = request.url;
-    
-    // After first failure, try CorsProxy.io for subsequent retries
-    if (request.retryCount > 0) {
-      imageUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
-    }
-
-    // Start loading
-    img.src = imageUrl;
+    // Start loading - no CORS proxy fallback as it causes OpaqueResponseBlocking
+    img.src = request.url;
   }
 
   private updateFailedThumbnailPriority(fullImageUrl: string): void {
@@ -305,10 +353,55 @@ class ImageLoadManager {
     return this.loadStates.get(url)?.hasFailed || false;
   }
 
+  // Clear stale requests that are no longer registered
+  clearStaleRequests(): void {
+    if (this.debug) {
+      console.log('[ImageLoadManager] Clearing stale requests...');
+    }
+
+    let staleCancelled = 0;
+
+    // Cancel active loads that are no longer registered
+    this.activeLoads.forEach((img, url) => {
+      if (!this.registeredImages.has(url)) {
+        if (this.debug) {
+          console.log(`[ImageLoadManager] Cancelling stale active load: ${url.split('/').pop()}`);
+        }
+        img.onload = null;
+        img.onerror = null;
+        img.src = '';
+        this.activeLoads.delete(url);
+        staleCancelled++;
+      }
+    });
+
+    // Remove stale requests from queues
+    let staleQueued = 0;
+    for (let i = 1; i <= 8; i++) {
+      const queue = this.queue.get(i as ImagePriority);
+      if (queue) {
+        const originalLength = queue.length;
+        // Filter out requests that are no longer registered
+        const filteredQueue = queue.filter(request => this.registeredImages.has(request.url));
+        this.queue.set(i as ImagePriority, filteredQueue);
+        staleQueued += originalLength - filteredQueue.length;
+      }
+    }
+
+    if (this.debug && (staleCancelled > 0 || staleQueued > 0)) {
+      console.log(`[ImageLoadManager] Cleared ${staleCancelled} stale active loads, ${staleQueued} stale queued requests`);
+    }
+
+    // Process queue to start new loads
+    this.processQueue();
+  }
+
   // Clear all queues and states (useful for cleanup)
   clear(): void {
     // Cancel all active loads
     this.activeLoads.forEach((img, url) => {
+      img.onload = null;
+      img.onerror = null;
       img.src = '';
     });
     this.activeLoads.clear();

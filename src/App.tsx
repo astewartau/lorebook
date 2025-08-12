@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate 
 import { BookOpen, Package, Layers3, Users } from 'lucide-react';
 import CardBrowser from './components/CardBrowser';
 import Collection from './components/Collection';
+import SetBinder from './components/SetBinder';
 import MyDecks from './components/MyDecks';
 import DeckSummary from './components/DeckSummary';
 import UsersComponent from './components/Users';
@@ -169,6 +170,7 @@ function AppContent() {
                   <Route path="/" element={<CardBrowser />} />
                   <Route path="/cards" element={<CardBrowser />} />
                   <Route path="/collection" element={<Collection />} />
+                  <Route path="/collection/binder/:setCode" element={<SetBinder />} />
                   <Route path="/decks" element={<MyDecks onBuildDeck={() => {}} onViewDeck={(deckId: string) => navigate(`/deck/${deckId}`)} />} />
                   <Route path="/deck/:deckId" element={<DeckSummary onBack={() => navigate('/decks')} onEditDeck={() => {}} />} />
                   <Route path="/users" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/users/${userId}`)} />} />

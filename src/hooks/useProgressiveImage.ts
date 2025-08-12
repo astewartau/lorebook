@@ -21,8 +21,12 @@ export const useProgressiveImage = ({
   const [fullSrc, setFullSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const imageLoad = useImageLoad();
+  const imageLoadRef = useRef(imageLoad);
   const lastUrlsRef = useRef({ thumbnail: '', full: '' });
   const mountedRef = useRef(true);
+  
+  // Keep imageLoad ref up to date
+  imageLoadRef.current = imageLoad;
 
   // Derive ImageType from the imageType prop
   const thumbnailType: ImageType = imageType === 'regular' ? 'regular-thumbnail' : 'enchanted-thumbnail';
@@ -50,7 +54,19 @@ export const useProgressiveImage = ({
 
     setIsLoading(true);
 
-    // Check if already loaded
+    // Check if already in cache first
+    const thumbnailFromCache = imageLoad.getLoadedImageUrl(thumbnail);
+    const fullFromCache = imageLoad.getLoadedImageUrl(full);
+    
+    if (thumbnailFromCache) {
+      setThumbnailSrc(thumbnailFromCache);
+    }
+    if (fullFromCache) {
+      setFullSrc(fullFromCache);
+      setIsLoading(false);
+    }
+
+    // Also check ImageLoadManager
     if (imageLoad.isLoaded(thumbnail)) {
       setThumbnailSrc(thumbnail);
     }
@@ -66,6 +82,8 @@ export const useProgressiveImage = ({
       cardId,
       isInViewport,
       (url) => {
+        // Update both local state AND global cache when image loads
+        imageLoad.setImageLoaded(url);
         if (mountedRef.current) {
           setThumbnailSrc(url);
         }
@@ -85,6 +103,8 @@ export const useProgressiveImage = ({
       cardId,
       isInViewport,
       (url) => {
+        // Update both local state AND global cache when image loads
+        imageLoad.setImageLoaded(url);
         if (mountedRef.current) {
           setFullSrc(url);
           setIsLoading(false);
@@ -99,24 +119,27 @@ export const useProgressiveImage = ({
 
     // Cleanup
     return () => {
-      imageLoad.cancelLoad(thumbnail);
-      imageLoad.cancelLoad(full);
+      imageLoadRef.current.cancelLoad(thumbnail);
+      imageLoadRef.current.cancelLoad(full);
     };
-  }, [thumbnail, full, cardId, isInViewport, thumbnailType, fullType, imageLoad]);
+  }, [thumbnail, full, cardId, isInViewport, thumbnailType, fullType]);
 
   // Update priorities when viewport changes
   useEffect(() => {
     if (thumbnail) {
-      imageLoad.updatePriority(thumbnail, isInViewport);
+      imageLoadRef.current.updatePriority(thumbnail, isInViewport);
     }
     if (full) {
-      imageLoad.updatePriority(full, isInViewport);
+      imageLoadRef.current.updatePriority(full, isInViewport);
     }
-  }, [isInViewport, thumbnail, full, imageLoad]);
+  }, [isInViewport, thumbnail, full]);
 
-  // Return the best available image
+  // Return the best available image from global cache
   const currentSrc = fullSrc || thumbnailSrc;
   const isFullLoaded = !!fullSrc;
+
+  // Only log when there's an actual issue
+  // (removed excessive debug logging)
 
   return {
     src: currentSrc,
