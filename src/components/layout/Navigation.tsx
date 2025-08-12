@@ -21,7 +21,7 @@ const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const tabs: Tab[] = [
     { id: '/cards', label: 'Cards', icon: BookOpen },
-    { id: '/collection', label: 'Collection', icon: Package },
+    { id: '/collections', label: 'Collections', icon: Package },
     { id: '/decks', label: 'Decks', icon: Layers3 },
     { id: '/users', label: 'Users', icon: Users },
   ];
