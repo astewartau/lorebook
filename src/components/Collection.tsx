@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, TABLES } from '../lib/supabase';
-import { consolidatedCards, sets } from '../data/allCards';
+import { allCards, sets } from '../data/allCards';
 import { RARITY_ICONS } from '../constants/icons';
 import DreambornImport from './DreambornImport';
-import AuthRequired from './AuthRequired';
 
 interface SetSummary {
   code: string;
@@ -24,19 +23,19 @@ const Collection: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const {
-    getVariantQuantities,
     totalCards,
     uniqueCards,
     clearCollection
   } = useCollection();
+  const { getCardQuantity } = useCollection();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Calculate set summaries
   const setSummaries = useMemo((): SetSummary[] => {
     return sets.map(set => {
-      // Get all cards in this set
-      const setCards = consolidatedCards.filter(card => card.baseCard.setCode === set.code);
+      // Get all cards in this set - each card is individual now
+      const setCards = allCards.filter(card => card.setCode === set.code);
       const totalCardsInSet = setCards.length;
 
       // Calculate owned cards and quantities
@@ -44,67 +43,30 @@ const Collection: React.FC = () => {
       let totalOwnedQuantity = 0;
       const rarityBreakdown: Record<string, { owned: number; playable: number; total: number }> = {};
 
-      setCards.forEach(consolidatedCard => {
-        const quantities = getVariantQuantities(consolidatedCard.fullName);
-        const totalCardQuantity = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
+      setCards.forEach(card => {
+        const quantities = getCardQuantity(card.id);
+        const totalCardQuantity = quantities.total;
         
         if (totalCardQuantity > 0) {
           ownedCards++;
           totalOwnedQuantity += totalCardQuantity;
         }
 
-        // Track rarity breakdown for base card
-        const baseRarity = consolidatedCard.baseCard.rarity;
-        if (!rarityBreakdown[baseRarity]) {
-          rarityBreakdown[baseRarity] = { owned: 0, playable: 0, total: 0 };
+        // Track rarity breakdown
+        const rarity = card.rarity;
+        if (!rarityBreakdown[rarity]) {
+          rarityBreakdown[rarity] = { owned: 0, playable: 0, total: 0 };
         }
-        rarityBreakdown[baseRarity].total++;
+        rarityBreakdown[rarity].total++;
         
-        // Count owned base card variants (regular + foil)
-        const baseCardQuantity = quantities.regular + quantities.foil;
-        if (baseCardQuantity > 0) {
-          rarityBreakdown[baseRarity].owned++;
+        // Count owned cards
+        if (totalCardQuantity > 0) {
+          rarityBreakdown[rarity].owned++;
         }
         
-        // Playable set for base card (4 or more copies)
-        if (baseCardQuantity >= 4) {
-          rarityBreakdown[baseRarity].playable++;
-        }
-
-        // Track enchanted cards separately if they exist
-        if (consolidatedCard.hasEnchanted && consolidatedCard.enchantedCard) {
-          if (!rarityBreakdown['Enchanted']) {
-            rarityBreakdown['Enchanted'] = { owned: 0, playable: 0, total: 0 };
-          }
-          rarityBreakdown['Enchanted'].total++;
-          
-          // Count owned enchanted variants
-          if (quantities.enchanted > 0) {
-            rarityBreakdown['Enchanted'].owned++;
-          }
-          
-          // Playable set for enchanted (4 or more copies)
-          if (quantities.enchanted >= 4) {
-            rarityBreakdown['Enchanted'].playable++;
-          }
-        }
-
-        // Track special cards separately if they exist
-        if (consolidatedCard.hasSpecial && consolidatedCard.specialCards) {
-          if (!rarityBreakdown['Special']) {
-            rarityBreakdown['Special'] = { owned: 0, playable: 0, total: 0 };
-          }
-          rarityBreakdown['Special'].total++;
-          
-          // Count owned special variants
-          if (quantities.special > 0) {
-            rarityBreakdown['Special'].owned++;
-          }
-          
-          // Playable set for special (4 or more copies)
-          if (quantities.special >= 4) {
-            rarityBreakdown['Special'].playable++;
-          }
+        // Playable set (4 or more copies)
+        if (totalCardQuantity >= 4) {
+          rarityBreakdown[rarity].playable++;
         }
       });
 
@@ -121,10 +83,10 @@ const Collection: React.FC = () => {
         rarityBreakdown
       };
     }).sort((a, b) => a.number - b.number); // Sort by set number
-  }, [getVariantQuantities]);
+  }, [getCardQuantity]);
 
-  const handleDeleteAll = () => {
-    clearCollection();
+  const handleDeleteAll = async () => {
+    await clearCollection();
     setShowDeleteConfirm(false);
   };
 

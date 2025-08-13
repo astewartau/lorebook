@@ -1,17 +1,15 @@
-import { ConsolidatedCard, FilterOptions, SortOption } from '../types';
+import { LorcanaCard, FilterOptions, SortOption } from '../types';
 import { rarityOrder, sets, costRange, strengthRange, willpowerRange, loreRange } from '../data/allCards';
-import { consolidatedCardMatchesFilters } from './cardConsolidation';
+import { matchesSmartSearch } from './smartSearch';
 
 // Helper function to check if a card matches search criteria
-const matchesSearchFilter = (baseCard: any, searchTerm: string): boolean => {
-  return baseCard.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         (baseCard.version?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-         (baseCard.story?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+const matchesSearchFilter = (card: LorcanaCard, searchTerm: string): boolean => {
+  return matchesSmartSearch(card, searchTerm);
 };
 
 // Helper function to check if a card matches color filters
-const matchesColorFilter = (baseCard: any, filters: FilterOptions): boolean => {
-  const isDualInk = baseCard.color.includes('-');
+const matchesColorFilter = (card: LorcanaCard, filters: FilterOptions): boolean => {
+  const isDualInk = card.color.includes('-');
   
   // If no colors are selected, handle based on mode
   if (filters.colors.length === 0) {
@@ -31,23 +29,23 @@ const matchesColorFilter = (baseCard: any, filters: FilterOptions): boolean => {
   switch (filters.colorMatchMode) {
     case 'any':
       // Match any card that includes any selected color
-      return filters.colors.some(color => baseCard.color.includes(color));
+      return filters.colors.some(color => card.color.includes(color));
       
     case 'only':
       // Show only cards with the exact selected colors
       if (filters.colors.length === 1) {
         // Single color selected: only show single-ink cards of that color
-        return !isDualInk && baseCard.color === filters.colors[0];
+        return !isDualInk && card.color === filters.colors[0];
       } else {
         // Multiple colors selected: show single-ink cards of selected colors 
         // AND dual-ink cards with combinations of only the selected colors
         if (isDualInk) {
           // For dual-ink: both colors must be in the selected colors
-          const [color1, color2] = baseCard.color.split('-');
+          const [color1, color2] = card.color.split('-');
           return filters.colors.includes(color1) && filters.colors.includes(color2);
         } else {
           // For single-ink: must be one of the selected colors
-          return filters.colors.includes(baseCard.color);
+          return filters.colors.includes(card.color);
         }
       }
       
@@ -57,10 +55,10 @@ const matchesColorFilter = (baseCard: any, filters: FilterOptions): boolean => {
       
       if (filters.colors.length === 1) {
         // Single color selected: show any dual-ink that includes that color
-        return baseCard.color.includes(filters.colors[0]);
+        return card.color.includes(filters.colors[0]);
       } else if (filters.colors.length === 2) {
         // Two colors selected: show only the exact dual-ink combination
-        const [color1, color2] = baseCard.color.split('-');
+        const [color1, color2] = card.color.split('-');
         const sortedCardColors = [color1, color2].sort();
         const sortedSelectedColors = [...filters.colors].sort();
         return sortedCardColors.join('-') === sortedSelectedColors.join('-');
@@ -76,70 +74,69 @@ const matchesColorFilter = (baseCard: any, filters: FilterOptions): boolean => {
 
 // Helper function to check if a card matches collection filters
 const matchesCollectionFilter = (
-  consolidatedCard: ConsolidatedCard,
+  card: LorcanaCard,
   filters: FilterOptions,
-  getVariantQuantities: (fullName: string) => { regular: number; foil: number; enchanted: number; special: number }
+  getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number }
 ): boolean => {
   if (filters.collectionFilter === 'all') return true;
   
-  const quantities = getVariantQuantities(consolidatedCard.fullName);
-  const totalOwned = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
-  const isInCollection = totalOwned > 0;
+  // Use individual card ID to get exact quantities for this specific card
+  const quantities = getCardQuantity(card.id);
+  const isInCollection = quantities.total > 0;
   
   return filters.collectionFilter === 'owned' ? isInCollection : !isInCollection;
 };
 
 // Helper function to check if a card matches range filters
-const matchesRangeFilters = (baseCard: any, filters: FilterOptions): boolean => {
-  const matchesCostRange = baseCard.cost >= filters.costMin && baseCard.cost <= filters.costMax;
-  const matchesStrength = baseCard.strength === undefined || (baseCard.strength >= filters.strengthMin && baseCard.strength <= filters.strengthMax);
-  const matchesWillpower = baseCard.willpower === undefined || (baseCard.willpower >= filters.willpowerMin && baseCard.willpower <= filters.willpowerMax);
-  const matchesLore = baseCard.lore === undefined || (baseCard.lore >= filters.loreMin && baseCard.lore <= filters.loreMax);
+const matchesRangeFilters = (card: LorcanaCard, filters: FilterOptions): boolean => {
+  const matchesCostRange = card.cost >= filters.costMin && card.cost <= filters.costMax;
+  const matchesStrength = card.strength === undefined || (card.strength >= filters.strengthMin && card.strength <= filters.strengthMax);
+  const matchesWillpower = card.willpower === undefined || (card.willpower >= filters.willpowerMin && card.willpower <= filters.willpowerMax);
+  const matchesLore = card.lore === undefined || (card.lore >= filters.loreMin && card.lore <= filters.loreMax);
   
   return matchesCostRange && matchesStrength && matchesWillpower && matchesLore;
 };
 
 // Filter cards based on search term and filters
 export const filterCards = (
-  cards: ConsolidatedCard[],
+  cards: LorcanaCard[],
   searchTerm: string,
   filters: FilterOptions,
   staleCardIds: Set<number>,
-  getVariantQuantities: (fullName: string) => { regular: number; foil: number; enchanted: number; special: number }
-): ConsolidatedCard[] => {
-  return cards.filter(consolidatedCard => {
-    const { baseCard } = consolidatedCard;
-    
+  getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number }
+): LorcanaCard[] => {
+  return cards.filter(card => {
     // If this card is in our stale cards set, always include it
-    if (staleCardIds.has(baseCard.id)) {
-      console.log('Including stale card:', baseCard.name);
+    if (staleCardIds.has(card.id)) {
+      console.log('Including stale card:', card.name);
       return true;
     }
     
-    const matchesSearch = matchesSearchFilter(baseCard, searchTerm);
-    const matchesSet = filters.sets.length === 0 || filters.sets.includes(baseCard.setCode);
+    const matchesSearch = matchesSearchFilter(card, searchTerm);
+    const matchesSet = filters.sets.length === 0 || filters.sets.includes(card.setCode);
     
     // Handle Illumineer's Quest cards (no ink color) separately
-    const isIllumineerQuest = baseCard.color === '';
+    const isIllumineerQuest = card.color === '';
     const matchesIllumineerQuest = isIllumineerQuest ? filters.includeIllumineerQuest : true;
     
     // Color filtering - only apply to non-Illumineer's Quest cards
-    const matchesColor = isIllumineerQuest || matchesColorFilter(baseCard, filters);
+    const matchesColor = isIllumineerQuest || matchesColorFilter(card, filters);
     
-    const matchesType = filters.types.length === 0 || filters.types.includes(baseCard.type);
-    const matchesStory = filters.stories.length === 0 || (baseCard.story && filters.stories.includes(baseCard.story));
-    const matchesSubtype = filters.subtypes.length === 0 || (baseCard.subtypes && baseCard.subtypes.some(st => filters.subtypes.includes(st)));
+    const matchesRarity = filters.rarities.length === 0 || filters.rarities.includes(card.rarity);
+    const matchesType = filters.types.length === 0 || filters.types.includes(card.type);
+    const matchesStory = filters.stories.length === 0 || (card.story && filters.stories.includes(card.story));
+    const matchesSubtype = filters.subtypes.length === 0 || (card.subtypes && card.subtypes.some(st => filters.subtypes.includes(st)));
     
-    const matchesCostList = filters.costs.length === 0 || filters.costs.includes(baseCard.cost);
-    const matchesRanges = matchesRangeFilters(baseCard, filters);
+    const matchesCostList = filters.costs.length === 0 || filters.costs.includes(card.cost);
+    const matchesRanges = matchesRangeFilters(card, filters);
     
-    const matchesInkwell = filters.inkwellOnly === null || baseCard.inkwell === filters.inkwellOnly;
-    const matchesInCollection = matchesCollectionFilter(consolidatedCard, filters, getVariantQuantities);
+    const matchesInkwell = filters.inkwellOnly === null || card.inkwell === filters.inkwellOnly;
+    const matchesInCollection = matchesCollectionFilter(card, filters, getCardQuantity);
     
-    // Check card count filter
+    // Check card count filter - use individual card quantities
     const matchesCardCount = filters.cardCountOperator === null || (() => {
-      const quantities = getVariantQuantities(consolidatedCard.fullName);
-      const totalCount = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
+      const quantities = getCardQuantity(card.id);
+      const totalCount = quantities.total;
       
       switch (filters.cardCountOperator) {
         case 'eq': return totalCount === filters.cardCountValue;
@@ -149,70 +146,74 @@ export const filterCards = (
       }
     })();
     
-    // Check consolidated card specific filters
-    const matchesConsolidatedFilters = consolidatedCardMatchesFilters(consolidatedCard, filters);
+    // Check enchanted and special filters based on individual card rarity
+    const matchesEnchanted = filters.hasEnchanted === null || 
+      (filters.hasEnchanted === true && card.rarity === 'Enchanted') ||
+      (filters.hasEnchanted === false && card.rarity !== 'Enchanted');
+    
+    const matchesSpecial = filters.hasSpecial === null || 
+      (filters.hasSpecial === true && (card.rarity === 'Special' || card.promoGrouping !== undefined)) ||
+      (filters.hasSpecial === false && card.rarity !== 'Special' && card.promoGrouping === undefined);
 
-    return matchesSearch && matchesSet && matchesColor && matchesIllumineerQuest && matchesType && 
+    return matchesSearch && matchesSet && matchesColor && matchesIllumineerQuest && matchesRarity && matchesType && 
            matchesStory && matchesSubtype && matchesCostList && matchesRanges &&
-           matchesInkwell && matchesInCollection && matchesCardCount && matchesConsolidatedFilters;
+           matchesInkwell && matchesInCollection && matchesCardCount && matchesEnchanted && matchesSpecial;
   });
 };
 
 // Sort cards based on sort criteria
-export const sortCards = (cards: ConsolidatedCard[], sortBy: SortOption): ConsolidatedCard[] => {
+export const sortCards = (cards: LorcanaCard[], sortBy: SortOption): LorcanaCard[] => {
   return cards.sort((a, b) => {
     let aValue: any, bValue: any;
-    const aCard = a.baseCard;
-    const bCard = b.baseCard;
 
     switch (sortBy.field) {
       case 'name':
-        aValue = aCard.name;
-        bValue = bCard.name;
+        aValue = a.name;
+        bValue = b.name;
         break;
       case 'cost':
-        aValue = aCard.cost;
-        bValue = bCard.cost;
+        aValue = a.cost;
+        bValue = b.cost;
         break;
       case 'rarity':
-        aValue = rarityOrder.indexOf(aCard.rarity);
-        bValue = rarityOrder.indexOf(bCard.rarity);
+        aValue = rarityOrder.indexOf(a.rarity);
+        bValue = rarityOrder.indexOf(b.rarity);
         break;
       case 'set':
-        aValue = aCard.setCode;
-        bValue = bCard.setCode;
+        aValue = a.setCode;
+        bValue = b.setCode;
         break;
       case 'number':
-        aValue = aCard.number;
-        bValue = bCard.number;
+        aValue = a.number;
+        bValue = b.number;
         break;
       case 'color':
-        aValue = aCard.color;
-        bValue = bCard.color;
+        aValue = a.color;
+        bValue = b.color;
         break;
       case 'type':
-        aValue = aCard.type;
-        bValue = bCard.type;
+        aValue = a.type;
+        bValue = b.type;
         break;
       case 'story':
-        aValue = aCard.story || '';
-        bValue = bCard.story || '';
+        aValue = a.story || '';
+        bValue = b.story || '';
         break;
       case 'strength':
-        aValue = aCard.strength || 0;
-        bValue = bCard.strength || 0;
+        aValue = a.strength || 0;
+        bValue = b.strength || 0;
         break;
       case 'willpower':
-        aValue = aCard.willpower || 0;
-        bValue = bCard.willpower || 0;
+        aValue = a.willpower || 0;
+        bValue = b.willpower || 0;
         break;
       case 'lore':
-        aValue = aCard.lore || 0;
-        bValue = bCard.lore || 0;
+        aValue = a.lore || 0;
+        bValue = b.lore || 0;
         break;
       default:
-        aValue = aCard.name;
-        bValue = bCard.name;
+        aValue = a.name;
+        bValue = b.name;
     }
 
     if (typeof aValue === 'string') {
@@ -230,36 +231,35 @@ export const sortCards = (cards: ConsolidatedCard[], sortBy: SortOption): Consol
 
 // Group cards by specified field
 export const groupCards = (
-  cards: ConsolidatedCard[], 
+  cards: LorcanaCard[], 
   groupBy: string
-): Record<string, ConsolidatedCard[]> => {
+): Record<string, LorcanaCard[]> => {
   if (groupBy === 'none') return {};
   
-  const groupedCards: Record<string, ConsolidatedCard[]> = {};
+  const groupedCards: Record<string, LorcanaCard[]> = {};
   
   cards.forEach(card => {
     let groupKey = '';
-    const baseCard = card.baseCard;
     
     switch (groupBy) {
       case 'set':
-        const setInfo = sets.find(s => s.code === baseCard.setCode);
-        groupKey = setInfo?.name || baseCard.setCode;
+        const setInfo = sets.find(s => s.code === card.setCode);
+        groupKey = setInfo?.name || card.setCode;
         break;
       case 'color':
-        groupKey = baseCard.color || 'No Ink Color';
+        groupKey = card.color || 'No Ink Color';
         break;
       case 'rarity':
-        groupKey = baseCard.rarity;
+        groupKey = card.rarity;
         break;
       case 'type':
-        groupKey = baseCard.type;
+        groupKey = card.type;
         break;
       case 'story':
-        groupKey = baseCard.story || 'No Story';
+        groupKey = card.story || 'No Story';
         break;
       case 'cost':
-        groupKey = `Cost ${baseCard.cost}`;
+        groupKey = `Cost ${card.cost}`;
         break;
       default:
         groupKey = 'Unknown';
@@ -272,7 +272,7 @@ export const groupCards = (
   });
   
   // Sort the groups based on the grouping type
-  const sortedGroupedCards: Record<string, ConsolidatedCard[]> = {};
+  const sortedGroupedCards: Record<string, LorcanaCard[]> = {};
   let sortedKeys: string[];
   
   switch (groupBy) {

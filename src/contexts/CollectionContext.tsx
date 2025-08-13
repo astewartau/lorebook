@@ -1,20 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CollectionCardVariants, ConsolidatedCard } from '../types';
+import { CollectionCardEntry } from '../types';
 import { supabase, UserCollection, TABLES } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface CollectionContextType {
-  variantCollection: CollectionCardVariants[];
-  getVariantQuantities: (fullName: string) => { regular: number; foil: number; enchanted: number; special: number };
-  addVariantToCollection: (consolidatedCard: ConsolidatedCard, variantType: 'regular' | 'foil' | 'enchanted' | 'special', quantity?: number) => void;
-  removeVariantFromCollection: (fullName: string, variantType: 'regular' | 'foil' | 'enchanted' | 'special', quantity?: number) => void;
+  collection: CollectionCardEntry[];
+  getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number };
+  addCardToCollection: (cardId: number, quantityNormal?: number, quantityFoil?: number) => void;
+  removeCardFromCollection: (cardId: number, quantityNormal?: number, quantityFoil?: number) => void;
+  setCardQuantity: (cardId: number, quantityNormal: number, quantityFoil: number) => void;
   totalCards: number;
   uniqueCards: number;
   exportCollection: () => string;
   importCollection: (data: string) => boolean;
-  clearCollection: () => void;
+  clearCollection: () => Promise<void>;
   syncStatus: 'idle' | 'loading' | 'error' | 'offline';
-  migrateFromLocalStorage: () => Promise<void>;
 }
 
 const CollectionContext = createContext<CollectionContextType | undefined>(undefined);
@@ -25,9 +25,8 @@ interface CollectionProviderProps {
 
 export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children }) => {
   const { user, session } = useAuth();
-  const [variantCollection, setVariantCollection] = useState<CollectionCardVariants[]>([]);
+  const [collection, setCollection] = useState<CollectionCardEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'error' | 'offline'>('idle');
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Load collection data when user changes
   useEffect(() => {
@@ -35,10 +34,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       loadCollectionFromSupabase();
     } else {
       // Clear collection when not authenticated
-      setVariantCollection([]);
-      setIsInitialized(true);
+      setCollection([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, session]);
 
   const loadCollectionFromSupabase = async () => {
@@ -54,55 +51,58 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       if (error) {
         console.error('Error loading collection:', error);
         setSyncStatus('error');
-        // No fallback - require authentication
-        setVariantCollection([]);
+        setCollection([]);
       } else {
-        // Convert UserCollection[] to CollectionCardVariants[]
+        // Convert database format to internal format
         const converted = data.map((item: UserCollection) => ({
-          cardId: 0, // We don't store cardId in Supabase, it's derived
-          fullName: item.card_name,
-          regular: item.regular_count,
-          foil: item.foil_count,
-          enchanted: item.enchanted_count,
-          special: item.special_count
+          cardId: item.card_id,
+          quantityNormal: item.quantity_normal || 0,
+          quantityFoil: item.quantity_foil || 0
         }));
         
-        setVariantCollection(converted);
+        setCollection(converted);
         setSyncStatus('idle');
-        
-        // Mark migration as completed since we've loaded from cloud
-        localStorage.setItem(`migration_completed_${user.id}`, 'true');
       }
     } catch (error) {
       console.error('Network error loading collection:', error);
       setSyncStatus('offline');
-      // No fallback - require authentication
-      setVariantCollection([]);
+      setCollection([]);
     }
-    setIsInitialized(true);
   };
 
-
-  const syncCardToSupabase = async (card: CollectionCardVariants) => {
+  const syncCardToSupabase = async (cardId: number, quantityNormal: number, quantityFoil: number) => {
     if (!user) return;
     
     try {
-      const { error } = await supabase
-        .from(TABLES.USER_COLLECTIONS)
-        .upsert({
-          user_id: user.id,
-          card_name: card.fullName,
-          regular_count: card.regular,
-          foil_count: card.foil,
-          enchanted_count: card.enchanted,
-          special_count: card.special
-        }, {
-          onConflict: 'user_id,card_name'
-        });
+      if (quantityNormal <= 0 && quantityFoil <= 0) {
+        // Remove the card from database
+        const { error } = await supabase
+          .from(TABLES.USER_COLLECTIONS)
+          .delete()
+          .eq('user_id', user.id)
+          .eq('card_id', cardId);
 
-      if (error) {
-        console.error('Error syncing card to Supabase:', error);
-        setSyncStatus('error');
+        if (error) {
+          console.error('Error removing card from collection:', error);
+          setSyncStatus('error');
+        }
+      } else {
+        // Add or update the card in database
+        const { error } = await supabase
+          .from(TABLES.USER_COLLECTIONS)
+          .upsert({
+            user_id: user.id,
+            card_id: cardId,
+            quantity_normal: quantityNormal,
+            quantity_foil: quantityFoil
+          }, {
+            onConflict: 'user_id,card_id'
+          });
+
+        if (error) {
+          console.error('Error syncing card to collection:', error);
+          setSyncStatus('error');
+        }
       }
     } catch (error) {
       console.error('Network error syncing card:', error);
@@ -110,169 +110,188 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     }
   };
 
-  const removeCardFromSupabase = async (cardName: string) => {
-    if (!user) return;
-    
-    try {
-      const { error } = await supabase
-        .from(TABLES.USER_COLLECTIONS)
-        .delete()
-        .eq('user_id', user.id)
-        .eq('card_name', cardName);
-
-      if (error) {
-        console.error('Error removing card from Supabase:', error);
-        setSyncStatus('error');
-      }
-    } catch (error) {
-      console.error('Network error removing card:', error);
-      setSyncStatus('offline');
-    }
+  const getCardQuantity = (cardId: number): { normal: number; foil: number; total: number } => {
+    const card = collection.find(c => c.cardId === cardId);
+    return {
+      normal: card?.quantityNormal || 0,
+      foil: card?.quantityFoil || 0,
+      total: (card?.quantityNormal || 0) + (card?.quantityFoil || 0)
+    };
   };
 
-  const migrateFromLocalStorage = async () => {
-    // Migration no longer needed since we don't use localStorage
-    return;
-  };
-
-  const getVariantQuantities = (fullName: string) => {
-    const variantCard = variantCollection.find(c => c.fullName === fullName);
-    return variantCard ? {
-      regular: variantCard.regular,
-      foil: variantCard.foil,
-      enchanted: variantCard.enchanted,
-      special: variantCard.special
-    } : { regular: 0, foil: 0, enchanted: 0, special: 0 };
-  };
-
-
-  const addVariantToCollection = (
-    consolidatedCard: ConsolidatedCard, 
-    variantType: 'regular' | 'foil' | 'enchanted' | 'special', 
-    quantity: number = 1
-  ) => {
-    setVariantCollection(prev => {
-      const existing = prev.find(c => c.fullName === consolidatedCard.fullName);
-      let updatedCard: CollectionCardVariants;
+  const addCardToCollection = (cardId: number, quantityNormal: number = 1, quantityFoil: number = 0) => {
+    setCollection(prev => {
+      const existingIndex = prev.findIndex(c => c.cardId === cardId);
+      let newCollection;
       
-      if (existing) {
-        updatedCard = { ...existing, [variantType]: existing[variantType] + quantity };
-        // Sync to Supabase
-        syncCardToSupabase(updatedCard);
-        return prev.map(c =>
-          c.fullName === consolidatedCard.fullName ? updatedCard : c
-        );
-      } else {
-        updatedCard = {
-          cardId: consolidatedCard.baseCard.id,
-          fullName: consolidatedCard.fullName,
-          regular: 0,
-          foil: 0,
-          enchanted: 0,
-          special: 0,
-          [variantType]: quantity
+      if (existingIndex >= 0) {
+        // Update existing card
+        newCollection = [...prev];
+        newCollection[existingIndex] = {
+          ...newCollection[existingIndex],
+          quantityNormal: newCollection[existingIndex].quantityNormal + quantityNormal,
+          quantityFoil: newCollection[existingIndex].quantityFoil + quantityFoil
         };
-        // Sync to Supabase
-        syncCardToSupabase(updatedCard);
-        return [...prev, updatedCard];
+      } else {
+        // Add new card
+        newCollection = [...prev, { cardId, quantityNormal, quantityFoil }];
       }
+      
+      // Sync to database
+      const currentQuantities = getCardQuantity(cardId);
+      syncCardToSupabase(
+        cardId, 
+        currentQuantities.normal + quantityNormal,
+        currentQuantities.foil + quantityFoil
+      );
+      
+      return newCollection;
     });
   };
 
-
-  const removeVariantFromCollection = (
-    fullName: string, 
-    variantType: 'regular' | 'foil' | 'enchanted' | 'special', 
-    quantity: number = 1
-  ) => {
-    setVariantCollection(prev => 
-      prev.map(card => {
-        if (card.fullName === fullName) {
-          const newQuantity = Math.max(0, card[variantType] - quantity);
-          const updatedCard = { ...card, [variantType]: newQuantity };
-          
-          // Remove the card entirely if all variants are 0
-          if (updatedCard.regular === 0 && updatedCard.foil === 0 && 
-              updatedCard.enchanted === 0 && updatedCard.special === 0) {
-            // Remove from Supabase
-            removeCardFromSupabase(fullName);
-            return null;
-          }
-          
-          // Sync to Supabase
-          syncCardToSupabase(updatedCard);
-          return updatedCard;
+  const removeCardFromCollection = (cardId: number, quantityNormal: number = 1, quantityFoil: number = 0) => {
+    setCollection(prev => {
+      const existingIndex = prev.findIndex(c => c.cardId === cardId);
+      
+      if (existingIndex >= 0) {
+        const newNormal = Math.max(0, prev[existingIndex].quantityNormal - quantityNormal);
+        const newFoil = Math.max(0, prev[existingIndex].quantityFoil - quantityFoil);
+        
+        let newCollection;
+        if (newNormal <= 0 && newFoil <= 0) {
+          // Remove card entirely
+          newCollection = prev.filter(c => c.cardId !== cardId);
+        } else {
+          // Update quantities
+          newCollection = [...prev];
+          newCollection[existingIndex] = {
+            ...newCollection[existingIndex],
+            quantityNormal: newNormal,
+            quantityFoil: newFoil
+          };
         }
-        return card;
-      }).filter(Boolean) as CollectionCardVariants[]
-    );
+        
+        // Sync to database
+        syncCardToSupabase(cardId, newNormal, newFoil);
+        
+        return newCollection;
+      }
+      
+      return prev;
+    });
   };
 
+  const setCardQuantity = (cardId: number, quantityNormal: number, quantityFoil: number) => {
+    setCollection(prev => {
+      let newCollection;
+      const existingIndex = prev.findIndex(c => c.cardId === cardId);
+      
+      if (quantityNormal <= 0 && quantityFoil <= 0) {
+        // Remove card
+        newCollection = prev.filter(c => c.cardId !== cardId);
+      } else if (existingIndex >= 0) {
+        // Update existing card
+        newCollection = [...prev];
+        newCollection[existingIndex] = { cardId, quantityNormal, quantityFoil };
+      } else {
+        // Add new card
+        newCollection = [...prev, { cardId, quantityNormal, quantityFoil }];
+      }
+      
+      // Sync to database
+      syncCardToSupabase(cardId, quantityNormal, quantityFoil);
+      
+      return newCollection;
+    });
+  };
 
-
-  const totalCards = variantCollection.reduce((sum, card) => sum + card.regular + card.foil + card.enchanted + card.special, 0);
-  const uniqueCards = variantCollection.length;
+  const totalCards = collection.reduce((sum, card) => sum + card.quantityNormal + card.quantityFoil, 0);
+  const uniqueCards = collection.length;
 
   const exportCollection = (): string => {
     const exportData = {
+      version: '2.0', // New version with foil support
       timestamp: new Date().toISOString(),
-      variants: variantCollection,
-      metadata: {
-        totalCards,
-        uniqueCards,
-        exportedBy: 'lorcana-manager-v2.0'
-      }
+      cards: collection.map(card => ({
+        cardId: card.cardId,
+        normal: card.quantityNormal,
+        foil: card.quantityFoil
+      }))
     };
     return JSON.stringify(exportData, null, 2);
   };
 
   const importCollection = (data: string): boolean => {
     try {
-      const importData = JSON.parse(data);
-      if (importData.variants && Array.isArray(importData.variants)) {
-        setVariantCollection(importData.variants);
+      const parsed = JSON.parse(data);
+      
+      if (parsed.version === '2.0' && Array.isArray(parsed.cards)) {
+        // Import new format with foil support
+        const importedCards = parsed.cards.map((card: any) => ({
+          cardId: card.cardId,
+          quantityNormal: card.normal || 0,
+          quantityFoil: card.foil || 0
+        }));
+        
+        setCollection(importedCards);
+        
+        // Sync all cards to database
+        importedCards.forEach((card: CollectionCardEntry) => {
+          syncCardToSupabase(card.cardId, card.quantityNormal, card.quantityFoil);
+        });
+        
+        return true;
+      } else {
+        console.error('Invalid import format');
+        return false;
       }
-      return true;
     } catch (error) {
-      console.error('Failed to import collection:', error);
+      console.error('Error importing collection:', error);
       return false;
     }
   };
 
   const clearCollection = async () => {
-    setVariantCollection([]);
+    if (!user) return;
     
-    // Clear from Supabase if user is authenticated
-    if (user) {
-      try {
-        const { error } = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .delete()
-          .eq('user_id', user.id);
-        
-        if (error) {
-          console.error('Error clearing collection from Supabase:', error);
-          setSyncStatus('error');
-        }
-      } catch (error) {
-        console.error('Network error clearing collection:', error);
-        setSyncStatus('offline');
+    setSyncStatus('loading');
+    
+    try {
+      // Clear from database first
+      const { error } = await supabase
+        .from(TABLES.USER_COLLECTIONS)
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error clearing collection from database:', error);
+        setSyncStatus('error');
+        return;
       }
+
+      // Only clear local state if database deletion succeeded
+      setCollection([]);
+      setSyncStatus('idle');
+      console.log('Collection cleared successfully');
+      
+    } catch (error) {
+      console.error('Network error clearing collection:', error);
+      setSyncStatus('offline');
     }
   };
 
   const value: CollectionContextType = {
-    variantCollection,
-    getVariantQuantities,
-    addVariantToCollection,
-    removeVariantFromCollection,
+    collection,
+    getCardQuantity,
+    addCardToCollection,
+    removeCardFromCollection,
+    setCardQuantity,
     totalCards,
     uniqueCards,
     exportCollection,
     importCollection,
     clearCollection,
     syncStatus,
-    migrateFromLocalStorage,
   };
 
   return (
@@ -282,9 +301,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   );
 };
 
-export const useCollection = (): CollectionContextType => {
+export const useCollection = () => {
   const context = useContext(CollectionContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useCollection must be used within a CollectionProvider');
   }
   return context;

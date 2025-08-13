@@ -1,13 +1,9 @@
-import { LorcanaCard, CardDatabase, ConsolidatedCard } from '../types';
+import { LorcanaCard, CardDatabase } from '../types';
 import cardDatabase from './allCards.json';
-import { consolidateCards } from '../utils/cardConsolidation';
 
 const db = cardDatabase as CardDatabase;
 
 export const allCards: LorcanaCard[] = db.cards;
-
-// Create consolidated cards (grouped by fullName with variants)
-export const consolidatedCards: ConsolidatedCard[] = consolidateCards(allCards);
 
 export const sets = Object.entries(db.sets).map(([key, set]) => ({
   code: key,

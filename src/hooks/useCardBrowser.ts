@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FilterOptions, SortOption, ConsolidatedCard } from '../types';
-import { consolidatedCards } from '../data/allCards';
+import { FilterOptions, SortOption, LorcanaCard } from '../types';
+import { allCards } from '../data/allCards';
 import { useCollection } from '../contexts/CollectionContext';
 import { usePagination } from './usePagination';
 import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils/cardFiltering';
@@ -12,7 +12,7 @@ export const useCardBrowser = () => {
   // ================================
   // 1. EXTERNAL DEPENDENCIES
   // ================================
-  const { getVariantQuantities, addVariantToCollection, removeVariantFromCollection } = useCollection();
+  const { getCardQuantity, addCardToCollection, removeCardFromCollection } = useCollection();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // ================================
@@ -34,12 +34,17 @@ export const useCardBrowser = () => {
   const [staleCardCount, setStaleCardCount] = useState(0);
   
   // ================================
-  // 4. COMPUTED VALUES & EFFECTS
+  // 4. COLLECTION HELPERS
+  // ================================
+  // No more getVariantQuantities - we work with individual cards directly
+
+  // ================================
+  // 5. COMPUTED VALUES & EFFECTS
   // ================================
   const cardsPerPage = PAGINATION.CARDS_PER_PAGE;
 
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
-    const filtered = filterCards(consolidatedCards, searchTerm, filters, staleCardIds, getVariantQuantities);
+    const filtered = filterCards(allCards, searchTerm, filters, staleCardIds, getCardQuantity);
     const sorted = sortCards(filtered, sortBy);
     const grouped = groupCards(sorted, groupBy);
     const activeCount = countActiveFilters(filters);
@@ -50,7 +55,7 @@ export const useCardBrowser = () => {
       totalCards: sorted.length,
       activeFiltersCount: activeCount
     };
-  }, [searchTerm, filters, sortBy, groupBy, getVariantQuantities, staleCardIds]);
+  }, [searchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity]);
   
   const pagination = usePagination({
     totalItems: totalCards,
@@ -132,32 +137,35 @@ export const useCardBrowser = () => {
   // ================================
   // 7. STALE CARD BUSINESS LOGIC
   // ================================  
-  const handleVariantQuantityChange = useCallback((
-    consolidatedCard: ConsolidatedCard, 
-    variantType: 'regular' | 'foil' | 'enchanted' | 'special', 
-    change: number
+  const handleCardQuantityChange = useCallback((
+    card: LorcanaCard, 
+    normalChange: number,
+    foilChange: number
   ) => {
-    // Apply the change
-    if (change > 0) {
-      addVariantToCollection(consolidatedCard, variantType, change);
-    } else {
-      removeVariantFromCollection(consolidatedCard.fullName, variantType, Math.abs(change));
+    // Apply the change using the card ID system
+    if (normalChange !== 0 || foilChange !== 0) {
+      if (normalChange + foilChange > 0) {
+        addCardToCollection(card.id, Math.max(0, normalChange), Math.max(0, foilChange));
+      } else {
+        removeCardFromCollection(card.id, Math.max(0, -normalChange), Math.max(0, -foilChange));
+      }
     }
     
     // Check if this card would now be filtered out due to collection filters
     if (filters.collectionFilter !== 'all') {
       console.log('Checking if card would be filtered out...', {
-        cardName: consolidatedCard.baseCard.name,
+        cardName: card.name,
         filter: filters.collectionFilter,
-        change
+        normalChange,
+        foilChange
       });
       
-      // Get current quantities before the change to predict future state
-      const currentQuantities = getVariantQuantities(consolidatedCard.fullName);
-      const currentTotalOwned = currentQuantities.regular + currentQuantities.foil + currentQuantities.enchanted + currentQuantities.special;
+      // Get current quantities for this specific card ID before the change to predict future state
+      const currentQuantities = getCardQuantity(card.id);
+      const currentTotalOwned = currentQuantities.total;
       
       // Predict what the state will be after this change
-      const predictedTotalOwned = currentTotalOwned + change;
+      const predictedTotalOwned = currentTotalOwned + normalChange + foilChange;
       const willBeInCollection = predictedTotalOwned > 0;
       
       // Check if card would be filtered out after the change
@@ -167,9 +175,10 @@ export const useCardBrowser = () => {
       );
       
       console.log('Stale card prediction:', {
-        cardName: consolidatedCard.baseCard.name,
+        cardName: card.name,
         currentTotalOwned,
-        change,
+        normalChange,
+        foilChange,
         predictedTotalOwned,
         willBeInCollection,
         filterWantsInCollection: filters.collectionFilter,
@@ -177,18 +186,18 @@ export const useCardBrowser = () => {
         currentStaleIds: Array.from(staleCardIds)
       });
       
-      if (wouldBeFilteredOut && !staleCardIds.has(consolidatedCard.baseCard.id)) {
-        console.log('Adding card to stale list:', consolidatedCard.baseCard.name);
+      if (wouldBeFilteredOut && !staleCardIds.has(card.id)) {
+        console.log('Adding card to stale list:', card.name);
         setStaleCardIds(prev => {
           const newSet = new Set(prev);
-          newSet.add(consolidatedCard.baseCard.id);
+          newSet.add(card.id);
           return newSet;
         });
         setStaleCardCount(prev => prev + 1);
         setShowFilterNotification(true);
       }
     }
-  }, [filters.collectionFilter, getVariantQuantities, staleCardIds, addVariantToCollection, removeVariantFromCollection]);
+  }, [filters.collectionFilter, staleCardIds, addCardToCollection, removeCardFromCollection, getCardQuantity]);
 
   const refreshStaleCards = useCallback(() => {
     setStaleCardIds(new Set());
@@ -233,12 +242,9 @@ export const useCardBrowser = () => {
     setViewMode,
     setShowFilters,
     clearAllFilters,
-    handleVariantQuantityChange,
+    handleCardQuantityChange,
     refreshStaleCards,
     dismissFilterNotification,
-    
-    // Collection functions (needed by child components)
-    getVariantQuantities,
     
     // Computed
     sortedCards,

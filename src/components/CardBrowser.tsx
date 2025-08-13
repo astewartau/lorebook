@@ -4,14 +4,14 @@ import { useCardBrowser } from '../hooks';
 import QuickFilters from './QuickFilters';
 import { RARITY_ICONS, COLOR_ICONS } from '../constants/icons';
 import CardPreviewModal from './CardPreviewModal';
-import { ConsolidatedCard } from '../types';
+import { LorcanaCard } from '../types';
 import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
 
 
 const CardBrowser: React.FC = () => {
-  const [selectedCard, setSelectedCard] = useState<ConsolidatedCard | null>(null);
+  const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const {
@@ -34,12 +34,9 @@ const CardBrowser: React.FC = () => {
     setViewMode,
     setShowFilters,
     clearAllFilters,
-    handleVariantQuantityChange,
+    handleCardQuantityChange,
     refreshStaleCards,
     dismissFilterNotification,
-    
-    // Collection functions
-    getVariantQuantities,
     
     // Computed
     groupedCards,
@@ -49,7 +46,7 @@ const CardBrowser: React.FC = () => {
     pagination
   } = useCardBrowser();
 
-  const handleCardClick = (card: ConsolidatedCard) => {
+  const handleCardClick = (card: LorcanaCard) => {
     setSelectedCard(card);
     setIsModalOpen(true);
   };
@@ -78,6 +75,8 @@ const CardBrowser: React.FC = () => {
       <CardSearch
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        filters={filters}
+        setFilters={setFilters}
         sortBy={sortBy}
         setSortBy={setSortBy}
         groupBy={groupBy}
@@ -119,8 +118,7 @@ const CardBrowser: React.FC = () => {
         groupedCards={groupedCards}
         paginatedCards={paginatedCards}
         pagination={pagination}
-        handleVariantQuantityChange={handleVariantQuantityChange}
-        getVariantQuantities={getVariantQuantities}
+        handleCardQuantityChange={handleCardQuantityChange}
         staleCardIds={staleCardIds}
         handleCardClick={handleCardClick}
       />

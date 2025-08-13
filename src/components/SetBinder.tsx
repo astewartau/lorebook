@@ -3,26 +3,25 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Book, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCollection } from '../contexts/CollectionContext';
 import { useImageLoad } from '../contexts/ImageLoadContext';
-import { consolidatedCards, sets } from '../data/allCards';
+import { allCards, sets } from '../data/allCards';
 import CardImage from './CardImage';
 import CardPreviewModal from './CardPreviewModal';
-import { ConsolidatedCard } from '../types';
+import { LorcanaCard } from '../types';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
 
 const SetBinder: React.FC = () => {
   const { setCode, binderId } = useParams<{ setCode?: string; binderId?: string }>();
   const navigate = useNavigate();
-  const { getVariantQuantities } = useCollection();
+  const { getCardQuantity } = useCollection();
   const imageLoad = useImageLoad();
   const [currentPageSpread, setCurrentPageSpread] = useState(0);
   const [currentMobilePage, setCurrentMobilePage] = useState(0);
-  const [selectedCard, setSelectedCard] = useState<ConsolidatedCard | null>(null);
+  const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [publishedBinder, setPublishedBinder] = useState<UserBinder | null>(null);
   const [publishedBinderOwner, setPublishedBinderOwner] = useState<any>(null);
-  const [ownerCollection, setOwnerCollection] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -84,7 +83,6 @@ const SetBinder: React.FC = () => {
         .eq('user_id', binderData.user_id);
 
       if (collectionError) throw collectionError;
-      setOwnerCollection(collectionData || []);
 
     } catch (error) {
       console.error('Error loading published binder:', error);
@@ -97,33 +95,44 @@ const SetBinder: React.FC = () => {
   const effectiveSetCode = setCode || publishedBinder?.set_code;
   const setData = effectiveSetCode ? sets.find(set => set.code === effectiveSetCode) : null;
   
-  const setCards = !effectiveSetCode ? [] : consolidatedCards
-    .filter(card => card.baseCard.setCode === effectiveSetCode)
-    .sort((a, b) => a.baseCard.number - b.baseCard.number);
+  const setCards = !effectiveSetCode ? [] : allCards
+    .filter(card => card.setCode === effectiveSetCode)
+    .sort((a, b) => {
+      // Custom sorting: Regular cards first, then enchanted, then special/promo
+      const getCardPriority = (card: LorcanaCard) => {
+        if (card.promoGrouping) {
+          return 3; // Special/promo cards last
+        } else if (card.rarity === 'Enchanted') {
+          return 2; // Enchanted cards second
+        } else {
+          return 1; // Regular cards first
+        }
+      };
+      
+      const priorityA = getCardPriority(a);
+      const priorityB = getCardPriority(b);
+      
+      // First sort by priority (regular, enchanted, special)
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // Within same priority, sort by card number
+      return a.number - b.number;
+    });
 
   const cardsWithOwnership = setCards.map(card => {
-    let quantities;
+    let totalOwned = 0;
     
-    if (binderId && ownerCollection.length > 0) {
-      // For published binders, use owner's collection data
-      const ownerCard = ownerCollection.find(c => c.card_name === card.fullName);
-      quantities = {
-        regular: ownerCard?.regular_count || 0,
-        foil: ownerCard?.foil_count || 0,
-        enchanted: ownerCard?.enchanted_count || 0,
-        special: ownerCard?.special_count || 0
-      };
-    } else {
-      // For own binders, use collection context
-      quantities = getVariantQuantities(card.fullName);
-    }
-    
-    const totalOwned = quantities.regular + quantities.foil + quantities.enchanted + quantities.special;
+    // Use new card ID system for all binders
+    // Each card now has its own unique quantity
+    const quantities = getCardQuantity(card.id);
+    totalOwned = quantities.total;
     
     return {
       ...card,
       owned: totalOwned > 0,
-      quantities
+      totalQuantity: totalOwned
     };
   });
 
@@ -150,9 +159,9 @@ const SetBinder: React.FC = () => {
       console.log(`[SetBinder] Preloading ${prevPageCards.length} cards from previous page ${currentPageSpread - 1}`);
       prevPageCards.forEach(cardData => {
         imageLoad.registerImage(
-          cardData.baseCard.images.full,
+          cardData.images.full,
           'regular-full',
-          `preload-${cardData.baseCard.id}`,
+          `preload-${cardData.id}`,
           false, // not in viewport
           () => {}, // no callback needed
           () => {}  // no error callback needed
@@ -165,9 +174,9 @@ const SetBinder: React.FC = () => {
       console.log(`[SetBinder] Preloading ${nextPageCards.length} cards from next page ${currentPageSpread + 1}`);
       nextPageCards.forEach(cardData => {
         imageLoad.registerImage(
-          cardData.baseCard.images.full,
+          cardData.images.full,
           'regular-full', 
-          `preload-${cardData.baseCard.id}`,
+          `preload-${cardData.id}`,
           false, // not in viewport
           () => {}, // no callback needed
           () => {}  // no error callback needed
@@ -242,7 +251,7 @@ const SetBinder: React.FC = () => {
     }
   };
 
-  const handleCardClick = (card: ConsolidatedCard) => {
+  const handleCardClick = (card: LorcanaCard) => {
     setSelectedCard(card);
     setIsModalOpen(true);
   };
@@ -675,10 +684,10 @@ const SetBinder: React.FC = () => {
                         .slice(currentPageSpread * 18, currentPageSpread * 18 + 9)
                         .map((cardData, index) => (
                           <div
-                            key={cardData.baseCard.id}
+                            key={cardData.id}
                             className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
                             onClick={() => handleCardClick(cardData)}
-                            onMouseMove={(e) => handleCardMouseMove(e, cardData.baseCard.id.toString())}
+                            onMouseMove={(e) => handleCardMouseMove(e, cardData.id.toString())}
                             onMouseLeave={handleCardMouseLeave}
                             style={{
                               border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
@@ -701,8 +710,7 @@ const SetBinder: React.FC = () => {
                               {/* Card image with progressive loading */}
                               <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
                                 <CardImage
-                                  card={cardData.baseCard}
-                                  enchantedCard={cardData.enchantedCard}
+                                  card={cardData}
                                   size="full"
                                   enableHover={false}
                                   enableTilt={false}
@@ -713,7 +721,7 @@ const SetBinder: React.FC = () => {
                               {cardData.owned ? (
                                 /* Quantity badge */
                                 <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1.5 py-0.5 rounded shadow-lg">
-                                  {cardData.quantities.regular + cardData.quantities.foil + cardData.quantities.enchanted + cardData.quantities.special}
+                                  {cardData.totalQuantity}
                                 </div>
                               ) : null}
 
@@ -747,7 +755,7 @@ const SetBinder: React.FC = () => {
                                     }}
                                   />
                                   {/* Dynamic mouse light effect */}
-                                  {hoveredCard === cardData.baseCard.id.toString() && (
+                                  {hoveredCard === cardData.id.toString() && (
                                     <div 
                                       className="absolute inset-0 pointer-events-none transition-opacity duration-150"
                                       style={{
@@ -769,7 +777,7 @@ const SetBinder: React.FC = () => {
                               
                               {/* Card number at bottom */}
                               <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded">
-                                #{cardData.baseCard.number}
+                                #{cardData.number}
                               </div>
                             </div>
                           </div>
@@ -834,10 +842,10 @@ const SetBinder: React.FC = () => {
                         .slice(currentPageSpread * 18 + 9, currentPageSpread * 18 + 18)
                         .map((cardData, index) => (
                           <div
-                            key={cardData.baseCard.id}
+                            key={cardData.id}
                             className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
                             onClick={() => handleCardClick(cardData)}
-                            onMouseMove={(e) => handleCardMouseMove(e, cardData.baseCard.id.toString())}
+                            onMouseMove={(e) => handleCardMouseMove(e, cardData.id.toString())}
                             onMouseLeave={handleCardMouseLeave}
                             style={{
                               border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
@@ -860,8 +868,7 @@ const SetBinder: React.FC = () => {
                               {/* Card image with progressive loading */}
                               <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
                                 <CardImage
-                                  card={cardData.baseCard}
-                                  enchantedCard={cardData.enchantedCard}
+                                  card={cardData}
                                   size="full"
                                   enableHover={false}
                                   enableTilt={false}
@@ -872,7 +879,7 @@ const SetBinder: React.FC = () => {
                               {cardData.owned ? (
                                 /* Quantity badge */
                                 <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1.5 py-0.5 rounded shadow-lg">
-                                  {cardData.quantities.regular + cardData.quantities.foil + cardData.quantities.enchanted + cardData.quantities.special}
+                                  {cardData.totalQuantity}
                                 </div>
                               ) : null}
 
@@ -906,7 +913,7 @@ const SetBinder: React.FC = () => {
                                     }}
                                   />
                                   {/* Dynamic mouse light effect */}
-                                  {hoveredCard === cardData.baseCard.id.toString() && (
+                                  {hoveredCard === cardData.id.toString() && (
                                     <div 
                                       className="absolute inset-0 pointer-events-none transition-opacity duration-150"
                                       style={{
@@ -928,7 +935,7 @@ const SetBinder: React.FC = () => {
                               
                               {/* Card number at bottom */}
                               <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded">
-                                #{cardData.baseCard.number}
+                                #{cardData.number}
                               </div>
                             </div>
                           </div>
@@ -989,7 +996,7 @@ const SetBinder: React.FC = () => {
                         .slice(currentMobilePage * 9, (currentMobilePage + 1) * 9)
                         .map((cardData, index) => (
                           <div
-                            key={cardData.baseCard.id}
+                            key={cardData.id}
                             className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
                             onClick={() => handleCardClick(cardData)}
                             style={{
@@ -1011,8 +1018,7 @@ const SetBinder: React.FC = () => {
                               {/* Card image */}
                               <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
                                 <CardImage
-                                  card={cardData.baseCard}
-                                  enchantedCard={cardData.enchantedCard}
+                                  card={cardData}
                                   size="full"
                                   enableHover={false}
                                   enableTilt={false}
@@ -1023,13 +1029,13 @@ const SetBinder: React.FC = () => {
                               {cardData.owned && (
                                 /* Quantity badge */
                                 <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1 py-0.5 rounded shadow-lg">
-                                  {cardData.quantities.regular + cardData.quantities.foil + cardData.quantities.enchanted + cardData.quantities.special}
+                                  {cardData.totalQuantity}
                                 </div>
                               )}
                               
                               {/* Card number */}
                               <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1 py-0.5 rounded">
-                                #{cardData.baseCard.number}
+                                #{cardData.number}
                               </div>
                             </div>
                           </div>

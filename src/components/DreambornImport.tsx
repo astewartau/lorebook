@@ -8,7 +8,7 @@ interface DreambornImportProps {
 }
 
 const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
-  const { addVariantToCollection } = useCollection();
+  const { addCardToCollection } = useCollection();
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<{
     success: boolean;
@@ -45,27 +45,13 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
         return;
       }
 
-      // Import cards into collection
+      // Import cards into collection using card ID system with foil support
       for (const importedCard of importedCards) {
-        const { consolidatedCard, normalQuantity, foilQuantity, isEnchanted } = importedCard;
+        const { card, normalQuantity, foilQuantity } = importedCard;
         
-        if (isEnchanted) {
-          // For enchanted cards, add to enchanted variant
-          if (normalQuantity > 0) {
-            addVariantToCollection(consolidatedCard, 'enchanted', normalQuantity);
-          }
-          // Foil enchanted cards still go to enchanted (there's no separate foil enchanted in our system)
-          if (foilQuantity > 0) {
-            addVariantToCollection(consolidatedCard, 'enchanted', foilQuantity);
-          }
-        } else {
-          // For regular cards, add to appropriate variants
-          if (normalQuantity > 0) {
-            addVariantToCollection(consolidatedCard, 'regular', normalQuantity);
-          }
-          if (foilQuantity > 0) {
-            addVariantToCollection(consolidatedCard, 'foil', foilQuantity);
-          }
+        // Add both normal and foil quantities separately
+        if (normalQuantity > 0 || foilQuantity > 0) {
+          addCardToCollection(card.id, normalQuantity, foilQuantity);
         }
       }
 

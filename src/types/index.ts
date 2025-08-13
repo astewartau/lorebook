@@ -24,6 +24,7 @@ export interface LorcanaCard {
   story?: string;
   subtypes?: string[];
   foilTypes?: string[];
+  promoGrouping?: string;
 }
 
 export interface CollectionCard extends LorcanaCard {
@@ -31,27 +32,14 @@ export interface CollectionCard extends LorcanaCard {
   foil: boolean;
 }
 
-export interface ConsolidatedCard {
-  baseCard: LorcanaCard;
-  fullName: string;
-  hasRegular: boolean;
-  hasFoil: boolean;  
-  hasEnchanted: boolean;
-  hasSpecial: boolean;
-  regularCard?: LorcanaCard;
-  foilCard?: LorcanaCard;
-  enchantedCard?: LorcanaCard;
-  specialCards?: LorcanaCard[];
-}
 
 
-export interface CollectionCardVariants {
-  cardId: number; // Base card ID
-  fullName: string;
-  regular: number; // Quantity of regular non-foil
-  foil: number;    // Quantity of regular foil  
-  enchanted: number; // Quantity of enchanted
-  special: number;   // Quantity of special/promo
+
+// Card ID based collection with foil support
+export interface CollectionCardEntry {
+  cardId: number; // Unique card ID
+  quantityNormal: number; // Normal (non-foil) quantity
+  quantityFoil: number; // Foil quantity
 }
 
 export interface DeckCard extends LorcanaCard {

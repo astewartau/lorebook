@@ -1,24 +1,17 @@
 import React from 'react';
-import { ConsolidatedCard } from '../../types';
-import ConsolidatedCardComponent from '../ConsolidatedCard';
+import { LorcanaCard } from '../../types';
+import Card from '../Card';
 import { useDynamicGrid } from '../../hooks';
 
 interface CardGridViewProps {
-  cards: ConsolidatedCard[];
-  onQuantityChange: (card: ConsolidatedCard, variantType: 'regular' | 'foil' | 'enchanted' | 'special', change: number) => void;
-  getVariantQuantities: (fullName: string) => {
-    regular: number;
-    foil: number;
-    enchanted: number;
-    special: number;
-  };
-  onCardClick?: (card: ConsolidatedCard) => void;
+  cards: LorcanaCard[];
+  onQuantityChange: (card: LorcanaCard, normalChange: number, foilChange: number) => void;
+  onCardClick?: (card: LorcanaCard) => void;
 }
 
 const CardGridView: React.FC<CardGridViewProps> = ({
   cards,
   onQuantityChange,
-  getVariantQuantities,
   onCardClick
 }) => {
   const { containerRef, gridStyle } = useDynamicGrid();
@@ -29,21 +22,17 @@ const CardGridView: React.FC<CardGridViewProps> = ({
       className="pb-8"
       style={gridStyle}
     >
-      {cards.map((consolidatedCard) => {
-        const quantities = getVariantQuantities(consolidatedCard.fullName);
-        return (
-          <div key={consolidatedCard.baseCard.id} className="relative">
-            <ConsolidatedCardComponent
-              consolidatedCard={consolidatedCard}
-              quantities={quantities}
-              onQuantityChange={(variantType, change) => 
-                onQuantityChange(consolidatedCard, variantType, change)
-              }
-              onCardClick={onCardClick}
-            />
-          </div>
-        );
-      })}
+      {cards.map((card) => (
+        <div key={card.id} className="relative">
+          <Card
+            card={card}
+            onQuantityChange={(normalChange, foilChange) => 
+              onQuantityChange(card, normalChange, foilChange)
+            }
+            onCardClick={onCardClick}
+          />
+        </div>
+      ))}
     </div>
   );
 };

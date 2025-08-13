@@ -11,21 +11,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database table names
 export const TABLES = {
-  USER_COLLECTIONS: 'user_collections',
+  USER_COLLECTIONS: 'user_collections', // Card ID based table (after migration)
   USER_DECKS: 'user_decks',
   USER_BINDERS: 'user_binders',
   USER_PROFILES: 'user_profiles',
 } as const
 
-// Types for Supabase
+// Card ID based collection type with foil support
 export interface UserCollection {
   id: string
   user_id: string
-  card_name: string
-  regular_count: number
-  foil_count: number
-  enchanted_count: number
-  special_count: number
+  card_id: number
+  quantity_normal: number
+  quantity_foil: number
+  quantity_total?: number // Generated column
   created_at: string
   updated_at: string
 }

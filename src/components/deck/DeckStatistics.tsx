@@ -14,7 +14,7 @@ const DeckStatistics: React.FC<DeckStatisticsProps> = ({
   onTooltipShow, 
   onTooltipHide 
 }) => {
-  const { getVariantQuantities } = useCollection();
+  const { getCardQuantity } = useCollection();
 
 
   // Calculate statistics
@@ -73,9 +73,8 @@ const DeckStatistics: React.FC<DeckStatisticsProps> = ({
 
   const collectionDistribution = deck.cards.reduce((acc, card) => {
     // Check if card is in collection
-    const variantQuantities = getVariantQuantities(card.fullName);
-    const totalInCollection = variantQuantities.regular + variantQuantities.foil + 
-                             variantQuantities.enchanted + variantQuantities.special;
+    const quantities = getCardQuantity(card.id);
+    const totalInCollection = quantities.total;
     
     const key = totalInCollection > 0 ? 'In Collection' : 'Not in Collection';
     acc[key] = (acc[key] || 0) + card.quantity;

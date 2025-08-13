@@ -203,30 +203,12 @@ const CardImage: React.FC<CardImageProps> = ({
         
         {/* Light overlay effect (only if hover effects enabled) */}
         {enableHover && isHovered && (
-          <>
-            <div 
-              className="absolute inset-0 pointer-events-none opacity-30 transition-opacity duration-300"
-              style={{
-                background: `radial-gradient(circle at ${lightPosition.x}% ${lightPosition.y}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 30%, transparent 60%)`
-              }}
-            />
-            {/* Enchanted shimmer effect */}
-            {hasEnchanted && shouldShowEnchanted && enchantedImageProps.src && (
-              <div 
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: `linear-gradient(105deg, 
-                    transparent 40%, 
-                    rgba(255, 255, 255, 0.7) 45%, 
-                    rgba(255, 255, 255, 0.9) 50%, 
-                    rgba(255, 255, 255, 0.7) 55%, 
-                    transparent 60%)`,
-                  transform: 'translateX(-100%)',
-                  animation: 'shimmer 1.5s ease-out'
-                }}
-              />
-            )}
-          </>
+          <div 
+            className="absolute inset-0 pointer-events-none opacity-30 transition-opacity duration-300"
+            style={{
+              background: `radial-gradient(circle at ${lightPosition.x}% ${lightPosition.y}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 30%, transparent 60%)`
+            }}
+          />
         )}
       </div>
     </div>

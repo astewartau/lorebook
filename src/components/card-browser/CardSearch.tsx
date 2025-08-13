@@ -1,11 +1,14 @@
 import React from 'react';
-import { Search, Grid, List, Filter, RotateCcw } from 'lucide-react';
-import { SortOption } from '../../types';
+import { Grid, List, Filter, RotateCcw } from 'lucide-react';
+import { SortOption, FilterOptions } from '../../types';
 import CardViewControls from './CardViewControls';
+import GitHubStyleSearch from '../GitHubStyleSearch';
 
 interface CardSearchProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  filters: FilterOptions;
+  setFilters: (filters: FilterOptions) => void;
   sortBy: SortOption;
   setSortBy: (sort: SortOption) => void;
   groupBy: string;
@@ -22,6 +25,8 @@ interface CardSearchProps {
 const CardSearch: React.FC<CardSearchProps> = ({
   searchTerm,
   setSearchTerm,
+  filters,
+  setFilters,
   sortBy,
   setSortBy,
   groupBy,
@@ -39,14 +44,12 @@ const CardSearch: React.FC<CardSearchProps> = ({
       {/* Mobile Layout */}
       <div className="md:hidden">
         <div className="flex gap-2 mb-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-lorcana-navy" size={18} />
-            <input
-              type="text"
-              placeholder="Search cards..."
+          <div className="flex-1">
+            <GitHubStyleSearch
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border-2 border-lorcana-gold rounded-sm focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-sm"
+              onChange={setSearchTerm}
+              placeholder="Search cards..."
+              className="text-sm"
             />
           </div>
           <button
@@ -76,14 +79,11 @@ const CardSearch: React.FC<CardSearchProps> = ({
       {/* Desktop Layout */}
       <div className="hidden md:block">
         <div className="flex flex-col gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-lorcana-navy" size={20} />
-            <input
-              type="text"
-              placeholder="Search cards by name..."
+          <div className="flex-1">
+            <GitHubStyleSearch
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border-2 border-lorcana-gold rounded-sm focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream"
+              onChange={setSearchTerm}
+              placeholder="Search cards..."
             />
           </div>
           <div className="flex flex-wrap gap-2">

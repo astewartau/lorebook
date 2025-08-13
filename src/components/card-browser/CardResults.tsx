@@ -1,7 +1,7 @@
 import React from 'react';
 import PaginationControls from '../shared/PaginationControls';
 import { CardGridView, CardListView, GroupedView } from '../card-views';
-import { ConsolidatedCard } from '../../types';
+import { LorcanaCard } from '../../types';
 import { sets } from '../../data/allCards';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
 
@@ -9,8 +9,8 @@ interface CardResultsProps {
   groupBy: string;
   viewMode: 'grid' | 'list';
   totalCards: number;
-  groupedCards: Record<string, ConsolidatedCard[]>;
-  paginatedCards: ConsolidatedCard[];
+  groupedCards: Record<string, LorcanaCard[]>;
+  paginatedCards: LorcanaCard[];
   pagination: {
     currentPage: number;
     totalPages: number;
@@ -20,10 +20,9 @@ interface CardResultsProps {
     startIndex: number;
     endIndex: number;
   };
-  handleVariantQuantityChange: (consolidatedCard: ConsolidatedCard, variantType: 'regular' | 'foil' | 'enchanted' | 'special', change: number) => void;
-  getVariantQuantities: (fullName: string) => { regular: number; foil: number; enchanted: number; special: number };
+  handleCardQuantityChange: (card: LorcanaCard, normalChange: number, foilChange: number) => void;
   staleCardIds: Set<number>;
-  handleCardClick: (card: ConsolidatedCard) => void;
+  handleCardClick: (card: LorcanaCard) => void;
 }
 
 const CardResults: React.FC<CardResultsProps> = ({
@@ -33,8 +32,7 @@ const CardResults: React.FC<CardResultsProps> = ({
   groupedCards,
   paginatedCards,
   pagination,
-  handleVariantQuantityChange,
-  getVariantQuantities,
+  handleCardQuantityChange,
   staleCardIds,
   handleCardClick,
 }) => {
@@ -66,8 +64,7 @@ const CardResults: React.FC<CardResultsProps> = ({
           <GroupedView
             groupedCards={groupedCards}
             viewMode={viewMode}
-            onQuantityChange={handleVariantQuantityChange}
-            getVariantQuantities={getVariantQuantities}
+            onQuantityChange={handleCardQuantityChange}
             staleCardIds={staleCardIds}
             rarityIconMap={RARITY_ICONS}
             colorIconMap={COLOR_ICONS}
@@ -77,15 +74,13 @@ const CardResults: React.FC<CardResultsProps> = ({
         ) : viewMode === 'grid' ? (
           <CardGridView
             cards={paginatedCards}
-            onQuantityChange={handleVariantQuantityChange}
-            getVariantQuantities={getVariantQuantities}
+            onQuantityChange={handleCardQuantityChange}
             onCardClick={handleCardClick}
           />
         ) : (
           <CardListView
             cards={paginatedCards}
-            onQuantityChange={handleVariantQuantityChange}
-            getVariantQuantities={getVariantQuantities}
+            onQuantityChange={handleCardQuantityChange}
             staleCardIds={staleCardIds}
             rarityIconMap={RARITY_ICONS}
             colorIconMap={COLOR_ICONS}

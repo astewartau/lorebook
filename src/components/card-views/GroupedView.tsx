@@ -1,30 +1,23 @@
 import React from 'react';
-import { ConsolidatedCard } from '../../types';
+import { LorcanaCard } from '../../types';
 import CardGridView from './CardGridView';
 import CardListView from './CardListView';
 
 interface GroupedViewProps {
-  groupedCards: Record<string, ConsolidatedCard[]>;
+  groupedCards: Record<string, LorcanaCard[]>;
   viewMode: 'grid' | 'list';
-  onQuantityChange: (card: ConsolidatedCard, variantType: 'regular' | 'foil' | 'enchanted' | 'special', change: number) => void;
-  getVariantQuantities: (fullName: string) => {
-    regular: number;
-    foil: number;
-    enchanted: number;
-    special: number;
-  };
+  onQuantityChange: (card: LorcanaCard, normalChange: number, foilChange: number) => void;
   staleCardIds: Set<number>;
   rarityIconMap: Record<string, string>;
   colorIconMap: Record<string, string>;
   sets: Array<{code: string; name: string; number: number}>;
-  onCardClick?: (card: ConsolidatedCard) => void;
+  onCardClick?: (card: LorcanaCard) => void;
 }
 
 const GroupedView: React.FC<GroupedViewProps> = ({
   groupedCards,
   viewMode,
   onQuantityChange,
-  getVariantQuantities,
   staleCardIds,
   rarityIconMap,
   colorIconMap,
@@ -48,7 +41,6 @@ const GroupedView: React.FC<GroupedViewProps> = ({
               <CardGridView
                 cards={cards}
                 onQuantityChange={onQuantityChange}
-                getVariantQuantities={getVariantQuantities}
                 onCardClick={onCardClick}
               />
             </div>
@@ -57,7 +49,6 @@ const GroupedView: React.FC<GroupedViewProps> = ({
               <CardListView
                 cards={cards}
                 onQuantityChange={onQuantityChange}
-                getVariantQuantities={getVariantQuantities}
                 staleCardIds={staleCardIds}
                 rarityIconMap={rarityIconMap}
                 colorIconMap={colorIconMap}

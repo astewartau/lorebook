@@ -1,99 +1,104 @@
 import React from 'react';
 import { Plus, Minus } from 'lucide-react';
-import { ConsolidatedCard } from '../../types';
+import { LorcanaCard } from '../../types';
+import { useCollection } from '../../contexts/CollectionContext';
 
 interface CardListViewProps {
-  cards: ConsolidatedCard[];
-  onQuantityChange: (card: ConsolidatedCard, variantType: 'regular' | 'foil' | 'enchanted' | 'special', change: number) => void;
-  getVariantQuantities: (fullName: string) => {
-    regular: number;
-    foil: number;
-    enchanted: number;
-    special: number;
-  };
+  cards: LorcanaCard[];
+  onQuantityChange: (card: LorcanaCard, normalChange: number, foilChange: number) => void;
   staleCardIds: Set<number>;
   rarityIconMap: Record<string, string>;
   colorIconMap: Record<string, string>;
   sets: Array<{code: string; name: string; number: number}>;
-  onCardClick?: (card: ConsolidatedCard) => void;
+  onCardClick?: (card: LorcanaCard) => void;
 }
 
 const CardListView: React.FC<CardListViewProps> = ({
   cards,
   onQuantityChange,
-  getVariantQuantities,
   staleCardIds,
   rarityIconMap,
   colorIconMap,
   sets,
   onCardClick
 }) => {
-  // Get variant background styling like the full view
-  const getVariantBackground = (variantType: 'regular' | 'foil' | 'enchanted' | 'special') => {
-    switch (variantType) {
-      case 'regular':
-        return 'bg-lorcana-cream border-lorcana-gold';
-      case 'foil':
-        return 'bg-gradient-to-r from-blue-200 via-indigo-200 to-blue-300 border-blue-500';
-      case 'enchanted':
-        return 'bg-gradient-to-r from-pink-200 via-purple-200 to-pink-300 border-pink-500';
-      case 'special':
-        return 'bg-gradient-to-r from-yellow-200 via-orange-200 to-yellow-300 border-orange-500';
-      default:
-        return 'bg-lorcana-cream border-lorcana-gold';
-    }
-  };
+  const { getCardQuantity } = useCollection();
+  // Get quantity control background styling
+  const getNormalBackground = () => 'bg-lorcana-cream border-lorcana-gold';
+  const getFoilBackground = () => 'bg-gradient-to-r from-blue-200 via-indigo-200 to-blue-300 border-blue-500';
 
-  // Compact quantity control with proper button styling
-  const renderMiniControl = (
-    consolidatedCard: ConsolidatedCard,
-    variantType: 'regular' | 'foil' | 'enchanted' | 'special',
-    quantity: number,
-    isAvailable: boolean
-  ) => {
-    if (!isAvailable) return null;
-    return (
-      <div className={`flex items-center justify-between px-1.5 py-0.5 rounded border ${getVariantBackground(variantType)} transition-all`}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuantityChange(consolidatedCard, variantType, -1);
-          }}
-          disabled={quantity <= 0}
-          className="p-0.5 rounded text-red-600 hover:text-red-800 transition-colors disabled:text-gray-400"
-        >
-          <Minus size={8} />
-        </button>
-        <span className="font-semibold text-xs min-w-[1rem] text-center text-lorcana-ink">
-          {quantity}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuantityChange(consolidatedCard, variantType, 1);
-          }}
-          className="p-0.5 rounded text-green-600 hover:text-green-800 transition-colors"
-        >
-          <Plus size={8} />
-        </button>
-      </div>
-    );
-  };
+  // Compact quantity controls for normal and foil
+  const renderNormalControl = (card: LorcanaCard, quantity: number) => (
+    <div className={`flex items-center justify-between px-1.5 py-0.5 rounded border ${getNormalBackground()} transition-all`}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onQuantityChange(card, -1, 0);
+        }}
+        disabled={quantity <= 0}
+        className="p-0.5 rounded text-red-600 hover:text-red-800 transition-colors disabled:text-gray-400"
+        title="Remove normal copy"
+      >
+        <Minus size={8} />
+      </button>
+      <span className="font-semibold text-xs min-w-[1rem] text-center text-lorcana-ink">
+        {quantity}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onQuantityChange(card, 1, 0);
+        }}
+        className="p-0.5 rounded text-green-600 hover:text-green-800 transition-colors"
+        title="Add normal copy"
+      >
+        <Plus size={8} />
+      </button>
+    </div>
+  );
+
+  const renderFoilControl = (card: LorcanaCard, quantity: number) => (
+    <div className={`flex items-center justify-between px-1.5 py-0.5 rounded border ${getFoilBackground()} transition-all`}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onQuantityChange(card, 0, -1);
+        }}
+        disabled={quantity <= 0}
+        className="p-0.5 rounded text-red-600 hover:text-red-800 transition-colors disabled:text-gray-400"
+        title="Remove foil copy"
+      >
+        <Minus size={8} />
+      </button>
+      <span className="font-semibold text-xs min-w-[1rem] text-center text-lorcana-ink">
+        {quantity}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onQuantityChange(card, 0, 1);
+        }}
+        className="p-0.5 rounded text-green-600 hover:text-green-800 transition-colors"
+        title="Add foil copy"
+      >
+        <Plus size={8} />
+      </button>
+    </div>
+  );
 
   return (
     <div className="columns-1 xl:columns-2 gap-0">
-      {cards.map((consolidatedCard) => {
-        const { baseCard, hasEnchanted, hasSpecial } = consolidatedCard;
-        const quantities = getVariantQuantities(consolidatedCard.fullName);
-        const setInfo = sets.find(s => s.code === baseCard.setCode);
+      {cards.map((card) => {
+        const quantities = getCardQuantity(card.id);
+        const setInfo = sets.find(s => s.code === card.setCode);
         
         return (
           <div 
-            key={baseCard.id} 
+            key={card.id} 
             className={`bg-lorcana-navy p-2 rounded-sm hover:shadow-xl transition-all duration-300 ease-out border-2 border-lorcana-gold hover:scale-[1.02] hover:-translate-y-0.5 cursor-pointer transform-gpu break-inside-avoid ${
-              staleCardIds.has(baseCard.id) ? 'bg-orange-200 border-orange-400' : ''
+              staleCardIds.has(card.id) ? 'bg-orange-200 border-orange-400' : ''
             }`}
-            onClick={() => onCardClick?.(consolidatedCard)}
+            onClick={() => onCardClick?.(card)}
           >
             {/* Mobile Layout - Two Lines */}
             <div className="sm:hidden">
@@ -101,25 +106,25 @@ const CardListView: React.FC<CardListViewProps> = ({
               <div className="flex items-center gap-1.5 text-xs mb-1">
                 {/* Set/Card Number */}
                 <span className="font-mono text-lorcana-cream font-semibold text-center flex-shrink-0">
-                  {setInfo?.number || '?'}/#{baseCard.number}
+                  {setInfo?.number || '?'}/#{card.number}
                 </span>
                 
                 {/* Rarity */}
-                {rarityIconMap[baseCard.rarity] && (
+                {rarityIconMap[card.rarity] && (
                   <img 
-                    src={rarityIconMap[baseCard.rarity]} 
-                    alt={baseCard.rarity}
+                    src={rarityIconMap[card.rarity]} 
+                    alt={card.rarity}
                     className="w-4 h-4 flex-shrink-0"
                   />
                 )}
                 
                 {/* Ink Color Icon */}
-                {baseCard.color && (
+                {card.color && (
                   <div className="flex-shrink-0 w-5 h-5 relative">
-                    {baseCard.color.includes('-') ? (
+                    {card.color.includes('-') ? (
                       // Dual-ink cards: show both icons split diagonally
                       (() => {
-                        const [color1, color2] = baseCard.color.split('-');
+                        const [color1, color2] = card.color.split('-');
                         const icon1 = colorIconMap[color1];
                         const icon2 = colorIconMap[color2];
                         if (icon1 && icon2) {
@@ -163,10 +168,10 @@ const CardListView: React.FC<CardListViewProps> = ({
                       })()
                     ) : (
                       // Single ink cards: show normal icon
-                      colorIconMap[baseCard.color] && (
+                      colorIconMap[card.color] && (
                         <img 
-                          src={colorIconMap[baseCard.color]} 
-                          alt={baseCard.color}
+                          src={colorIconMap[card.color]} 
+                          alt={card.color}
                           className="w-5 h-5"
                         />
                       )
@@ -177,30 +182,28 @@ const CardListView: React.FC<CardListViewProps> = ({
                 {/* Ink Cost */}
                 <div className="relative flex-shrink-0">
                   <img
-                    src={baseCard.inkwell ? "/imgs/inkable.png" : "/imgs/uninkable.png"}
-                    alt={baseCard.inkwell ? "Inkable" : "Uninkable"}
+                    src={card.inkwell ? "/imgs/inkable.png" : "/imgs/uninkable.png"}
+                    alt={card.inkwell ? "Inkable" : "Uninkable"}
                     className="w-5 h-5"
                   />
                   <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                    {baseCard.cost}
+                    {card.cost}
                   </span>
                 </div>
 
                 {/* Card Name - Now on first line */}
                 <div className="flex-1 min-w-0 truncate">
-                  <span className="font-semibold text-white">{baseCard.name}</span>
-                  {baseCard.version && (
-                    <span className="font-normal italic text-lorcana-cream"> - {baseCard.version}</span>
+                  <span className="font-semibold text-white">{card.name}</span>
+                  {card.version && (
+                    <span className="font-normal italic text-lorcana-cream"> - {card.version}</span>
                   )}
                 </div>
               </div>
               
               {/* Second Line - Quantity Controls */}
               <div className="flex items-center gap-1">
-                {renderMiniControl(consolidatedCard, 'regular', quantities.regular, consolidatedCard.hasRegular)}
-                {renderMiniControl(consolidatedCard, 'foil', quantities.foil, consolidatedCard.hasFoil)}
-                {hasEnchanted && renderMiniControl(consolidatedCard, 'enchanted', quantities.enchanted, true)}
-                {hasSpecial && renderMiniControl(consolidatedCard, 'special', quantities.special, true)}
+                {renderNormalControl(card, quantities.normal)}
+                {renderFoilControl(card, quantities.foil)}
               </div>
             </div>
 
@@ -208,25 +211,25 @@ const CardListView: React.FC<CardListViewProps> = ({
             <div className="hidden sm:flex items-center space-x-2 text-xs">
               {/* Set/Card Number */}
               <span className="font-mono text-lorcana-cream font-semibold w-16 text-center">
-                {setInfo?.number || '?'}/#{baseCard.number}
+                {setInfo?.number || '?'}/#{card.number}
               </span>
               
               {/* Rarity */}
-              {rarityIconMap[baseCard.rarity] && (
+              {rarityIconMap[card.rarity] && (
                 <img 
-                  src={rarityIconMap[baseCard.rarity]} 
-                  alt={baseCard.rarity}
+                  src={rarityIconMap[card.rarity]} 
+                  alt={card.rarity}
                   className="w-4 h-4 flex-shrink-0"
                 />
               )}
               
               {/* Ink Color Icon */}
-              {baseCard.color && (
+              {card.color && (
                 <div className="flex-shrink-0 w-5 h-5 relative">
-                  {baseCard.color.includes('-') ? (
+                  {card.color.includes('-') ? (
                     // Dual-ink cards: show both icons split diagonally
                     (() => {
-                      const [color1, color2] = baseCard.color.split('-');
+                      const [color1, color2] = card.color.split('-');
                       const icon1 = colorIconMap[color1];
                       const icon2 = colorIconMap[color2];
                       if (icon1 && icon2) {
@@ -270,10 +273,10 @@ const CardListView: React.FC<CardListViewProps> = ({
                     })()
                   ) : (
                     // Single ink cards: show normal icon
-                    colorIconMap[baseCard.color] && (
+                    colorIconMap[card.color] && (
                       <img 
-                        src={colorIconMap[baseCard.color]} 
-                        alt={baseCard.color}
+                        src={colorIconMap[card.color]} 
+                        alt={card.color}
                         className="w-5 h-5"
                       />
                     )
@@ -284,12 +287,12 @@ const CardListView: React.FC<CardListViewProps> = ({
               {/* Ink Cost */}
               <div className="relative flex-shrink-0">
                 <img
-                  src={baseCard.inkwell ? "/imgs/inkable.png" : "/imgs/uninkable.png"}
-                  alt={baseCard.inkwell ? "Inkable" : "Uninkable"}
+                  src={card.inkwell ? "/imgs/inkable.png" : "/imgs/uninkable.png"}
+                  alt={card.inkwell ? "Inkable" : "Uninkable"}
                   className="w-5 h-5"
                 />
                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                  {baseCard.cost}
+                  {card.cost}
                 </span>
               </div>
 
@@ -297,9 +300,9 @@ const CardListView: React.FC<CardListViewProps> = ({
               {/* Main Info Section - Flexible Width */}
               <div className="flex-1 flex items-center min-w-0">
                 <span className="truncate">
-                  <span className="font-semibold text-white">{baseCard.name}</span>
-                  {baseCard.version && (
-                    <span className="font-normal italic text-lorcana-cream"> - {baseCard.version}</span>
+                  <span className="font-semibold text-white">{card.name}</span>
+                  {card.version && (
+                    <span className="font-normal italic text-lorcana-cream"> - {card.version}</span>
                   )}
                 </span>
               </div>
@@ -307,10 +310,8 @@ const CardListView: React.FC<CardListViewProps> = ({
               
               {/* Controls Section - Fixed Width */}
               <div className="flex items-center space-x-1 flex-shrink-0">
-                {renderMiniControl(consolidatedCard, 'regular', quantities.regular, consolidatedCard.hasRegular)}
-                {renderMiniControl(consolidatedCard, 'foil', quantities.foil, consolidatedCard.hasFoil)}
-                {hasEnchanted && renderMiniControl(consolidatedCard, 'enchanted', quantities.enchanted, true)}
-                {hasSpecial && renderMiniControl(consolidatedCard, 'special', quantities.special, true)}
+                {renderNormalControl(card, quantities.normal)}
+                {renderFoilControl(card, quantities.foil)}
               </div>
             </div>
           </div>

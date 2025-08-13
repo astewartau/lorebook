@@ -1,5 +1,5 @@
-import { consolidatedCards } from '../data/allCards';
-import { ConsolidatedCard } from '../types';
+import { allCards } from '../data/allCards';
+import { LorcanaCard } from '../types';
 
 export interface DreambornCSVRow {
   Normal: string;
@@ -14,11 +14,11 @@ export interface DreambornCSVRow {
 }
 
 export interface ImportedCard {
-  consolidatedCard: ConsolidatedCard;
+  card: LorcanaCard;
   normalQuantity: number;
   foilQuantity: number;
-  isEnchanted: boolean;
 }
+
 
 export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   console.log('Starting CSV parse...');
@@ -135,44 +135,92 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   return rows;
 };
 
-export const matchCardToDatabase = (csvRow: DreambornCSVRow): ConsolidatedCard | null => {
-  const { Name: csvName, Set: csvSet, Rarity: csvRarity } = csvRow;
+export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null => {
+  const { Name: csvName, Set: csvSet, 'Card Number': csvCardNumber, Rarity: csvRarity } = csvRow;
   
-  // Clean the name - remove extra spaces and standardize
-  const cleanName = csvName.trim();
+  // Parse card number
+  const cardNumber = parseInt(csvCardNumber?.toString().trim() || '0');
   
-  // Find matching consolidated card
-  const matches = consolidatedCards.filter(consolidatedCard => {
-    const { baseCard } = consolidatedCard;
-    
-    // Check if the full name matches
-    if (baseCard.fullName === cleanName) {
-      return true;
-    }
-    
-    // Check if any variant matches (for enchanted cards)
-    if (csvRarity === 'Enchanted' && consolidatedCard.enchantedCard) {
-      return consolidatedCard.enchantedCard.fullName === cleanName;
-    }
-    
-    // Check if special variants match
-    if (csvRarity === 'Special' && consolidatedCard.specialCards) {
-      return consolidatedCard.specialCards.some(special => special.fullName === cleanName);
-    }
-    
-    return false;
-  });
-
-  if (matches.length === 0) {
-    console.warn(`Could not find match for card: ${cleanName} (Set: ${csvSet}, Rarity: ${csvRarity})`);
+  if (!csvSet || !cardNumber) {
+    console.warn(`Invalid set or card number: Set="${csvSet}", Card Number="${csvCardNumber}" for card: ${csvName}`);
     return null;
+  }
+  
+  const setStr = csvSet.toString().trim();
+  
+  console.log(`Matching: ${csvName} - CSV Set: ${setStr}, Card Number: ${cardNumber}, Rarity: ${csvRarity}`);
+  
+  let matches: LorcanaCard[] = [];
+  
+  // Handle promo sets (P1, P2, C1, D23, etc.)
+  if (setStr.match(/^(P[12]|C1|D23)$/)) {
+    const promoGroup = setStr;
+    console.log(`Looking for promo card with promoGrouping: ${promoGroup} and number: ${cardNumber}`);
+    
+    // Find cards with matching promoGrouping and card number
+    matches = allCards.filter(card => {
+      return card.promoGrouping === promoGroup && card.number === cardNumber;
+    });
+    
+  } else {
+    // Handle regular sets (001, 002, 008, etc.)
+    const setNumber = parseInt(setStr);
+    const setCode = isNaN(setNumber) ? setStr : setNumber.toString();
+    
+    console.log(`Looking for regular card in set: ${setCode}, number: ${cardNumber}`);
+    
+    matches = allCards.filter(card => {
+      return card.setCode === setCode && 
+             card.number === cardNumber && 
+             !card.promoGrouping; // Exclude promo cards from regular matching
+    });
+  }
+
+  // If no exact match found, try fallback to name matching
+  if (matches.length === 0) {
+    console.warn(`Could not find match for Set ${setStr} Card ${cardNumber}: ${csvName} (Rarity: ${csvRarity})`);
+    
+    // Fallback to name matching, but be more specific about which variant
+    const nameMatches = allCards.filter(c => c.fullName === csvName.trim());
+    
+    if (nameMatches.length > 0) {
+      // For name matches, try to pick the right variant based on rarity
+      if (csvRarity === 'Enchanted') {
+        const enchantedMatch = nameMatches.find(c => c.rarity === 'Enchanted');
+        if (enchantedMatch) {
+          console.warn(`  -> Using enchanted name match: ${enchantedMatch.setCode}/${enchantedMatch.number}`);
+          matches = [enchantedMatch];
+        }
+      } else if (csvRarity === 'Promo') {
+        const promoMatch = nameMatches.find(c => c.promoGrouping);
+        if (promoMatch) {
+          console.warn(`  -> Using promo name match: ${promoMatch.setCode}/${promoMatch.number}`);
+          matches = [promoMatch];
+        }
+      } else {
+        // For regular cards, prefer non-promo, non-enchanted versions
+        const regularMatch = nameMatches.find(c => !c.promoGrouping && c.rarity !== 'Enchanted');
+        if (regularMatch) {
+          console.warn(`  -> Using regular name match: ${regularMatch.setCode}/${regularMatch.number}`);
+          matches = [regularMatch];
+        } else {
+          console.warn(`  -> Using first name match: ${nameMatches[0].setCode}/${nameMatches[0].number}`);
+          matches = [nameMatches[0]];
+        }
+      }
+    } else {
+      console.warn(`  -> No name match found either`);
+      return null;
+    }
   }
 
   if (matches.length > 1) {
-    console.warn(`Multiple matches found for card: ${cleanName}, using first match`);
+    console.warn(`Multiple matches found for Set ${setStr} Card ${cardNumber}, using first match`);
   }
 
-  return matches[0];
+  const matchedCard = matches[0];
+  console.log(`✓ Matched: ${csvName} (${setStr}/${cardNumber}) -> Card ID ${matchedCard.id}`);
+  return matchedCard;
 };
 
 export const importDreambornCollection = (csvContent: string): ImportedCard[] => {
@@ -197,8 +245,8 @@ export const importDreambornCollection = (csvContent: string): ImportedCard[] =>
         });
       }
       
-      const consolidatedCard = matchCardToDatabase(row);
-      if (!consolidatedCard) {
+      const card = matchCardToDatabase(row);
+      if (!card) {
         unmatchedCards++;
         if (unmatchedCards <= 5) {
           console.log(`Could not match card: ${row.Name}`);
@@ -209,17 +257,15 @@ export const importDreambornCollection = (csvContent: string): ImportedCard[] =>
       matchedCards++;
       const normalQuantity = parseInt(row.Normal || '0') || 0;
       const foilQuantity = parseInt(row.Foil || '0') || 0;
-      const isEnchanted = row.Rarity === 'Enchanted';
 
       importedCards.push({
-        consolidatedCard,
+        card,
         normalQuantity,
-        foilQuantity,
-        isEnchanted
+        foilQuantity
       });
       
       if (matchedCards <= 5) {
-        console.log(`Matched card: ${row.Name} -> ${consolidatedCard.fullName}, Normal: ${normalQuantity}, Foil: ${foilQuantity}`);
+        console.log(`Matched card: ${row.Name} -> ${card.fullName}, Normal: ${normalQuantity}, Foil: ${foilQuantity}`);
       }
     }
     
@@ -237,12 +283,12 @@ export const importDreambornCollection = (csvContent: string): ImportedCard[] =>
 };
 
 export const generateImportSummary = (importedCards: ImportedCard[]): string => {
-  const totalCards = importedCards.reduce((sum, card) => 
-    sum + card.normalQuantity + card.foilQuantity, 0
-  );
+  const totalNormal = importedCards.reduce((sum, card) => sum + card.normalQuantity, 0);
+  const totalFoil = importedCards.reduce((sum, card) => sum + card.foilQuantity, 0);
+  const totalCards = totalNormal + totalFoil;
   
   const uniqueCards = importedCards.length;
-  const enchantedCount = importedCards.filter(card => card.isEnchanted).length;
+  const enchantedCount = importedCards.filter(card => card.card.rarity === 'Enchanted').length;
   
-  return `Successfully imported ${totalCards} cards (${uniqueCards} unique cards, ${enchantedCount} enchanted variants)`;
+  return `Successfully imported ${totalCards} cards (${uniqueCards} unique, ${totalNormal} normal, ${totalFoil} foil, ${enchantedCount} enchanted)`;
 };

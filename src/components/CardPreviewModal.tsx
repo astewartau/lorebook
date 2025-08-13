@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ConsolidatedCard } from '../types';
+import { LorcanaCard } from '../types';
 import { Sparkles, Zap } from 'lucide-react';
 
 interface CardPreviewModalProps {
-  card: ConsolidatedCard | null;
+  card: LorcanaCard | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -11,11 +11,10 @@ interface CardPreviewModalProps {
 const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClose }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [currentCard, setCurrentCard] = useState<ConsolidatedCard | null>(null);
+  const [currentCard, setCurrentCard] = useState<LorcanaCard | null>(null);
   const [viewMode, setViewMode] = useState<'normal' | 'foil' | 'enchanted'>('normal');
   const [foilMaskDataUrl, setFoilMaskDataUrl] = useState<string | null>(null);
   const [foilMaskLoading, setFoilMaskLoading] = useState(false);
-  const [invertedFoilMaskDataUrl, setInvertedFoilMaskDataUrl] = useState<string | null>(null);
   
   // 3D tilt effect state
   const cardRef = useRef<HTMLDivElement>(null);
@@ -228,7 +227,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
           ctx.putImageData(imageData, 0, 0);
           
           // Convert to data URL
-          setInvertedFoilMaskDataUrl(canvas.toDataURL());
+          // setInvertedFoilMaskDataUrl(canvas.toDataURL());
         }
       };
       img.src = dataUrl;
@@ -238,7 +237,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
     } catch (error) {
       setFoilMaskLoading(false);
       setFoilMaskDataUrl(null);
-      setInvertedFoilMaskDataUrl(null);
+      // setInvertedFoilMaskDataUrl(null);
     }
   };
 
@@ -258,8 +257,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       document.body.style.overflow = 'hidden';
       
       // Load foil mask if available
-      if (card.baseCard.images.foilMask) {
-        loadFoilMaskAsDataUrl(card.baseCard.images.foilMask);
+      if (card.images.foilMask) {
+        loadFoilMaskAsDataUrl(card.images.foilMask);
       }
       
       // Force a reflow, then start animation
@@ -379,8 +378,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
 
   if (!shouldRender || !currentCard) return null;
 
-  const hasEnchanted = currentCard.hasEnchanted && currentCard.enchantedCard;
-  const hasFoil = currentCard.baseCard.images.foilMask;
+  const hasEnchanted = currentCard.rarity === 'Enchanted';
+  const hasFoil = currentCard.images.foilMask;
 
   return (
     <div 
@@ -427,8 +426,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
           
           {/* Base card image */}
           <img
-            src={currentCard.baseCard.images.full}
-            alt={currentCard.baseCard.fullName}
+            src={currentCard.images.full}
+            alt={currentCard.fullName}
             className={`max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-all duration-500 ease-out ${
               isVisible && viewMode === 'normal' ? 'opacity-100 scale-100' : 
               isVisible && viewMode !== 'normal' ? 'opacity-0 scale-95' : 'opacity-0 scale-75'
@@ -440,8 +439,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
           {/* Foil version with shimmer effect */}
           {hasFoil && (
             <img
-              src={currentCard.baseCard.images.full}
-              alt={`${currentCard.baseCard.fullName} (Foil)`}
+              src={currentCard.images.full}
+              alt={`${currentCard.fullName} (Foil)`}
               className={`max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-all duration-500 ease-out ${
                 isVisible && viewMode === 'foil' ? 'opacity-100 scale-100' : 
                 isVisible ? 'opacity-0 scale-105' : 'opacity-0 scale-75'
@@ -662,8 +661,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
           {/* Enchanted card image */}
           {hasEnchanted && (
             <img
-              src={currentCard.enchantedCard!.images.full}
-              alt={`${currentCard.enchantedCard!.fullName} (Enchanted)`}
+              src={currentCard.images.full}
+              alt={`${currentCard.fullName} (Enchanted)`}
               className={`max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-all duration-500 ease-out ${
                 isVisible && viewMode === 'enchanted' ? 'opacity-100 scale-100' : isVisible ? 'opacity-0 scale-105' : 'opacity-0 scale-75'
               }`}
