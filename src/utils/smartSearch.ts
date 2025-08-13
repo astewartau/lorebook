@@ -113,6 +113,34 @@ const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, 
     case 'subtypes':
       cardValue = (card.subtypes || []).join(' ');
       break;
+    case 'ability':
+    case 'abilities':
+      // Search through all ability text, names, and keywords
+      const abilityTexts: string[] = [];
+      
+      // Add ability names and effect text
+      if (card.abilities && Array.isArray(card.abilities)) {
+        card.abilities.forEach((ability: any) => {
+          if (ability.name) abilityTexts.push(ability.name);
+          if (ability.effect) abilityTexts.push(ability.effect);
+          if (ability.fullText) abilityTexts.push(ability.fullText);
+          if (ability.keyword) abilityTexts.push(ability.keyword);
+          if (ability.reminderText) abilityTexts.push(ability.reminderText);
+        });
+      }
+      
+      // Add keyword abilities if they exist (some cards have this separate array)
+      if ((card as any).keywordAbilities && Array.isArray((card as any).keywordAbilities)) {
+        abilityTexts.push(...(card as any).keywordAbilities);
+      }
+      
+      // Also check fullText field which contains all card text
+      if ((card as any).fullText) {
+        abilityTexts.push((card as any).fullText);
+      }
+      
+      cardValue = abilityTexts.join(' ');
+      break;
     default:
       return false;
   }
@@ -176,8 +204,8 @@ const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, 
 const matchesTextSearch = (card: LorcanaCard, textTokens: string[]): boolean => {
   if (textTokens.length === 0) return true;
   
-  // Create searchable content
-  const searchableText = [
+  // Create searchable content including abilities
+  const searchableTextParts = [
     card.name,
     card.version || '',
     card.story || '',
@@ -185,8 +213,28 @@ const matchesTextSearch = (card: LorcanaCard, textTokens: string[]): boolean => 
     card.rarity,
     card.color,
     ...(card.subtypes || [])
-  ].join(' ');
+  ];
   
+  // Add ability text to searchable content
+  if (card.abilities && Array.isArray(card.abilities)) {
+    card.abilities.forEach((ability: any) => {
+      if (ability.name) searchableTextParts.push(ability.name);
+      if (ability.effect) searchableTextParts.push(ability.effect);
+      if (ability.keyword) searchableTextParts.push(ability.keyword);
+    });
+  }
+  
+  // Add keyword abilities if they exist
+  if ((card as any).keywordAbilities && Array.isArray((card as any).keywordAbilities)) {
+    searchableTextParts.push(...(card as any).keywordAbilities);
+  }
+  
+  // Add full text which includes all card text
+  if ((card as any).fullText) {
+    searchableTextParts.push((card as any).fullText);
+  }
+  
+  const searchableText = searchableTextParts.join(' ');
   const normalizedContent = normalizeText(searchableText);
   
   // All text tokens must be found in the content
@@ -295,7 +343,7 @@ export const shouldCreateBubble = (input: string): boolean => {
   const validFields = [
     'name', 'type', 'story', 'color', 'rarity', 'set', 'version',
     'cost', 'strength', 'willpower', 'lore', 'inkwell', 'subtype',
-    'franchise', 'ink', 'inkable', 'subtypes'
+    'franchise', 'ink', 'inkable', 'subtypes', 'ability', 'abilities'
   ];
   
   return validFields.includes(field.toLowerCase());

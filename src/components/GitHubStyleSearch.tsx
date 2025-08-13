@@ -23,6 +23,7 @@ const FIELD_SUGGESTIONS = [
   { field: 'lore', description: 'Lore value' },
   { field: 'inkwell', description: 'Inkable (true/false)' },
   { field: 'subtype', description: 'Card subtypes' },
+  { field: 'ability', description: 'Ability names, text, or keywords' },
 ];
 
 interface GitHubStyleSearchProps {
