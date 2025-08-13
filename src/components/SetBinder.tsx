@@ -96,30 +96,8 @@ const SetBinder: React.FC = () => {
   const setData = effectiveSetCode ? sets.find(set => set.code === effectiveSetCode) : null;
   
   const setCards = !effectiveSetCode ? [] : allCards
-    .filter(card => card.setCode === effectiveSetCode)
-    .sort((a, b) => {
-      // Custom sorting: Regular cards first, then enchanted, then special/promo
-      const getCardPriority = (card: LorcanaCard) => {
-        if (card.promoGrouping) {
-          return 3; // Special/promo cards last
-        } else if (card.rarity === 'Enchanted') {
-          return 2; // Enchanted cards second
-        } else {
-          return 1; // Regular cards first
-        }
-      };
-      
-      const priorityA = getCardPriority(a);
-      const priorityB = getCardPriority(b);
-      
-      // First sort by priority (regular, enchanted, special)
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
-      
-      // Within same priority, sort by card number
-      return a.number - b.number;
-    });
+    .filter(card => card.setCode === effectiveSetCode && !card.promoGrouping) // Exclude promo cards
+    .sort((a, b) => a.number - b.number); // Simple card number sort
 
   const cardsWithOwnership = setCards.map(card => {
     let totalOwned = 0;
