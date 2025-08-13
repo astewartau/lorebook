@@ -22,6 +22,7 @@ const SetBinder: React.FC = () => {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [publishedBinder, setPublishedBinder] = useState<UserBinder | null>(null);
   const [publishedBinderOwner, setPublishedBinderOwner] = useState<any>(null);
+  const [ownerCollectionData, setOwnerCollectionData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -83,11 +84,30 @@ const SetBinder: React.FC = () => {
         .eq('user_id', binderData.user_id);
 
       if (collectionError) throw collectionError;
+      
+      // Store the owner's collection data
+      setOwnerCollectionData(collectionData || []);
 
     } catch (error) {
       console.error('Error loading published binder:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to get card quantity from owner's collection data
+  const getOwnerCardQuantity = (cardId: number) => {
+    if (binderId && ownerCollectionData.length > 0) {
+      // For published binders, use the owner's collection data
+      const ownerCard = ownerCollectionData.find(c => c.card_id === cardId);
+      return {
+        total: ownerCard?.quantity || 0,
+        foil: 0, // Simplified for binders
+        nonFoil: ownerCard?.quantity || 0
+      };
+    } else {
+      // For personal binders, use the current user's collection
+      return getCardQuantity(cardId);
     }
   };
 
@@ -102,9 +122,8 @@ const SetBinder: React.FC = () => {
   const cardsWithOwnership = setCards.map(card => {
     let totalOwned = 0;
     
-    // Use new card ID system for all binders
-    // Each card now has its own unique quantity
-    const quantities = getCardQuantity(card.id);
+    // Use the appropriate card quantity function based on context
+    const quantities = getOwnerCardQuantity(card.id);
     totalOwned = quantities.total;
     
     return {
