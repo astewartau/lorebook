@@ -43,8 +43,8 @@ const CardSearch: React.FC<CardSearchProps> = ({
     <div className="sticky top-0 z-30 bg-white border-2 border-lorcana-gold border-t-0 rounded-b-sm shadow-lg p-3 sm:p-6">
       {/* Mobile Layout */}
       <div className="md:hidden">
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1">
+        <div className="flex gap-1 mb-3">
+          <div className="flex-1 min-w-0">
             <GitHubStyleSearch
               value={searchTerm}
               onChange={setSearchTerm}
@@ -54,13 +54,13 @@ const CardSearch: React.FC<CardSearchProps> = ({
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-3 py-2 border-2 rounded-sm focus:ring-2 focus:ring-lorcana-gold flex items-center transition-colors ${
+            className={`flex-shrink-0 h-12 px-2 py-2 border-2 rounded-sm focus:ring-2 focus:ring-lorcana-gold flex items-center transition-colors ${
               activeFiltersCount > 0 ? 'bg-lorcana-gold border-lorcana-navy text-lorcana-ink' : 'border-lorcana-gold hover:bg-lorcana-cream'
             }`}
           >
             <Filter size={18} />
             {activeFiltersCount > 0 && (
-              <span className="bg-lorcana-navy text-lorcana-gold text-xs font-bold px-1.5 py-0.5 rounded-sm ml-1">
+              <span className="bg-lorcana-navy text-lorcana-gold text-xs font-bold px-1 py-0.5 rounded-sm ml-1">
                 {activeFiltersCount}
               </span>
             )}

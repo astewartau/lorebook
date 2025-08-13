@@ -22,13 +22,13 @@ const CardViewControls: React.FC<CardViewControlsProps> = ({
   const [showViewMenu, setShowViewMenu] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0 h-full">
       <button
         onClick={() => setShowViewMenu(!showViewMenu)}
-        className="px-3 py-2 border-2 border-lorcana-gold rounded-sm hover:bg-lorcana-cream focus:ring-2 focus:ring-lorcana-gold transition-colors flex items-center"
+        className="h-12 px-2 py-2 border-2 border-lorcana-gold rounded-sm hover:bg-lorcana-cream focus:ring-2 focus:ring-lorcana-gold transition-colors flex items-center"
       >
         <Eye size={18} />
-        <ChevronDown size={14} className="ml-1" />
+        <ChevronDown size={14} className="ml-0.5" />
       </button>
       
       {/* View Menu Dropdown */}
