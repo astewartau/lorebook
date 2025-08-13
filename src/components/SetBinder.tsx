@@ -77,16 +77,25 @@ const SetBinder: React.FC = () => {
       if (profileError) throw profileError;
       setPublishedBinderOwner(profileData);
 
-      // Load owner's collection data
+      // Load owner's collection data (now that RLS policy is fixed)
       const { data: collectionData, error: collectionError } = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .select('*')
         .eq('user_id', binderData.user_id);
 
-      if (collectionError) throw collectionError;
+      if (collectionError) {
+        console.error('Collection data error:', collectionError);
+        throw collectionError;
+      }
       
       // Store the owner's collection data
       setOwnerCollectionData(collectionData || []);
+      console.log(`[SetBinder] Loaded ${(collectionData || []).length} collection items for published binder`);
+      
+      // Debug: Show structure of first few collection items
+      if (collectionData && collectionData.length > 0) {
+        console.log('[SetBinder] Sample collection data:', collectionData.slice(0, 3));
+      }
 
     } catch (error) {
       console.error('Error loading published binder:', error);
@@ -97,16 +106,24 @@ const SetBinder: React.FC = () => {
 
   // Helper function to get card quantity from owner's collection data
   const getOwnerCardQuantity = (cardId: number) => {
-    if (binderId && ownerCollectionData.length > 0) {
+    // Only use owner collection data if this is a published binder AND we have the data loaded
+    if (binderId && publishedBinder && ownerCollectionData.length > 0) {
       // For published binders, use the owner's collection data
       const ownerCard = ownerCollectionData.find(c => c.card_id === cardId);
+      const quantity = ownerCard?.quantity_total || 0;
+      
+      // Debug first few cards
+      if (cardId <= 5) {
+        console.log(`[Debug] Card ${cardId}: ownerCard =`, ownerCard, `quantity = ${quantity}`);
+      }
+      
       return {
-        total: ownerCard?.quantity || 0,
-        foil: 0, // Simplified for binders
-        nonFoil: ownerCard?.quantity || 0
+        total: quantity,
+        foil: ownerCard?.quantity_foil || 0,
+        nonFoil: ownerCard?.quantity_normal || 0
       };
     } else {
-      // For personal binders, use the current user's collection
+      // For personal binders or when data is still loading, use current user's collection
       return getCardQuantity(cardId);
     }
   };
