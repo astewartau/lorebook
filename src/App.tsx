@@ -92,10 +92,12 @@ function AppContent() {
           {/* Mobile Header - Full Width */}
           <div className="sm:hidden bg-lorcana-navy shadow-xl border-b-2 border-lorcana-gold">
             <header className="px-4 py-3 flex items-center justify-between">
-              <div className="flex-1 text-center">
-                <h1 className="text-xl font-bold text-lorcana-gold tracking-wide">
-                  Lorcana Manager
-                </h1>
+              <div className="flex-1 flex justify-center">
+                <img 
+                  src="/imgs/lorebook-wide.png" 
+                  alt="Lorebook" 
+                  className="h-12 object-contain"
+                />
               </div>
               
               {/* Mobile Auth */}
@@ -117,12 +119,13 @@ function AppContent() {
               {/* Desktop Header section */}
               <div className="hidden sm:block bg-lorcana-navy rounded-t-sm shadow-xl border-2 border-lorcana-gold border-b-0">
                 <header className="p-6 pb-4 relative">
-                  <h1 className="text-4xl font-bold text-lorcana-gold mb-2 text-center tracking-wider">
-                    Lorcana Collection Manager
-                  </h1>
-                  <p className="text-lorcana-cream text-center">
-                    Manage your Disney Lorcana TCG collection
-                  </p>
+                  <div className="flex flex-col items-center">
+                    <img 
+                      src="/imgs/lorebook-wide.png" 
+                      alt="Lorebook" 
+                      className="h-24 object-contain"
+                    />
+                  </div>
                   
                   {/* Auth section - top right */}
                   <div className="absolute top-4 right-6">

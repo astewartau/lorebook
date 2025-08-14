@@ -71,7 +71,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         <div className="p-6">
           <div className="text-center mb-6">
             <h3 className="text-lg font-semibold text-lorcana-ink mb-2">
-              Welcome to Lorcana Manager
+              Welcome to Lorebook
             </h3>
             <p className="text-lorcana-navy text-sm">
               Sign in to sync your collection and decks across all your devices
