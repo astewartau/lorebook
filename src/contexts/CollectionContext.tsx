@@ -13,6 +13,7 @@ interface CollectionContextType {
   uniqueCards: number;
   exportCollection: () => string;
   importCollection: (data: string) => boolean;
+  importCollectionDirect: (cards: CollectionCardEntry[]) => Promise<boolean>;
   clearCollection: () => Promise<void>;
   syncStatus: 'idle' | 'loading' | 'error' | 'offline';
 }
@@ -31,6 +32,15 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Batch sync state
   const [pendingUpdates, setPendingUpdates] = useState<Map<number, {quantityNormal: number, quantityFoil: number}>>(new Map());
   const [syncTimeout, setSyncTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isCurrentlySyncing, setIsCurrentlySyncing] = useState(false);
+
+  // Debug: Track when pendingUpdates changes
+  useEffect(() => {
+    console.log('🔍 pendingUpdates changed, size:', pendingUpdates.size);
+    if (pendingUpdates.size === 0) {
+      console.trace('📍 pendingUpdates cleared - stack trace:');
+    }
+  }, [pendingUpdates]);
 
   // Load collection data when user changes
   useEffect(() => {
@@ -76,17 +86,26 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   };
 
   // Batch sync all pending updates
-  const syncBatchToSupabase = async () => {
-    if (!user || pendingUpdates.size === 0) return;
+  const syncBatchToSupabase = async (updatesToSync?: Map<number, {quantityNormal: number, quantityFoil: number}>) => {
+    const updates = updatesToSync || pendingUpdates;
+    console.log('🔄 syncBatchToSupabase called, user:', !!user, 'pendingUpdates size:', updates.size);
     
+    if (!user || updates.size === 0) {
+      console.log('❌ Exiting early - no user or no pending updates');
+      return;
+    }
+    
+    console.log('🚀 Starting batch sync...');
     setSyncStatus('loading');
     try {
-      const updates = Array.from(pendingUpdates.entries());
+      const updateEntries = Array.from(updates.entries());
+      console.log('📊 Processing', updateEntries.length, 'updates');
+      
       const upserts = [];
       const deletes = [];
       
       // Separate upserts from deletes
-      for (const [cardId, {quantityNormal, quantityFoil}] of updates) {
+      for (const [cardId, {quantityNormal, quantityFoil}] of updateEntries) {
         if (quantityNormal <= 0 && quantityFoil <= 0) {
           deletes.push(cardId);
         } else {
@@ -99,21 +118,26 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         }
       }
       
+      console.log('📤 Ready to sync - upserts:', upserts.length, 'deletes:', deletes.length);
+      
       // Batch upsert
       if (upserts.length > 0) {
+        console.log('💾 Attempting to upsert', upserts.length, 'cards...');
         const { error } = await supabase
           .from(TABLES.USER_COLLECTIONS)
           .upsert(upserts, { onConflict: 'user_id,card_id' });
           
         if (error) {
-          console.error('Error batch upserting cards:', error);
+          console.error('❌ Error batch upserting cards:', error);
           setSyncStatus('error');
           return;
         }
+        console.log('✅ Upsert successful');
       }
       
       // Batch delete
       if (deletes.length > 0) {
+        console.log('🗑️ Attempting to delete', deletes.length, 'cards...');
         const { error } = await supabase
           .from(TABLES.USER_COLLECTIONS)
           .delete()
@@ -121,39 +145,67 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           .in('card_id', deletes);
           
         if (error) {
-          console.error('Error batch deleting cards:', error);
+          console.error('❌ Error batch deleting cards:', error);
           setSyncStatus('error');
           return;
         }
+        console.log('✅ Delete successful');
       }
       
-      // Clear pending updates on success
-      setPendingUpdates(new Map());
+      // Updates already cleared by timer callback
+      console.log('🎉 Batch sync completed successfully');
       setSyncStatus('idle');
+      setIsCurrentlySyncing(false); // Allow new syncs
       
     } catch (error) {
-      console.error('Network error syncing batch:', error);
+      console.error('💥 Network error syncing batch:', error);
       setSyncStatus('offline');
+      setIsCurrentlySyncing(false); // Allow new syncs after error
     }
   };
 
   // Queue a card update for batching
   const queueCardUpdate = (cardId: number, quantityNormal: number, quantityFoil: number) => {
-    if (!user) return;
+    if (!user) {
+      console.log('❌ queueCardUpdate: No user');
+      return;
+    }
+    
+    console.log('📥 queueCardUpdate:', cardId, 'normal:', quantityNormal, 'foil:', quantityFoil);
     
     // Add to pending updates
     setPendingUpdates(prev => {
       const newMap = new Map(prev);
       newMap.set(cardId, { quantityNormal, quantityFoil });
+      console.log('📊 pendingUpdates size after adding:', newMap.size);
       return newMap;
     });
     
     // Reset the debounce timer
-    if (syncTimeout) clearTimeout(syncTimeout);
+    if (syncTimeout) {
+      console.log('⏰ Clearing existing timeout');
+      clearTimeout(syncTimeout);
+    }
     const timeout = setTimeout(() => {
-      syncBatchToSupabase();
+      console.log('⏰ Timer fired, calling syncBatchToSupabase');
+      // Use callback to get current state, not closure
+      setPendingUpdates(currentUpdates => {
+        console.log('📊 Timer callback - current pendingUpdates size:', currentUpdates.size, 'isCurrentlySyncing:', isCurrentlySyncing);
+        if (currentUpdates.size > 0 && !isCurrentlySyncing) {
+          console.log('🚀 Starting sync process...');
+          setIsCurrentlySyncing(true);
+          // Pass the current updates directly to avoid closure issues
+          syncBatchToSupabase(currentUpdates);
+          // Clear the pending updates immediately to prevent other timers from running
+          return new Map();
+        } else {
+          console.log('❌ Timer fired but no pending updates to sync or already syncing');
+          return currentUpdates;
+        }
+      });
     }, 2000); // 2 second debounce
     setSyncTimeout(timeout);
+    console.log('⏰ New timeout set for 2 seconds');
   };
 
   const getCardQuantity = (cardId: number): { normal: number; foil: number; total: number } => {
@@ -297,6 +349,52 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     }
   };
 
+  // Direct import for bulk operations (bypasses batching)
+  const importCollectionDirect = async (cards: CollectionCardEntry[]): Promise<boolean> => {
+    if (!user) {
+      console.error('❌ No user for direct import');
+      return false;
+    }
+
+    console.log('🚀 Direct import starting for', cards.length, 'cards');
+    setSyncStatus('loading');
+
+    try {
+      // Convert to database format
+      const upserts = cards.map(card => ({
+        user_id: user.id,
+        card_id: card.cardId,
+        quantity_normal: card.quantityNormal,
+        quantity_foil: card.quantityFoil
+      }));
+
+      console.log('💾 Upserting', upserts.length, 'cards directly to database...');
+      
+      // Direct database sync - no batching, no timers, no complexity
+      const { error } = await supabase
+        .from(TABLES.USER_COLLECTIONS)
+        .upsert(upserts, { onConflict: 'user_id,card_id' });
+
+      if (error) {
+        console.error('❌ Direct import failed:', error);
+        setSyncStatus('error');
+        return false;
+      }
+
+      // Update local state
+      setCollection(cards);
+      setSyncStatus('idle');
+      
+      console.log('✅ Direct import completed successfully');
+      return true;
+
+    } catch (error) {
+      console.error('💥 Direct import error:', error);
+      setSyncStatus('error');
+      return false;
+    }
+  };
+
   const clearCollection = async () => {
     if (!user) return;
     
@@ -336,6 +434,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     uniqueCards,
     exportCollection,
     importCollection,
+    importCollectionDirect,
     clearCollection,
     syncStatus,
   };
