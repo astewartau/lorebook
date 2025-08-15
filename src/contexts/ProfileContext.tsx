@@ -24,6 +24,9 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allProfiles, setAllProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Simple profile cache: userId -> {profile, timestamp}
+  const [profileCache, setProfileCache] = useState<Map<string, {profile: UserProfile, timestamp: number}>>(new Map());
 
   // Load current user's profile when authenticated
   useEffect(() => {
@@ -32,9 +35,19 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     } else {
       setUserProfile(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    // Check cache first (5 minute TTL)
+    const cached = profileCache.get(userId);
+    const now = Date.now();
+    const cacheValidTime = 5 * 60 * 1000; // 5 minutes
+    
+    if (cached && (now - cached.timestamp) < cacheValidTime) {
+      return cached.profile;
+    }
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -64,6 +77,13 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at)
       };
+
+      // Cache the profile
+      setProfileCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(userId, { profile, timestamp: now });
+        return newCache;
+      });
 
       if (userId === user?.id) {
         setUserProfile(profile);
