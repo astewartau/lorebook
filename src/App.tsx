@@ -19,6 +19,7 @@ import { useScrollManager } from './hooks/useScrollManager';
 import AuthSection from './components/layout/AuthSection';
 import Navigation from './components/layout/Navigation';
 import DeckEditingSidebar from './components/layout/DeckEditingSidebar';
+import Footer from './components/Footer';
 
 function AppContent() {
   const location = useLocation();
@@ -186,6 +187,9 @@ function AppContent() {
               </main>
             </div>
           </div>
+
+          {/* Footer */}
+          <Footer />
 
           <DeckEditingSidebar
             isEditingDeck={isEditingDeck}
