@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { useCollection } from '../contexts/CollectionContext';
 import { importDreambornCollection, generateImportSummary, ImportedCard } from '../utils/dreambornImport';
@@ -8,7 +8,7 @@ interface DreambornImportProps {
 }
 
 const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
-  const { addCardToCollection } = useCollection();
+  const { importCollectionDirect, syncStatus } = useCollection();
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<{
     success: boolean;
@@ -16,6 +16,7 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
     importedCards?: ImportedCard[];
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -45,22 +46,33 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
         return;
       }
 
-      // Import cards into collection using card ID system with foil support
-      for (const importedCard of importedCards) {
-        const { card, normalQuantity, foilQuantity } = importedCard;
-        
-        // Add both normal and foil quantities separately
-        if (normalQuantity > 0 || foilQuantity > 0) {
-          addCardToCollection(card.id, normalQuantity, foilQuantity);
-        }
-      }
+      // Convert to collection format
+      const collectionCards = importedCards
+        .filter(({ normalQuantity, foilQuantity }) => normalQuantity > 0 || foilQuantity > 0)
+        .map(({ card, normalQuantity, foilQuantity }) => ({
+          cardId: card.id,
+          quantityNormal: normalQuantity,
+          quantityFoil: foilQuantity
+        }));
 
-      const summary = generateImportSummary(importedCards);
-      setImportResult({
-        success: true,
-        message: summary,
-        importedCards
-      });
+      console.log('📦 Importing', collectionCards.length, 'cards using direct method');
+      
+      // Use direct import - simple and fast!
+      const success = await importCollectionDirect(collectionCards);
+      
+      if (success) {
+        const summary = generateImportSummary(importedCards);
+        setImportResult({
+          success: true,
+          message: summary,
+          importedCards
+        });
+      } else {
+        setImportResult({
+          success: false,
+          message: 'Failed to save collection to database'
+        });
+      }
 
     } catch (error) {
       setImportResult({
@@ -96,7 +108,12 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
           <h2 className="text-xl font-bold text-gray-900">Import Dreamborn Collection</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={isImporting}
+            className={`transition-colors ${
+              isImporting
+                ? 'text-gray-300 cursor-not-allowed'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
           >
             <X size={24} />
           </button>
@@ -134,7 +151,9 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
           {isImporting && (
             <div className="flex items-center justify-center py-4">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-sm text-gray-600">Importing cards...</span>
+              <span className="ml-2 text-sm text-gray-600">
+                Processing and importing...
+              </span>
             </div>
           )}
 
@@ -169,7 +188,12 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
           <div className="flex space-x-3 mt-6">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
+              disabled={isImporting}
+              className={`flex-1 px-4 py-2 text-sm font-medium border rounded-lg transition-colors ${
+                isImporting
+                  ? 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
+                  : 'text-gray-700 bg-gray-100 border-gray-300 hover:bg-gray-200'
+              }`}
             >
               {importResult?.success ? 'Done' : 'Cancel'}
             </button>
