@@ -35,9 +35,9 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
     }
   }, [userId, loadUserProfile]);
 
-  // Load user's public decks when userId changes
+  // Load user's public decks when userId changes (only if not already loaded)
   useEffect(() => {
-    if (userId) {
+    if (userId && publicDecks.length === 0) {
       loadPublicDecks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

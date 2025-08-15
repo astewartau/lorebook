@@ -58,14 +58,29 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
     setDeckProfiles(prev => ({ ...prev, ...profiles }));
   }, [loadUserProfile]);
 
-  // Load public decks when tab changes or search changes (authenticated users)
+  // Load public decks only when viewing public tab or when not authenticated
   useEffect(() => {
-    if (user && activeTab === 'public') {
+    // Only load if we're actually viewing public decks
+    const shouldLoadPublic = (!user || activeTab === 'public');
+    
+    if (shouldLoadPublic) {
+      // Load once on mount/tab change, not on every keystroke
+      loadPublicDecks(searchTerm);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]); // Only reload when tab changes, not on search
+  
+  // Handle search with debouncing - separate from initial load
+  useEffect(() => {
+    // Only search if we're viewing public decks AND user is typing
+    const shouldSearch = (!user || activeTab === 'public') && searchTerm.length > 0;
+    
+    if (shouldSearch) {
       if (searchTimeout) clearTimeout(searchTimeout);
       
       const timeout = setTimeout(async () => {
         await loadPublicDecks(searchTerm);
-      }, 500);
+      }, 1500); // Increased debounce to 1.5 seconds
       
       setSearchTimeout(timeout);
       
@@ -74,25 +89,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, activeTab, searchTerm]); // Excluding loadPublicDecks and searchTimeout
-
-  // Load public decks when not authenticated (search term changes)
-  useEffect(() => {
-    if (!user) {
-      if (searchTimeout) clearTimeout(searchTimeout);
-      
-      const timeout = setTimeout(async () => {
-        await loadPublicDecks(searchTerm);
-      }, 500);
-      
-      setSearchTimeout(timeout);
-      
-      return () => {
-        if (timeout) clearTimeout(timeout);
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, searchTerm]); // Excluding loadPublicDecks and searchTimeout
+  }, [searchTerm]); // Only trigger on search term change
 
   // Load profile display names when public decks change
   useEffect(() => {

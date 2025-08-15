@@ -27,6 +27,10 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const { user, session } = useAuth();
   const [collection, setCollection] = useState<CollectionCardEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'error' | 'offline'>('idle');
+  
+  // Batch sync state
+  const [pendingUpdates, setPendingUpdates] = useState<Map<number, {quantityNormal: number, quantityFoil: number}>>(new Map());
+  const [syncTimeout, setSyncTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Load collection data when user changes
   useEffect(() => {
@@ -36,6 +40,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       // Clear collection when not authenticated
       setCollection([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, session]);
 
   const loadCollectionFromSupabase = async () => {
@@ -70,44 +75,85 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     }
   };
 
-  const syncCardToSupabase = async (cardId: number, quantityNormal: number, quantityFoil: number) => {
-    if (!user) return;
+  // Batch sync all pending updates
+  const syncBatchToSupabase = async () => {
+    if (!user || pendingUpdates.size === 0) return;
     
+    setSyncStatus('loading');
     try {
-      if (quantityNormal <= 0 && quantityFoil <= 0) {
-        // Remove the card from database
-        const { error } = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .delete()
-          .eq('user_id', user.id)
-          .eq('card_id', cardId);
-
-        if (error) {
-          console.error('Error removing card from collection:', error);
-          setSyncStatus('error');
-        }
-      } else {
-        // Add or update the card in database
-        const { error } = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .upsert({
+      const updates = Array.from(pendingUpdates.entries());
+      const upserts = [];
+      const deletes = [];
+      
+      // Separate upserts from deletes
+      for (const [cardId, {quantityNormal, quantityFoil}] of updates) {
+        if (quantityNormal <= 0 && quantityFoil <= 0) {
+          deletes.push(cardId);
+        } else {
+          upserts.push({
             user_id: user.id,
             card_id: cardId,
             quantity_normal: quantityNormal,
             quantity_foil: quantityFoil
-          }, {
-            onConflict: 'user_id,card_id'
           });
-
-        if (error) {
-          console.error('Error syncing card to collection:', error);
-          setSyncStatus('error');
         }
       }
+      
+      // Batch upsert
+      if (upserts.length > 0) {
+        const { error } = await supabase
+          .from(TABLES.USER_COLLECTIONS)
+          .upsert(upserts, { onConflict: 'user_id,card_id' });
+          
+        if (error) {
+          console.error('Error batch upserting cards:', error);
+          setSyncStatus('error');
+          return;
+        }
+      }
+      
+      // Batch delete
+      if (deletes.length > 0) {
+        const { error } = await supabase
+          .from(TABLES.USER_COLLECTIONS)
+          .delete()
+          .eq('user_id', user.id)
+          .in('card_id', deletes);
+          
+        if (error) {
+          console.error('Error batch deleting cards:', error);
+          setSyncStatus('error');
+          return;
+        }
+      }
+      
+      // Clear pending updates on success
+      setPendingUpdates(new Map());
+      setSyncStatus('idle');
+      
     } catch (error) {
-      console.error('Network error syncing card:', error);
+      console.error('Network error syncing batch:', error);
       setSyncStatus('offline');
     }
+  };
+
+  // Queue a card update for batching
+  const queueCardUpdate = (cardId: number, quantityNormal: number, quantityFoil: number) => {
+    if (!user) return;
+    
+    // Add to pending updates
+    setPendingUpdates(prev => {
+      const newMap = new Map(prev);
+      newMap.set(cardId, { quantityNormal, quantityFoil });
+      return newMap;
+    });
+    
+    // Reset the debounce timer
+    if (syncTimeout) clearTimeout(syncTimeout);
+    const timeout = setTimeout(() => {
+      syncBatchToSupabase();
+    }, 2000); // 2 second debounce
+    setSyncTimeout(timeout);
   };
 
   const getCardQuantity = (cardId: number): { normal: number; foil: number; total: number } => {
@@ -137,9 +183,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         newCollection = [...prev, { cardId, quantityNormal, quantityFoil }];
       }
       
-      // Sync to database
+      // Queue for batch sync
       const currentQuantities = getCardQuantity(cardId);
-      syncCardToSupabase(
+      queueCardUpdate(
         cardId, 
         currentQuantities.normal + quantityNormal,
         currentQuantities.foil + quantityFoil
@@ -171,8 +217,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           };
         }
         
-        // Sync to database
-        syncCardToSupabase(cardId, newNormal, newFoil);
+        // Queue for batch sync
+        queueCardUpdate(cardId, newNormal, newFoil);
         
         return newCollection;
       }
@@ -198,8 +244,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         newCollection = [...prev, { cardId, quantityNormal, quantityFoil }];
       }
       
-      // Sync to database
-      syncCardToSupabase(cardId, quantityNormal, quantityFoil);
+      // Queue for batch sync
+      queueCardUpdate(cardId, quantityNormal, quantityFoil);
       
       return newCollection;
     });
@@ -235,9 +281,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         
         setCollection(importedCards);
         
-        // Sync all cards to database
+        // Queue all cards for batch sync
         importedCards.forEach((card: CollectionCardEntry) => {
-          syncCardToSupabase(card.cardId, card.quantityNormal, card.quantityFoil);
+          queueCardUpdate(card.cardId, card.quantityNormal, card.quantityFoil);
         });
         
         return true;

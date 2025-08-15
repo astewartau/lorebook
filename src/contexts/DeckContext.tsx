@@ -56,6 +56,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
       setDecks([]);
       setCurrentDeck(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, session]);
 
   const loadUserDecks = async () => {

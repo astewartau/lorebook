@@ -33,13 +33,13 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     }
   }, [currentDeck, user, loadUserProfile]);
   
-  // Load public decks if not authenticated
+  // Load public decks if not authenticated (only once)
   useEffect(() => {
-    if (!user && deckId) {
+    if (!user && deckId && publicDecks.length === 0) {
       loadPublicDecks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, deckId]); // Excluding loadPublicDecks to prevent infinite loop
+  }, [user]); // Only when auth state changes, not deckId
 
   // Load deck from URL parameter (check both user decks and public decks)
   useEffect(() => {
