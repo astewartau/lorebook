@@ -77,20 +77,44 @@ const SetBinder: React.FC = () => {
       if (profileError) throw profileError;
       setPublishedBinderOwner(profileData);
 
-      // Load owner's collection data (now that RLS policy is fixed)
+      // Check if the binder publisher is currently in a group
+      const { data: memberData } = await supabase
+        .from('collection_group_members')
+        .select(`
+          group_id,
+          role,
+          collection_groups(owner_id)
+        `)
+        .eq('user_id', binderData.user_id)
+        .single();
+
+      let targetUserId = binderData.user_id; // Default to publisher's collection
+      let collectionSource = 'personal';
+
+      if (memberData?.group_id) {
+        // Publisher is in a group - load the group owner's collection
+        const groupOwnerId = (memberData as any).collection_groups.owner_id;
+        targetUserId = groupOwnerId;
+        collectionSource = 'group';
+        console.log(`[SetBinder] Publisher is in group ${memberData.group_id}, loading owner's collection (${groupOwnerId})`);
+      } else {
+        console.log(`[SetBinder] Publisher not in group, loading personal collection (${binderData.user_id})`);
+      }
+
+      // Load the appropriate collection data
       const { data: collectionData, error: collectionError } = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .select('*')
-        .eq('user_id', binderData.user_id);
+        .eq('user_id', targetUserId);
 
       if (collectionError) {
         console.error('Collection data error:', collectionError);
         throw collectionError;
       }
       
-      // Store the owner's collection data
+      // Store the collection data
       setOwnerCollectionData(collectionData || []);
-      console.log(`[SetBinder] Loaded ${(collectionData || []).length} collection items for published binder`);
+      console.log(`[SetBinder] Loaded ${(collectionData || []).length} collection items from ${collectionSource} collection`);
       
       // Debug: Show structure of first few collection items
       if (collectionData && collectionData.length > 0) {
@@ -332,10 +356,10 @@ const SetBinder: React.FC = () => {
             }
           </p>
           <button 
-            onClick={() => navigate(binderId ? '/users' : '/collections')}
+            onClick={() => navigate(binderId ? '/community' : '/collections')}
             className="btn-lorcana"
           >
-            {binderId ? 'Back to Users' : 'Back to Collections'}
+            {binderId ? 'Back to Community' : 'Back to Collections'}
           </button>
         </div>
       </div>
@@ -363,11 +387,11 @@ const SetBinder: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => navigate(binderId ? '/users' : '/collections')}
+                  onClick={() => navigate(binderId ? '/community' : '/collections')}
                   className="flex items-center gap-2 text-lorcana-navy hover:text-lorcana-gold transition-colors"
                 >
                   <ArrowLeft size={20} />
-                  <span>{binderId ? 'Back to Users' : 'Back to Collections'}</span>
+                  <span>{binderId ? 'Back to Community' : 'Back to Collections'}</span>
                 </button>
                 <div className="w-px h-8 bg-lorcana-gold"></div>
                 <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { useCardBrowser } from '../hooks';
+import { useCardBrowser, useModal } from '../hooks';
 import QuickFilters from './QuickFilters';
 import { RARITY_ICONS, COLOR_ICONS } from '../constants/icons';
 import CardPreviewModal from './CardPreviewModal';
@@ -8,11 +8,11 @@ import { LorcanaCard } from '../types';
 import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
+import TabBar from './TabBar';
 
 
 const CardBrowser: React.FC = () => {
-  const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const cardPreviewModal = useModal<LorcanaCard>();
 
   const {
     // State
@@ -47,13 +47,7 @@ const CardBrowser: React.FC = () => {
   } = useCardBrowser();
 
   const handleCardClick = (card: LorcanaCard) => {
-    setSelectedCard(card);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedCard(null);
+    cardPreviewModal.open(card);
   };
 
   // Close sidebar when clicking outside on mobile
@@ -70,8 +64,11 @@ const CardBrowser: React.FC = () => {
   }, [showFilters]);
 
   return (
-    <div className="space-y-0">
-      {/* Search section - connects to header */}
+    <div>
+      {/* Tab Bar */}
+      <TabBar />
+      
+      {/* Search section */}
       <CardSearch
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -90,73 +87,75 @@ const CardBrowser: React.FC = () => {
         refreshStaleCards={refreshStaleCards}
       />
       
-      {/* Quick Filters - hidden on mobile */}
-      <div className="hidden md:block">
-        <QuickFilters
+      <div className="container mx-auto px-2 sm:px-4 space-y-0">
+        {/* Quick Filters - hidden on mobile */}
+        <div className="hidden md:block">
+          <QuickFilters
+            filters={filters}
+            setFilters={setFilters}
+            colorIconMap={COLOR_ICONS}
+            rarityIconMap={RARITY_ICONS}
+          />
+        </div>
+
+        {/* Filters Sidebar */}
+        <CardFilters
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
           filters={filters}
           setFilters={setFilters}
-          colorIconMap={COLOR_ICONS}
-          rarityIconMap={RARITY_ICONS}
+          activeFiltersCount={activeFiltersCount}
+          clearAllFilters={clearAllFilters}
         />
-      </div>
 
-      {/* Filters Sidebar */}
-      <CardFilters
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        filters={filters}
-        setFilters={setFilters}
-        activeFiltersCount={activeFiltersCount}
-        clearAllFilters={clearAllFilters}
-      />
+        {/* Card Results */}
+        <CardResults
+          groupBy={groupBy}
+          viewMode={viewMode}
+          totalCards={totalCards}
+          groupedCards={groupedCards}
+          paginatedCards={paginatedCards}
+          pagination={pagination}
+          handleCardQuantityChange={handleCardQuantityChange}
+          staleCardIds={staleCardIds}
+          handleCardClick={handleCardClick}
+        />
 
-      {/* Card Results */}
-      <CardResults
-        groupBy={groupBy}
-        viewMode={viewMode}
-        totalCards={totalCards}
-        groupedCards={groupedCards}
-        paginatedCards={paginatedCards}
-        pagination={pagination}
-        handleCardQuantityChange={handleCardQuantityChange}
-        staleCardIds={staleCardIds}
-        handleCardClick={handleCardClick}
-      />
-
-      {/* Filter notification bubble */}
-      {showFilterNotification && (
-        <div className="fixed bottom-4 right-4 bg-white border-2 border-lorcana-gold rounded-sm shadow-xl p-4 max-w-sm z-50 art-deco-corner">
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex items-center space-x-2">
-              <span className="text-orange-500">⚠️</span>
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  {staleCardCount} card{staleCardCount !== 1 ? 's' : ''} no longer match
-                </p>
-                <p className="text-xs text-gray-600">your current filters</p>
+        {/* Filter notification bubble */}
+        {showFilterNotification && (
+          <div className="fixed bottom-4 right-4 bg-white border-2 border-lorcana-gold rounded-sm shadow-xl p-4 max-w-sm z-50 art-deco-corner">
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-orange-500">⚠️</span>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {staleCardCount} card{staleCardCount !== 1 ? 's' : ''} no longer match
+                  </p>
+                  <p className="text-xs text-gray-600">your current filters</p>
+                </div>
               </div>
+              <button
+                onClick={dismissFilterNotification}
+                className="text-gray-400 hover:text-gray-600 transition-colors ml-2"
+              >
+                <X size={16} />
+              </button>
             </div>
             <button
-              onClick={dismissFilterNotification}
-              className="text-gray-400 hover:text-gray-600 transition-colors ml-2"
+              onClick={refreshStaleCards}
+              className="w-full px-3 py-2 bg-lorcana-navy text-lorcana-gold text-sm font-medium rounded-sm hover:bg-opacity-90 transition-all"
             >
-              <X size={16} />
+              Refresh View
             </button>
           </div>
-          <button
-            onClick={refreshStaleCards}
-            className="w-full px-3 py-2 bg-lorcana-navy text-lorcana-gold text-sm font-medium rounded-sm hover:bg-opacity-90 transition-all"
-          >
-            Refresh View
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Card Preview Modal */}
       <CardPreviewModal
-        card={selectedCard}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        card={cardPreviewModal.data}
+        isOpen={cardPreviewModal.isOpen}
+        onClose={cardPreviewModal.close}
       />
     </div>
   );

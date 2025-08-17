@@ -179,14 +179,14 @@ const GitHubStyleSearch: React.FC<GitHubStyleSearchProps> = ({
       <div 
         className={`
           relative flex items-center border-2 rounded-sm transition-all
-          ${isFocused ? 'ring-2 ring-lorcana-gold border-lorcana-navy' : 'border-lorcana-gold'}
-          bg-lorcana-cream
+          ${isFocused ? 'border-lorcana-navy shadow-md' : 'border-lorcana-gold hover:border-lorcana-navy/50'}
+          bg-white
         `}
       >
-        <Search className="absolute left-3 text-lorcana-navy flex-shrink-0" size={18} />
+        <Search className="absolute left-3 text-lorcana-navy/60 flex-shrink-0" size={18} />
         
         {/* Bubbles and Input Container */}
-        <div className="flex items-center gap-1 flex-wrap flex-1 min-h-[2rem] pl-10 pr-4 py-2">
+        <div className="flex items-center gap-1 flex-wrap flex-1 pl-10 pr-3 py-2">
           {bubbles.map(bubble => (
             <SearchFieldBubbleComponent
               key={bubble.id}
@@ -205,7 +205,8 @@ const GitHubStyleSearch: React.FC<GitHubStyleSearchProps> = ({
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder={bubbles.length === 0 ? placeholder : "Continue typing..."}
-            className="flex-1 min-w-[100px] bg-transparent border-none outline-none placeholder-gray-500 text-sm"
+            className="flex-1 min-w-[100px] max-w-full bg-transparent border-none outline-none focus:outline-none placeholder-gray-400 text-lorcana-ink"
+            style={{ boxShadow: 'none', width: '100%' }}
           />
         </div>
       </div>

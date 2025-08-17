@@ -15,6 +15,7 @@ interface CollectionContextType {
   importCollection: (data: string) => boolean;
   importCollectionDirect: (cards: CollectionCardEntry[]) => Promise<boolean>;
   clearCollection: () => Promise<void>;
+  reloadCollection: () => Promise<void>;
   syncStatus: 'idle' | 'loading' | 'error' | 'offline';
 }
 
@@ -25,6 +26,9 @@ interface CollectionProviderProps {
 }
 
 export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children }) => {
+  // ================================
+  // STATE MANAGEMENT
+  // ================================
   const { user, session } = useAuth();
   const [collection, setCollection] = useState<CollectionCardEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'error' | 'offline'>('idle');
@@ -34,14 +38,10 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const [syncTimeout, setSyncTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isCurrentlySyncing, setIsCurrentlySyncing] = useState(false);
 
-  // Debug: Track when pendingUpdates changes
-  useEffect(() => {
-    console.log('🔍 pendingUpdates changed, size:', pendingUpdates.size);
-    if (pendingUpdates.size === 0) {
-      console.trace('📍 pendingUpdates cleared - stack trace:');
-    }
-  }, [pendingUpdates]);
-
+  // ================================
+  // DATA LOADING & GROUP MANAGEMENT
+  // ================================
+  
   // Load collection data when user changes
   useEffect(() => {
     if (user && session) {
@@ -58,18 +58,43 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     
     setSyncStatus('loading');
     try {
-      const { data, error } = await supabase
+      // Check if user is in a group and get group details
+      const { data: memberData } = await supabase
+        .from('collection_group_members')
+        .select(`
+          group_id,
+          role,
+          collection_groups(owner_id)
+        `)
+        .eq('user_id', user.id)
+        .single();
+      
+      let data, error;
+      let targetUserId = user.id; // Default to loading own collection
+      
+      if (memberData?.group_id) {
+        // User is in a group - determine whose collection to load
+        const groupOwnerId = (memberData as any).collection_groups.owner_id;
+        targetUserId = groupOwnerId; // Load the group owner's collection
+      } else {
+      }
+      
+      // Load the target user's collection (either own or group owner's)
+      const result = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
+      
+      data = result.data;
+      error = result.error;
 
       if (error) {
-        console.error('Error loading collection:', error);
         setSyncStatus('error');
         setCollection([]);
       } else {
+        
         // Convert database format to internal format
-        const converted = data.map((item: UserCollection) => ({
+        const converted = (data || []).map((item: UserCollection) => ({
           cardId: item.card_id,
           quantityNormal: item.quantity_normal || 0,
           quantityFoil: item.quantity_foil || 0
@@ -79,27 +104,46 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         setSyncStatus('idle');
       }
     } catch (error) {
-      console.error('Network error loading collection:', error);
       setSyncStatus('offline');
       setCollection([]);
     }
   };
 
+  // ================================
+  // DATABASE SYNC LOGIC
+  // ================================
+  
   // Batch sync all pending updates
   const syncBatchToSupabase = async (updatesToSync?: Map<number, {quantityNormal: number, quantityFoil: number}>) => {
     const updates = updatesToSync || pendingUpdates;
-    console.log('🔄 syncBatchToSupabase called, user:', !!user, 'pendingUpdates size:', updates.size);
-    
     if (!user || updates.size === 0) {
-      console.log('❌ Exiting early - no user or no pending updates');
       return;
     }
-    
-    console.log('🚀 Starting batch sync...');
     setSyncStatus('loading');
     try {
+      // Check if user is in a group and get group details
+      const { data: memberData } = await supabase
+        .from('collection_group_members')
+        .select(`
+          group_id,
+          role,
+          collection_groups(owner_id)
+        `)
+        .eq('user_id', user.id)
+        .single();
+
+      let targetUserId = user.id; // Default to saving to own collection
+      let userGroupId: string | null = null;
+      
+      if (memberData?.group_id) {
+        // User is in a group - save to the group owner's collection
+        const groupOwnerId = (memberData as any).collection_groups.owner_id;
+        targetUserId = groupOwnerId; // Save to owner's collection
+        userGroupId = memberData.group_id;
+      } else {
+      }
+
       const updateEntries = Array.from(updates.entries());
-      console.log('📊 Processing', updateEntries.length, 'updates');
       
       const upserts = [];
       const deletes = [];
@@ -109,56 +153,49 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         if (quantityNormal <= 0 && quantityFoil <= 0) {
           deletes.push(cardId);
         } else {
+          // Always save to the target user's collection (owner if in group, self if not)
           upserts.push({
-            user_id: user.id,
+            user_id: targetUserId,
             card_id: cardId,
             quantity_normal: quantityNormal,
-            quantity_foil: quantityFoil
+            quantity_foil: quantityFoil,
+            group_id: userGroupId // Set group_id if in group context
           });
         }
       }
       
-      console.log('📤 Ready to sync - upserts:', upserts.length, 'deletes:', deletes.length);
       
-      // Batch upsert
+      // Batch upsert to user_collections table
       if (upserts.length > 0) {
-        console.log('💾 Attempting to upsert', upserts.length, 'cards...');
         const { error } = await supabase
           .from(TABLES.USER_COLLECTIONS)
           .upsert(upserts, { onConflict: 'user_id,card_id' });
           
         if (error) {
-          console.error('❌ Error batch upserting cards:', error);
           setSyncStatus('error');
           return;
         }
-        console.log('✅ Upsert successful');
       }
       
-      // Batch delete
+      // Batch delete from user_collections table  
       if (deletes.length > 0) {
-        console.log('🗑️ Attempting to delete', deletes.length, 'cards...');
         const { error } = await supabase
           .from(TABLES.USER_COLLECTIONS)
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', targetUserId)
           .in('card_id', deletes);
           
         if (error) {
-          console.error('❌ Error batch deleting cards:', error);
           setSyncStatus('error');
           return;
         }
-        console.log('✅ Delete successful');
       }
       
       // Updates already cleared by timer callback
-      console.log('🎉 Batch sync completed successfully');
       setSyncStatus('idle');
       setIsCurrentlySyncing(false); // Allow new syncs
       
     } catch (error) {
-      console.error('💥 Network error syncing batch:', error);
       setSyncStatus('offline');
       setIsCurrentlySyncing(false); // Allow new syncs after error
     }
@@ -167,47 +204,41 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Queue a card update for batching
   const queueCardUpdate = (cardId: number, quantityNormal: number, quantityFoil: number) => {
     if (!user) {
-      console.log('❌ queueCardUpdate: No user');
       return;
     }
-    
-    console.log('📥 queueCardUpdate:', cardId, 'normal:', quantityNormal, 'foil:', quantityFoil);
     
     // Add to pending updates
     setPendingUpdates(prev => {
       const newMap = new Map(prev);
       newMap.set(cardId, { quantityNormal, quantityFoil });
-      console.log('📊 pendingUpdates size after adding:', newMap.size);
       return newMap;
     });
     
     // Reset the debounce timer
     if (syncTimeout) {
-      console.log('⏰ Clearing existing timeout');
       clearTimeout(syncTimeout);
     }
     const timeout = setTimeout(() => {
-      console.log('⏰ Timer fired, calling syncBatchToSupabase');
       // Use callback to get current state, not closure
       setPendingUpdates(currentUpdates => {
-        console.log('📊 Timer callback - current pendingUpdates size:', currentUpdates.size, 'isCurrentlySyncing:', isCurrentlySyncing);
         if (currentUpdates.size > 0 && !isCurrentlySyncing) {
-          console.log('🚀 Starting sync process...');
           setIsCurrentlySyncing(true);
           // Pass the current updates directly to avoid closure issues
           syncBatchToSupabase(currentUpdates);
           // Clear the pending updates immediately to prevent other timers from running
           return new Map();
         } else {
-          console.log('❌ Timer fired but no pending updates to sync or already syncing');
           return currentUpdates;
         }
       });
     }, 2000); // 2 second debounce
     setSyncTimeout(timeout);
-    console.log('⏰ New timeout set for 2 seconds');
   };
 
+  // ================================
+  // COLLECTION CRUD OPERATIONS
+  // ================================
+  
   const getCardQuantity = (cardId: number): { normal: number; foil: number; total: number } => {
     const card = collection.find(c => c.cardId === cardId);
     return {
@@ -306,6 +337,10 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const totalCards = collection.reduce((sum, card) => sum + card.quantityNormal + card.quantityFoil, 0);
   const uniqueCards = collection.length;
 
+  // ================================
+  // IMPORT/EXPORT OPERATIONS
+  // ================================
+  
   const exportCollection = (): string => {
     const exportData = {
       version: '2.0', // New version with foil support
@@ -340,11 +375,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         
         return true;
       } else {
-        console.error('Invalid import format');
         return false;
       }
     } catch (error) {
-      console.error('Error importing collection:', error);
       return false;
     }
   };
@@ -352,31 +385,47 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Direct import for bulk operations (bypasses batching)
   const importCollectionDirect = async (cards: CollectionCardEntry[]): Promise<boolean> => {
     if (!user) {
-      console.error('❌ No user for direct import');
       return false;
     }
 
-    console.log('🚀 Direct import starting for', cards.length, 'cards');
     setSyncStatus('loading');
 
     try {
+      // Check if user is in a group and get group details
+      const { data: memberData } = await supabase
+        .from('collection_group_members')
+        .select(`
+          group_id,
+          role,
+          collection_groups(owner_id)
+        `)
+        .eq('user_id', user.id)
+        .single();
+
+      let targetUserId = user.id; // Default to importing to own collection
+      let userGroupId: string | null = null;
+      
+      if (memberData?.group_id) {
+        // User is in a group - import to the group owner's collection
+        const groupOwnerId = (memberData as any).collection_groups.owner_id;
+        targetUserId = groupOwnerId; // Import to owner's collection
+        userGroupId = memberData.group_id;
+      }
+
       // Convert to database format
       const upserts = cards.map(card => ({
-        user_id: user.id,
+        user_id: targetUserId,
         card_id: card.cardId,
         quantity_normal: card.quantityNormal,
-        quantity_foil: card.quantityFoil
+        quantity_foil: card.quantityFoil,
+        group_id: userGroupId // Set group_id if in group context
       }));
 
-      console.log('💾 Upserting', upserts.length, 'cards directly to database...');
-      
-      // Direct database sync - no batching, no timers, no complexity
       const { error } = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .upsert(upserts, { onConflict: 'user_id,card_id' });
 
       if (error) {
-        console.error('❌ Direct import failed:', error);
         setSyncStatus('error');
         return false;
       }
@@ -385,11 +434,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       setCollection(cards);
       setSyncStatus('idle');
       
-      console.log('✅ Direct import completed successfully');
       return true;
 
     } catch (error) {
-      console.error('💥 Direct import error:', error);
       setSyncStatus('error');
       return false;
     }
@@ -401,14 +448,32 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     setSyncStatus('loading');
     
     try {
+      // Check if user is in a group and get group details
+      const { data: memberData } = await supabase
+        .from('collection_group_members')
+        .select(`
+          group_id,
+          role,
+          collection_groups(owner_id)
+        `)
+        .eq('user_id', user.id)
+        .single();
+
+      let targetUserId = user.id; // Default to clearing own collection
+      
+      if (memberData?.group_id) {
+        // User is in a group - clear the group owner's collection
+        const groupOwnerId = (memberData as any).collection_groups.owner_id;
+        targetUserId = groupOwnerId; // Clear owner's collection
+      }
+
       // Clear from database first
       const { error } = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .delete()
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
 
       if (error) {
-        console.error('Error clearing collection from database:', error);
         setSyncStatus('error');
         return;
       }
@@ -416,14 +481,16 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       // Only clear local state if database deletion succeeded
       setCollection([]);
       setSyncStatus('idle');
-      console.log('Collection cleared successfully');
       
     } catch (error) {
-      console.error('Network error clearing collection:', error);
       setSyncStatus('offline');
     }
   };
 
+  // ================================
+  // CONTEXT PROVIDER SETUP
+  // ================================
+  
   const value: CollectionContextType = {
     collection,
     getCardQuantity,
@@ -436,6 +503,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     importCollection,
     importCollectionDirect,
     clearCollection,
+    reloadCollection: loadCollectionFromSupabase,
     syncStatus,
   };
 

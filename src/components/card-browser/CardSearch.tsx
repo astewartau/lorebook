@@ -44,12 +44,12 @@ const CardSearch: React.FC<CardSearchProps> = ({
       {/* Mobile Layout */}
       <div className="md:hidden">
         <div className="flex gap-1 mb-3">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 max-w-[calc(100%-120px)]">
             <GitHubStyleSearch
               value={searchTerm}
               onChange={setSearchTerm}
               placeholder="Search cards..."
-              className="text-sm"
+              className="text-sm w-full"
             />
           </div>
           <button
