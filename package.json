@@ -25,9 +25,9 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "local": "REACT_APP_SUPABASE_URL=http://127.0.0.1:54321 REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0 REACT_APP_ENV=local react-scripts start",
-    "dev": "REACT_APP_SUPABASE_URL=https://bqmmeaguzwtkcovjtbip.supabase.co REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbW1lYWd1end0a2Nvdmp0YmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0Mjc4NTksImV4cCI6MjA3MTAwMzg1OX0.O_1OlOZghwQaKpPlc3jSA-3R-X8GYAqoFuRzi7x4XoM REACT_APP_ENV=development react-scripts start",
-    "prod": "REACT_APP_SUPABASE_URL=https://sqrkhwauozrwxqmqvyoi.supabase.co REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxcmtod2F1b3pyd3hxbXF2eW9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NjAwNDQsImV4cCI6MjA3MDIzNjA0NH0.tCjss8McZsgQOAuiyLiemgnRq2DseB5M79t7QUOap78 REACT_APP_ENV=production react-scripts start",
+    "local": "react-scripts start",
+    "dev": "REACT_APP_ENV=development react-scripts start",
+    "prod": "REACT_APP_ENV=production react-scripts start",
     "build": "react-scripts build",
     "db:migrate:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" < collection-groups-migration.sql'",
     "db:status:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" -c \"\\dt\"'",
