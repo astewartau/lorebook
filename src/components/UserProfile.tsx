@@ -9,7 +9,6 @@ import { COLOR_ICONS } from '../constants/icons';
 import ProfileEditModal from './ProfileEditModal';
 import { DECK_RULES } from '../constants';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
-import TabBar from './TabBar';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -106,7 +105,6 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
 
   return (
     <div className="min-h-screen bg-lorcana-cream">
-      <TabBar />
       
       {/* Cover Photo + Profile Section */}
       <div className="relative">

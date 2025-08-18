@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
 import { DECK_RULES } from '../constants';
-import TabBar from './TabBar';
 
 interface DeckSummaryProps {
   onBack: () => void;
@@ -133,7 +132,6 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
 
   return (
     <div className="min-h-screen bg-lorcana-cream">
-      <TabBar />
       
       {/* Deck Sub-tabs */}
       <div className="bg-lorcana-cream border-b border-lorcana-gold/20">

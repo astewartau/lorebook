@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
+import { BookOpen, Package, Layers3, Users } from 'lucide-react';
 import CardBrowser from './components/CardBrowser';
 import Collections from './components/Collections';
 import SetBinder from './components/SetBinder';
@@ -23,6 +24,7 @@ import Footer from './components/Footer';
 
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { navVisible } = useScrollManager();
   const loginModal = useModal();
   const profileModal = useModal();
@@ -81,8 +83,13 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-lorcana-cream flex flex-col">
           {/* Mobile Header - Full Width */}
-          <div className="sm:hidden bg-lorcana-navy shadow-xl">
-            <header className="px-4 py-3 flex items-center justify-between">
+          <div className="sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden">
+            <div className="absolute inset-0 opacity-15">
+              <div className="absolute top-0 left-0 w-24 h-24 bg-lorcana-gold transform rotate-45 -translate-x-12 -translate-y-12"></div>
+              <div className="absolute top-0 right-0 w-16 h-16 bg-lorcana-gold rounded-full -translate-y-6 translate-x-6"></div>
+              <div className="absolute bottom-0 right-1/4 w-28 h-28 bg-lorcana-gold transform rotate-45 translate-y-14"></div>
+            </div>
+            <header className="px-4 py-4 flex items-center justify-between relative z-10">
               <div className="flex-1 flex justify-center">
                 <button 
                   onClick={() => navigate('/cards')}
@@ -107,9 +114,22 @@ function AppContent() {
             </header>
           </div>
 
-          {/* Desktop Header section - Full Width */}
-          <div className="hidden sm:block bg-lorcana-navy shadow-xl">
-            <header className="p-6 pb-4 relative">
+          {/* Desktop Header and TabBar Container - Combined with continuous pattern */}
+          <div className="hidden sm:block bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-0 left-0 w-32 h-32 bg-lorcana-gold transform rotate-45 -translate-x-16 -translate-y-16"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-lorcana-gold rounded-full -translate-y-8 translate-x-8"></div>
+              <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-lorcana-gold transform rotate-45 translate-y-20"></div>
+              <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-lorcana-gold rounded-full opacity-50"></div>
+              <div className="absolute bottom-4 right-1/3 w-16 h-16 bg-lorcana-gold rounded-full opacity-30"></div>
+              <div className="absolute top-3/4 left-1/6 w-24 h-24 bg-lorcana-gold transform rotate-45 opacity-25"></div>
+              {/* Additional pattern elements for TabBar area */}
+              <div className="absolute bottom-0 right-1/4 w-20 h-20 bg-lorcana-gold rounded-full opacity-15"></div>
+              <div className="absolute bottom-2 left-1/3 w-16 h-16 bg-lorcana-gold transform rotate-45 opacity-20"></div>
+            </div>
+            
+            {/* Header */}
+            <header className="p-6 pb-0 relative z-10">
               <div className="flex flex-col items-center">
                 <button 
                   onClick={() => navigate('/cards')}
@@ -131,6 +151,48 @@ function AppContent() {
                 />
               </div>
             </header>
+            
+            {/* TabBar - Inside the gradient container */}
+            <div className="border-b-2 border-lorcana-gold relative z-10">
+              <nav className="px-6 py-4">
+                <div className="flex justify-center">
+                  <div className="bg-lorcana-purple/50 backdrop-blur border border-lorcana-gold/50 rounded-sm p-1">
+                    <div className="flex space-x-1">
+                      {[
+                        { id: 'cards', label: 'Cards', icon: BookOpen, path: '/cards' },
+                        { id: 'collections', label: 'Collections', icon: Package, path: '/collections' },
+                        { id: 'decks', label: 'Decks', icon: Layers3, path: '/decks' },
+                        { id: 'community', label: 'Community', icon: Users, path: '/community' },
+                      ].map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = tab.path === '/cards' 
+                          ? (location.pathname === '/' || location.pathname === '/cards')
+                          : tab.path === '/collections'
+                          ? (location.pathname.startsWith('/collections') || location.pathname.startsWith('/collection'))
+                          : tab.path === '/community'
+                          ? location.pathname.startsWith('/community')
+                          : location.pathname.startsWith(tab.path);
+                        
+                        return (
+                          <Link
+                            key={tab.id}
+                            to={tab.path}
+                            className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-sm transition-all duration-200 ${
+                              isActive
+                                ? 'bg-lorcana-gold text-lorcana-navy shadow-md'
+                                : 'text-lorcana-cream hover:bg-lorcana-purple hover:text-lorcana-gold'
+                            }`}
+                          >
+                            <Icon size={20} />
+                            <span className="font-medium">{tab.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </nav>
+            </div>
           </div>
 
           {/* Main Content Area - shifts when deck sidebar is open on desktop */}

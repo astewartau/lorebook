@@ -8,7 +8,6 @@ import { LorcanaCard } from '../types';
 import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
-import TabBar from './TabBar';
 
 
 const CardBrowser: React.FC = () => {
@@ -65,9 +64,6 @@ const CardBrowser: React.FC = () => {
 
   return (
     <div>
-      {/* Tab Bar */}
-      <TabBar />
-      
       {/* Sticky container for Search and QuickFilters */}
       <div className="sticky top-0 z-30">
         {/* Search section */}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Calendar } from 'lucide-react';
 import { useProfile } from '../contexts/ProfileContext';
-import TabBar from './TabBar';
 
 interface UsersProps {
   onViewProfile: (userId: string) => void;
@@ -37,7 +36,6 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
   return (
     <div>
       {/* Tab Bar */}
-      <TabBar />
 
       <div className="container mx-auto px-2 sm:px-4 py-6 space-y-6">
         {/* Search Bar */}

@@ -285,13 +285,19 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null
   return matchedCard;
 };
 
-export const importDreambornCollection = (csvContent: string): ImportedCard[] => {
+export interface ImportResult {
+  importedCards: ImportedCard[];
+  failedCards: { name: string; set: string; cardNumber: string; rarity: string }[];
+}
+
+export const importDreambornCollection = (csvContent: string): ImportResult => {
   try {
     console.log('=== STARTING DREAMBORN IMPORT ===');
     const csvRows = parseDreambornCSV(csvContent);
     console.log(`CSV parsing complete. Found ${csvRows.length} rows with quantities.`);
     
     const importedCards: ImportedCard[] = [];
+    const failedCards: { name: string; set: string; cardNumber: string; rarity: string }[] = [];
     let matchedCards = 0;
     let unmatchedCards = 0;
 
@@ -310,6 +316,12 @@ export const importDreambornCollection = (csvContent: string): ImportedCard[] =>
       const card = matchCardToDatabase(row);
       if (!card) {
         unmatchedCards++;
+        failedCards.push({
+          name: row.Name || 'Unknown',
+          set: row.Set || 'Unknown',
+          cardNumber: row['Card Number'] || 'Unknown',
+          rarity: row.Rarity || 'Unknown'
+        });
         if (unmatchedCards <= 5) {
           console.log(`Could not match card: ${row.Name}`);
         }
@@ -337,14 +349,14 @@ export const importDreambornCollection = (csvContent: string): ImportedCard[] =>
     console.log(`Could not match: ${unmatchedCards}`);
     console.log(`Final imported cards: ${importedCards.length}`);
 
-    return importedCards;
+    return { importedCards, failedCards };
   } catch (error) {
     console.error('Error importing Dreamborn collection:', error);
     throw error;
   }
 };
 
-export const generateImportSummary = (importedCards: ImportedCard[]): string => {
+export const generateImportSummary = (importedCards: ImportedCard[], failedCards: { name: string; set: string; cardNumber: string; rarity: string }[] = []): string => {
   const totalNormal = importedCards.reduce((sum, card) => sum + card.normalQuantity, 0);
   const totalFoil = importedCards.reduce((sum, card) => sum + card.foilQuantity, 0);
   const totalCards = totalNormal + totalFoil;
@@ -352,5 +364,15 @@ export const generateImportSummary = (importedCards: ImportedCard[]): string => 
   const uniqueCards = importedCards.length;
   const enchantedCount = importedCards.filter(card => card.card.rarity === 'Enchanted').length;
   
-  return `Successfully imported ${totalCards} cards (${uniqueCards} unique, ${totalNormal} normal, ${totalFoil} foil, ${enchantedCount} enchanted)`;
+  let summary = `Successfully imported ${totalCards} cards (${uniqueCards} unique, ${totalNormal} normal, ${totalFoil} foil, ${enchantedCount} enchanted)`;
+  
+  if (failedCards.length > 0) {
+    summary += `\n\n⚠️ ${failedCards.length} cards could not be matched:`;
+    failedCards.forEach(card => {
+      summary += `\n• ${card.name} (Set: ${card.set}, Card: ${card.cardNumber}, ${card.rarity})`;
+    });
+    summary += `\n\nThese cards were not imported. Please check the card names, sets, and numbers in your CSV.`;
+  }
+
+  return summary;
 };

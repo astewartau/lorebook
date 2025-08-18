@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { useCollection } from '../contexts/CollectionContext';
-import { importDreambornCollection, generateImportSummary, ImportedCard } from '../utils/dreambornImport';
+import { importDreambornCollection, generateImportSummary, ImportedCard, ImportResult } from '../utils/dreambornImport';
 
 interface DreambornImportProps {
   onClose: () => void;
@@ -35,7 +35,8 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
 
     try {
       const csvContent = await file.text();
-      const importedCards = importDreambornCollection(csvContent);
+      const result: ImportResult = importDreambornCollection(csvContent);
+      const { importedCards, failedCards } = result;
       
       if (importedCards.length === 0) {
         setImportResult({
@@ -60,7 +61,7 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
       const success = await importCollectionDirect(collectionCards);
       
       if (success) {
-        const summary = generateImportSummary(importedCards);
+        const summary = generateImportSummary(importedCards, failedCards);
         setImportResult({
           success: true,
           message: summary,

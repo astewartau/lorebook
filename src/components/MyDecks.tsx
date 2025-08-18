@@ -7,7 +7,6 @@ import { useProfile } from '../contexts/ProfileContext';
 import { Deck } from '../types';
 import DeckBox3D from './DeckBox3D';
 import { DECK_RULES } from '../constants';
-import TabBar from './TabBar';
 
 interface MyDecksProps {
   onBuildDeck: (deckId?: string) => void;
@@ -232,7 +231,6 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         )}
 
         {/* Tab Bar */}
-        <TabBar />
         
         <div className="container mx-auto px-2 sm:px-4 py-6 space-y-6">
           {/* Sign-in prompt */}
@@ -360,8 +358,6 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         </div>
       )}
 
-      {/* Tab Bar */}
-      <TabBar />
       
       {/* Sub-tabs and Action Buttons */}
       <div className="bg-lorcana-cream border-b border-lorcana-gold/20">
