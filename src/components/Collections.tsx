@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import Collection from './Collection';
 import AuthRequired from './AuthRequired';
 import CollectionGroupModal from './CollectionGroupModal';
-import TabBar from './TabBar';
 import { groupService, CollectionGroup, GroupMember } from '../services/groupService';
 
 const Collections: React.FC = () => {
@@ -18,8 +17,6 @@ const Collections: React.FC = () => {
   if (!user) {
     return (
       <div>
-        {/* Tab Bar */}
-        <TabBar />
         
         <AuthRequired 
           feature="collections" 
@@ -35,8 +32,6 @@ const Collections: React.FC = () => {
 
   return (
     <div>
-      {/* Tab Bar */}
-      <TabBar />
       
       {/* Sub-tabs for Collections */}
       <div className="bg-lorcana-cream border-b border-lorcana-gold/20">

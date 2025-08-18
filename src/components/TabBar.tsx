@@ -33,7 +33,7 @@ const TabBar: React.FC = () => {
   };
 
   return (
-    <div className="hidden sm:block bg-lorcana-navy border-b-2 border-lorcana-gold">
+    <div className="hidden sm:block bg-transparent border-b-2 border-lorcana-gold relative">
       <nav className="px-6 py-4">
         <div className="flex justify-center">
           <div className="bg-lorcana-purple/50 backdrop-blur border border-lorcana-gold/50 rounded-sm p-1">
