@@ -19,6 +19,44 @@ export interface ImportedCard {
   foilQuantity: number;
 }
 
+// Proper CSV line parser that handles quoted fields with commas
+const parseCSVLine = (line: string, separator: string): string[] => {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let i = 0;
+  
+  while (i < line.length) {
+    const char = line[i];
+    
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        // Escaped quote (two quotes in a row)
+        current += '"';
+        i += 2;
+      } else {
+        // Start or end of quoted field
+        inQuotes = !inQuotes;
+        i++;
+      }
+    } else if (char === separator && !inQuotes) {
+      // Field separator outside of quotes
+      values.push(current.trim());
+      current = '';
+      i++;
+    } else {
+      // Regular character
+      current += char;
+      i++;
+    }
+  }
+  
+  // Add the last field
+  values.push(current.trim());
+  
+  return values;
+};
+
 
 export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   console.log('Starting CSV parse...');
@@ -95,7 +133,8 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
     const line = lines[i].trim();
     if (!line) continue;
     
-    const values = line.split(separator).map(v => v.trim().replace(/"/g, ''));
+    // Proper CSV parsing that handles quoted fields
+    const values = parseCSVLine(line, separator);
     totalProcessed++;
     
     if (totalProcessed <= 5) {
@@ -180,8 +219,31 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null
   if (matches.length === 0) {
     console.warn(`Could not find match for Set ${setStr} Card ${cardNumber}: ${csvName} (Rarity: ${csvRarity})`);
     
-    // Fallback to name matching, but be more specific about which variant
-    const nameMatches = allCards.filter(c => c.fullName === csvName.trim());
+    // Normalize names for matching (case-insensitive, normalize punctuation)
+    const normalizedCsvName = csvName.trim().toLowerCase()
+      .replace(/['']/g, "'") // Normalize apostrophes
+      .replace(/[-–—]/g, "-"); // Normalize dashes
+    
+    // Fallback to name matching with fuzzy matching
+    const nameMatches = allCards.filter(c => {
+      const normalizedDbName = c.fullName.toLowerCase()
+        .replace(/['']/g, "'")
+        .replace(/[-–—]/g, "-");
+      
+      // Try exact match first (with punctuation)
+      if (normalizedDbName === normalizedCsvName) return true;
+      
+      // For cards without punctuation differences, try without punctuation
+      const csvNameNoPunct = normalizedCsvName.replace(/[!?.,]/g, "");
+      const dbNameNoPunct = normalizedDbName.replace(/[!?.,]/g, "");
+      
+      if (dbNameNoPunct === csvNameNoPunct) return true;
+      
+      // Special case for "Wake Up" vs "Wake Up, Alice!"
+      if (csvNameNoPunct === "wake up" && dbNameNoPunct.startsWith("wake up")) return true;
+      
+      return false;
+    });
     
     if (nameMatches.length > 0) {
       // For name matches, try to pick the right variant based on rarity
