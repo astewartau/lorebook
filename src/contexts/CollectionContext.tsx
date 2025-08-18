@@ -67,7 +67,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           collection_groups(owner_id)
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
       
       let data, error;
       let targetUserId = user.id; // Default to loading own collection
@@ -130,7 +130,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           collection_groups(owner_id)
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
 
       let targetUserId = user.id; // Default to saving to own collection
       let userGroupId: string | null = null;
@@ -400,7 +400,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           collection_groups(owner_id)
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
 
       let targetUserId = user.id; // Default to importing to own collection
       let userGroupId: string | null = null;
@@ -421,11 +421,34 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         group_id: userGroupId // Set group_id if in group context
       }));
 
+      // Check for duplicates
+      const cardIdCounts = new Map<number, number>();
+      const duplicates: number[] = [];
+      
+      upserts.forEach(item => {
+        const count = cardIdCounts.get(item.card_id) || 0;
+        cardIdCounts.set(item.card_id, count + 1);
+        if (count > 0) {
+          duplicates.push(item.card_id);
+        }
+      });
+      
+      if (duplicates.length > 0) {
+        const uniqueDuplicates = Array.from(new Set(duplicates));
+        console.error('DUPLICATE CARD IDs FOUND IN IMPORT:', uniqueDuplicates);
+        console.error('Duplicate details:');
+        uniqueDuplicates.forEach(cardId => {
+          const duplicateRows = cards.filter(c => c.cardId === cardId);
+          console.error(`Card ID ${cardId} appears ${duplicateRows.length} times:`, duplicateRows);
+        });
+      }
+
       const { error } = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .upsert(upserts, { onConflict: 'user_id,card_id' });
 
       if (error) {
+        console.error('Database upsert error:', error);
         setSyncStatus('error');
         return false;
       }
@@ -457,7 +480,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           collection_groups(owner_id)
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
 
       let targetUserId = user.id; // Default to clearing own collection
       
