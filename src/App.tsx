@@ -79,16 +79,21 @@ function AppContent() {
 
 
   return (
-    <div className="min-h-screen bg-lorcana-cream">
+    <div className="min-h-screen bg-lorcana-cream flex flex-col">
           {/* Mobile Header - Full Width */}
           <div className="sm:hidden bg-lorcana-navy shadow-xl">
             <header className="px-4 py-3 flex items-center justify-between">
               <div className="flex-1 flex justify-center">
-                <img 
-                  src="/imgs/lorebook-wide.png" 
-                  alt="Lorebook" 
-                  className="h-12 object-contain"
-                />
+                <button 
+                  onClick={() => navigate('/cards')}
+                  className="focus:outline-none hover:opacity-80 transition-opacity"
+                >
+                  <img 
+                    src="/imgs/lorebook-wide.png" 
+                    alt="Lorebook" 
+                    className="h-12 object-contain"
+                  />
+                </button>
               </div>
               
               {/* Mobile Auth */}
@@ -106,11 +111,16 @@ function AppContent() {
           <div className="hidden sm:block bg-lorcana-navy shadow-xl">
             <header className="p-6 pb-4 relative">
               <div className="flex flex-col items-center">
-                <img 
-                  src="/imgs/lorebook-wide.png" 
-                  alt="Lorebook" 
-                  className="h-24 object-contain"
-                />
+                <button 
+                  onClick={() => navigate('/cards')}
+                  className="focus:outline-none hover:opacity-80 transition-opacity"
+                >
+                  <img 
+                    src="/imgs/lorebook-wide.png" 
+                    alt="Lorebook" 
+                    className="h-24 object-contain cursor-pointer"
+                  />
+                </button>
               </div>
               
               {/* Auth section - top right */}
@@ -124,7 +134,7 @@ function AppContent() {
           </div>
 
           {/* Main Content Area - shifts when deck sidebar is open on desktop */}
-          <div className={`transition-all duration-300 ease-in-out ${
+          <div className={`flex-1 transition-all duration-300 ease-in-out ${
             isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
           }`}>
             <main className="pb-20 sm:pb-0">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, User, Mail } from 'lucide-react'
+import { X, User, Mail, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 interface LoginModalProps {
@@ -13,14 +13,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   if (!isOpen) return null
 
   const handleGoogleSignIn = async () => {
+    setError(null)
+    setSuccessMessage(null)
     const { error } = await signInWithGoogle()
     if (error) {
       console.error('Login error:', error.message)
-      alert('Login failed: ' + error.message)
+      setError('Login failed: ' + error.message)
     } else {
       onClose()
     }
@@ -30,6 +34,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault()
     if (!email || !password) return
 
+    setError(null)
+    setSuccessMessage(null)
     setEmailLoading(true)
     try {
       const { error } = mode === 'signin' 
@@ -38,12 +44,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
       if (error) {
         console.error('Auth error:', error.message)
-        alert((mode === 'signin' ? 'Sign in' : 'Sign up') + ' failed: ' + error.message)
+        setError((mode === 'signin' ? 'Sign in' : 'Sign up') + ' failed: ' + error.message)
       } else {
         if (mode === 'signup') {
-          alert('Please check your email to confirm your account!')
+          setSuccessMessage('Please check your email to confirm your account!')
+          setTimeout(() => onClose(), 3000)
+        } else {
+          onClose()
         }
-        onClose()
       }
     } finally {
       setEmailLoading(false)
@@ -81,7 +89,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           {/* Auth Mode Tabs */}
           <div className="flex mb-6 border-2 border-lorcana-gold rounded-sm overflow-hidden">
             <button
-              onClick={() => setMode('signin')}
+              onClick={() => {
+                setMode('signin')
+                setError(null)
+                setSuccessMessage(null)
+              }}
               className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
                 mode === 'signin'
                   ? 'bg-lorcana-gold text-lorcana-navy'
@@ -91,7 +103,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               Sign In
             </button>
             <button
-              onClick={() => setMode('signup')}
+              onClick={() => {
+                setMode('signup')
+                setError(null)
+                setSuccessMessage(null)
+              }}
               className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
                 mode === 'signup'
                   ? 'bg-lorcana-gold text-lorcana-navy'
@@ -101,6 +117,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               Sign Up
             </button>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border-2 border-red-200 rounded-sm flex items-start space-x-2">
+              <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-4 p-3 bg-green-50 border-2 border-green-200 rounded-sm flex items-start space-x-2">
+              <AlertCircle className="text-green-500 flex-shrink-0 mt-0.5" size={18} />
+              <p className="text-sm text-green-700">{successMessage}</p>
+            </div>
+          )}
 
           {/* Email Form */}
           <form onSubmit={handleEmailAuth} className="mb-6">

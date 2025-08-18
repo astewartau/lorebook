@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, Search, Globe, Lock, Copy, Trash2, Edit, Eye, User } from 'lucide-react';
+import { Plus, Upload, Search, Globe, Lock, Copy, Trash2, Edit, Eye, User, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
@@ -38,6 +38,13 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [deckProfiles, setDeckProfiles] = useState<Record<string, string>>({});
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Show notification with auto-dismiss
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   // Load display names for deck authors
   const loadDeckProfiles = useCallback(async (decks: Deck[]) => {
@@ -103,7 +110,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
       onBuildDeck(deckId);
     } catch (error) {
       console.error('Error creating deck:', error);
-      alert('Failed to create deck');
+      showNotification('error', 'Failed to create deck');
     }
   };
 
@@ -113,7 +120,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         await deleteDeck(deckId);
       } catch (error) {
         console.error('Error deleting deck:', error);
-        alert('Failed to delete deck');
+        showNotification('error', 'Failed to delete deck');
       }
     }
   };
@@ -123,27 +130,27 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
       await duplicateDeck(deckId);
     } catch (error) {
       console.error('Error duplicating deck:', error);
-      alert('Failed to duplicate deck');
+      showNotification('error', 'Failed to duplicate deck');
     }
   };
 
   const handlePublishDeck = async (deckId: string) => {
     try {
       await publishDeck(deckId);
-      alert('Deck published successfully!');
+      showNotification('success', 'Deck published successfully!');
     } catch (error) {
       console.error('Error publishing deck:', error);
-      alert('Failed to publish deck');
+      showNotification('error', 'Failed to publish deck');
     }
   };
 
   const handleUnpublishDeck = async (deckId: string) => {
     try {
       await unpublishDeck(deckId);
-      alert('Deck unpublished successfully!');
+      showNotification('success', 'Deck unpublished successfully!');
     } catch (error) {
       console.error('Error unpublishing deck:', error);
-      alert('Failed to unpublish deck');
+      showNotification('error', 'Failed to unpublish deck');
     }
   };
 
@@ -174,9 +181,9 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         const content = event.target?.result as string;
         const success = await importDeck(content);
         if (success) {
-          alert('Deck imported successfully!');
+          showNotification('success', 'Deck imported successfully!');
         } else {
-          alert('Failed to import deck. Please check the file format.');
+          showNotification('error', 'Failed to import deck. Please check the file format.');
         }
       };
       reader.readAsText(file);
@@ -198,6 +205,32 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
   if (!user) {
     return (
       <div>
+        {/* Notification */}
+        {notification && (
+          <div className="fixed top-4 right-4 z-50 max-w-sm">
+            <div className={`p-4 rounded-sm shadow-lg border-2 flex items-start space-x-3 ${
+              notification.type === 'success' 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              {notification.type === 'success' ? (
+                <CheckCircle className="flex-shrink-0 mt-0.5" size={18} />
+              ) : (
+                <AlertCircle className="flex-shrink-0 mt-0.5" size={18} />
+              )}
+              <div className="flex-1">
+                <p className="text-sm font-medium">{notification.message}</p>
+              </div>
+              <button 
+                onClick={() => setNotification(null)}
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Tab Bar */}
         <TabBar />
         
@@ -301,6 +334,32 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
 
   return (
     <div>
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <div className={`p-4 rounded-sm shadow-lg border-2 flex items-start space-x-3 ${
+            notification.type === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {notification.type === 'success' ? (
+              <CheckCircle className="flex-shrink-0 mt-0.5" size={18} />
+            ) : (
+              <AlertCircle className="flex-shrink-0 mt-0.5" size={18} />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-medium">{notification.message}</p>
+            </div>
+            <button 
+              onClick={() => setNotification(null)}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tab Bar */}
       <TabBar />
       
