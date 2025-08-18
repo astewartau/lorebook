@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { BookOpen, Package, Layers3, Users } from 'lucide-react';
 
 interface Tab {
@@ -11,19 +11,28 @@ interface Tab {
 interface NavigationProps {
   shouldHideNavigation: boolean;
   navVisible: boolean;
-  isActivePath: (path: string) => boolean;
 }
 
 const Navigation: React.FC<NavigationProps> = ({
   shouldHideNavigation,
-  navVisible,
-  isActivePath
+  navVisible
 }) => {
+  const location = useLocation();
+
+  const isActivePath = (path: string) => {
+    if (path === '/cards') {
+      return location.pathname === '/' || location.pathname === '/cards';
+    }
+    if (path === '/collections') {
+      return location.pathname.startsWith('/collections') || location.pathname.startsWith('/collection');
+    }
+    return location.pathname.startsWith(path);
+  };
   const tabs: Tab[] = [
     { id: '/cards', label: 'Cards', icon: BookOpen },
     { id: '/collections', label: 'Collections', icon: Package },
     { id: '/decks', label: 'Decks', icon: Layers3 },
-    { id: '/users', label: 'Users', icon: Users },
+    { id: '/community', label: 'Community', icon: Users },
   ];
 
   if (shouldHideNavigation) {

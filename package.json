@@ -25,7 +25,12 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "local": "react-scripts start",
+    "dev": "REACT_APP_ENV=development react-scripts start",
+    "prod": "REACT_APP_ENV=production react-scripts start",
     "build": "react-scripts build",
+    "db:migrate:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" < collection-groups-migration.sql'",
+    "db:status:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" -c \"\\dt\"'",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

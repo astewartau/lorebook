@@ -9,6 +9,7 @@ import { COLOR_ICONS } from '../constants/icons';
 import ProfileEditModal from './ProfileEditModal';
 import { DECK_RULES } from '../constants';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
+import TabBar from './TabBar';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -104,115 +105,131 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header with Back Button */}
-      <div className="card-lorcana p-4">
-        <button
-          onClick={onBack}
-          className="flex items-center space-x-2 text-lorcana-navy hover:text-lorcana-ink transition-colors mb-4"
-        >
-          <ArrowLeft size={20} />
-          <span>Back to Users</span>
-        </button>
-      </div>
-
-      {/* Profile Header */}
-      <div className="card-lorcana art-deco-corner overflow-hidden">
-        {/* Art Deco Background Pattern */}
-        <div className="relative bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy p-8">
-          <div className="absolute inset-0 opacity-10">
+    <div className="min-h-screen bg-lorcana-cream">
+      <TabBar />
+      
+      {/* Cover Photo + Profile Section */}
+      <div className="relative">
+        {/* Cover Photo */}
+        <div className="h-48 sm:h-64 bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20">
             <div className="absolute top-0 left-0 w-32 h-32 bg-lorcana-gold transform rotate-45 -translate-x-16 -translate-y-16"></div>
             <div className="absolute top-0 right-0 w-24 h-24 bg-lorcana-gold rounded-full -translate-y-8 translate-x-8"></div>
             <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-lorcana-gold transform rotate-45 translate-y-20"></div>
           </div>
+          
+          {/* Back Button - Top Left */}
+          <button
+            onClick={onBack}
+            className="absolute top-4 left-4 flex items-center space-x-2 text-white hover:text-lorcana-gold transition-colors bg-black bg-opacity-20 rounded-full px-3 py-2"
+          >
+            <ArrowLeft size={20} />
+            <span className="hidden sm:inline">Back to Community</span>
+          </button>
+        </div>
 
-          <div className="relative z-10 text-center text-white">
-            {/* Avatar */}
-            <div className="w-24 h-24 mx-auto mb-4 bg-lorcana-gold rounded-full flex items-center justify-center border-4 border-lorcana-cream shadow-2xl">
-              {profile.avatarUrl ? (
-                <img 
-                  src={profile.avatarUrl} 
-                  alt={profile.displayName}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-2xl font-bold text-lorcana-navy">
-                  {profile.displayName.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-
-            {/* Name and Title */}
-            <h1 className="text-3xl font-bold mb-2 text-lorcana-gold">
-              {profile.displayName}
-            </h1>
-            {profile.fullName && (
-              <p className="text-lg text-lorcana-cream opacity-90 mb-4">
-                {profile.fullName}
-              </p>
-            )}
-
-            {/* Profile Info */}
-            <div className="flex justify-center items-center space-x-6 text-sm text-lorcana-cream">
-              {profile.location && (
-                <div className="flex items-center space-x-1">
-                  <MapPin size={16} />
-                  <span>{profile.location}</span>
+        {/* Profile Info Container */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative">
+            {/* Avatar - Overlapping cover photo */}
+            <div className="absolute -top-16 left-4">
+              <div className="w-32 h-32 bg-white rounded-full p-1 shadow-xl">
+                <div className="w-full h-full bg-lorcana-gold rounded-full flex items-center justify-center">
+                  {profile.avatarUrl ? (
+                    <img 
+                      src={profile.avatarUrl} 
+                      alt={profile.displayName}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-3xl font-bold text-lorcana-navy">
+                      {profile.displayName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
-              )}
-              <div className="flex items-center space-x-1">
-                <Calendar size={16} />
-                <span>Joined {formatDate(profile.createdAt)}</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Profile Actions */}
-        {isOwnProfile && (
-          <div className="p-6 border-t-2 border-lorcana-gold bg-lorcana-cream">
-            <div className="flex justify-center">
-              <button 
-                onClick={() => setShowProfileModal(true)}
-                className="btn-lorcana-gold flex items-center space-x-2"
-              >
-                <Edit3 size={16} />
-                <span>Edit Profile</span>
-              </button>
+            {/* Profile Info and Actions */}
+            <div className="pt-20 pb-6">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between">
+                <div className="mb-4 sm:mb-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-lorcana-ink mb-1">
+                    {profile.displayName}
+                  </h1>
+                  {profile.fullName && (
+                    <p className="text-lg text-lorcana-navy mb-2">
+                      {profile.fullName}
+                    </p>
+                  )}
+                  
+                  {/* Meta info */}
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-lorcana-navy">
+                    {profile.location && (
+                      <div className="flex items-center space-x-1">
+                        <MapPin size={16} />
+                        <span>{profile.location}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-1">
+                      <Calendar size={16} />
+                      <span>Joined {formatDate(profile.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                {isOwnProfile && (
+                  <button 
+                    onClick={() => setShowProfileModal(true)}
+                    className="bg-lorcana-gold text-lorcana-navy px-6 py-2 rounded-full font-medium hover:bg-opacity-90 transition-all duration-200 flex items-center space-x-2 shadow-lg"
+                  >
+                    <Edit3 size={16} />
+                    <span>Edit Profile</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Bio */}
+              {profile.bio && (
+                <div className="mt-4 max-w-2xl">
+                  <p className="text-lorcana-navy leading-relaxed">{profile.bio}</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Bio Section */}
-      {profile.bio && (
-        <div className="card-lorcana p-6 art-deco-corner">
-          <h2 className="text-xl font-bold text-lorcana-ink mb-4 flex items-center">
-            <div className="w-1 h-6 bg-lorcana-gold mr-3"></div>
-            About
-          </h2>
-          <p className="text-lorcana-navy leading-relaxed">{profile.bio}</p>
-        </div>
-      )}
+      {/* Content Sections */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content - Left Side */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Published Decks Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-xl font-bold text-lorcana-ink flex items-center">
+                  Published Decks
+                  <span className="ml-3 px-3 py-1 bg-lorcana-gold text-lorcana-navy text-sm font-medium rounded-full">
+                    {userDecks.length}
+                  </span>
+                </h2>
+              </div>
 
-      {/* Published Decks Section */}
-      <div className="card-lorcana p-6 art-deco-corner">
-        <h2 className="text-xl font-bold text-lorcana-ink mb-6 flex items-center">
-          <div className="w-1 h-6 bg-lorcana-gold mr-3"></div>
-          Published Decks
-          <span className="ml-2 px-2 py-1 bg-lorcana-gold text-lorcana-ink text-sm font-medium rounded-sm">
-            {userDecks.length}
-          </span>
-        </h2>
+              <div className="p-6">
 
-        {userDecks.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-lorcana-navy">
-              {isOwnProfile ? "You haven't published any decks yet." : "This user hasn't published any decks yet."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userDecks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Eye size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500">
+                      {isOwnProfile ? "You haven't published any decks yet." : "This user hasn't published any decks yet."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {userDecks.map(deck => {
               const cardCount = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
               const inkColors = Object.entries(
@@ -277,30 +294,37 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                 </div>
               );
             })}
-          </div>
-        )}
-      </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
-      {/* Published Binders Section */}
-      <div className="card-lorcana p-6 art-deco-corner">
-        <h2 className="text-xl font-bold text-lorcana-ink mb-6 flex items-center">
-          <div className="w-1 h-6 bg-lorcana-gold mr-3"></div>
-          Published Binders
-          <span className="ml-2 px-2 py-1 bg-lorcana-gold text-lorcana-ink text-sm font-medium rounded-sm">
-            {userBinders.length}
-          </span>
-        </h2>
+            {/* Published Binders Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-xl font-bold text-lorcana-ink flex items-center">
+                  Published Binders
+                  <span className="ml-3 px-3 py-1 bg-lorcana-gold text-lorcana-navy text-sm font-medium rounded-full">
+                    {userBinders.length}
+                  </span>
+                </h2>
+              </div>
 
-        {userBinders.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-lorcana-navy">
-              {isOwnProfile ? "You haven't published any binders yet." : "This user hasn't published any binders yet."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="p-6">
+
+                {userBinders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Book size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500">
+                      {isOwnProfile ? "You haven't published any binders yet." : "This user hasn't published any binders yet."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {userBinders.map(binder => (
-              <div key={binder.id} className="bg-lorcana-cream border-2 border-lorcana-gold rounded-sm p-4 hover:shadow-lg transition-all duration-300 art-deco-corner">
+                      <div key={binder.id} className="bg-white border-2 border-lorcana-gold rounded-sm p-4 hover:shadow-lg transition-shadow art-deco-corner-sm">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-bold text-lorcana-ink truncate">{binder.name}</h3>
                   <div className="flex items-center space-x-1 text-xs text-lorcana-navy bg-lorcana-purple/20 px-2 py-1 rounded-sm">
@@ -331,12 +355,54 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                   View Binder
                 </button>
               </div>
-            ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Sidebar - Right Side */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Quick Stats Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-lorcana-ink mb-4">Activity</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Published Decks</span>
+                    <span className="font-bold text-lorcana-navy">{userDecks.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Published Binders</span>
+                    <span className="font-bold text-lorcana-navy">{userBinders.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Member Since</span>
+                    <span className="font-bold text-lorcana-navy">
+                      {new Date(profile.createdAt).getFullYear()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity Card (placeholder for future) */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-lorcana-ink mb-4">Recent Activity</h3>
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Book size={20} className="text-gray-400" />
+                  </div>
+                  <p className="text-sm text-gray-500">Activity feed coming soon</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Profile Edit Modal */}
       <ProfileEditModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}

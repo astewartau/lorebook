@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
 import { DECK_RULES } from '../constants';
+import TabBar from './TabBar';
 
 interface DeckSummaryProps {
   onBack: () => void;
@@ -121,7 +122,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     // Check if user has a public profile
     const profile = await loadUserProfile(userId);
     if (profile && profile.isPublic) {
-      navigate(`/users/${userId}`);
+      navigate(`/community/${userId}`);
     }
   };
 
@@ -132,6 +133,38 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
 
   return (
     <div className="min-h-screen bg-lorcana-cream">
+      <TabBar />
+      
+      {/* Deck Sub-tabs */}
+      <div className="bg-lorcana-cream border-b border-lorcana-gold/20">
+        <div className="container mx-auto px-2 sm:px-4">
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-1">
+              <button
+                onClick={() => navigate('/decks')}
+                className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+                  currentDeck?.userId === user?.id
+                    ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                    : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+                }`}
+              >
+                <span>My Decks</span>
+              </button>
+              <button
+                onClick={() => navigate('/decks')}
+                className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+                  currentDeck?.userId !== user?.id
+                    ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                    : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+                }`}
+              >
+                <span>Published Decks</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">

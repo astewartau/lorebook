@@ -11,13 +11,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database table names
 export const TABLES = {
-  USER_COLLECTIONS: 'user_collections', // Card ID based table (after migration)
+  USER_COLLECTIONS: 'user_collections', // Personal collections (includes group collections)
   USER_DECKS: 'user_decks',
   USER_BINDERS: 'user_binders',
   USER_PROFILES: 'user_profiles',
 } as const
 
-// Card ID based collection type with foil support
+// Collection type (personal or group context)
 export interface UserCollection {
   id: string
   user_id: string
@@ -25,6 +25,7 @@ export interface UserCollection {
   quantity_normal: number
   quantity_foil: number
   quantity_total?: number // Generated column
+  group_id?: string // Present when collection is in group context
   created_at: string
   updated_at: string
 }

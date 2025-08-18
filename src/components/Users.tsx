@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Users as UsersIcon, MapPin, Calendar } from 'lucide-react';
+import { Search, MapPin, Calendar } from 'lucide-react';
 import { useProfile } from '../contexts/ProfileContext';
+import TabBar from './TabBar';
 
 interface UsersProps {
   onViewProfile: (userId: string) => void;
 }
 
 const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
-  const { allProfiles, loading, loadAllProfiles, searchProfiles } = useProfile();
+  const { allProfiles, loadAllProfiles, searchProfiles } = useProfile();
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -34,34 +35,18 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="card-lorcana p-6 art-deco-corner">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-lorcana-ink mb-2 flex items-center">
-              <UsersIcon size={32} className="mr-3 text-lorcana-gold" />
-              Community Users
-            </h1>
-            <p className="text-lorcana-navy">Discover fellow Lorcana enthusiasts and their published decks and binders</p>
-          </div>
-          
-          {/* Art Deco Decoration */}
-          <div className="hidden md:block">
-            <div className="w-16 h-16 bg-gradient-to-br from-lorcana-gold to-lorcana-navy rounded-full flex items-center justify-center shadow-lg">
-              <UsersIcon size={24} className="text-white" />
-            </div>
-          </div>
-        </div>
-      </div>
+    <div>
+      {/* Tab Bar */}
+      <TabBar />
 
-      {/* Search Bar */}
-      <div className="card-lorcana p-4">
+      <div className="container mx-auto px-2 sm:px-4 py-6 space-y-6">
+        {/* Search Bar */}
+        <div className="card-lorcana p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-lorcana-navy" size={20} />
           <input
             type="text"
-            placeholder="Search users by name or location..."
+            placeholder="Search community by name or location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border-2 border-lorcana-gold rounded-sm focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream"
@@ -69,27 +54,12 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
         </div>
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-lorcana-gold"></div>
-          <p className="mt-4 text-lorcana-navy">Loading community members...</p>
-        </div>
-      )}
 
       {/* Users Grid */}
-      {!loading && (
-        <>
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-lorcana-ink">
-              {searchTerm ? `Found ${displayProfiles.length} users` : `${displayProfiles.length} Community Members`}
-            </h2>
-          </div>
-
-          {displayProfiles.length === 0 ? (
+      {displayProfiles.length === 0 ? (
             <div className="card-lorcana p-12 text-center">
               <p className="text-lorcana-navy">
-                {searchTerm ? 'No users found matching your search.' : 'No community members found.'}
+                {searchTerm ? 'No community members found matching your search.' : 'No community members found.'}
               </p>
             </div>
           ) : (
@@ -165,8 +135,7 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
               ))}
             </div>
           )}
-        </>
-      )}
+      </div>
     </div>
   );
 };

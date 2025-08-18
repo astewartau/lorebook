@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Package, Layers3, Users } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import CardBrowser from './components/CardBrowser';
 import Collections from './components/Collections';
 import SetBinder from './components/SetBinder';
@@ -16,31 +15,23 @@ import { ProfileProvider } from './contexts/ProfileContext';
 import ProfileEditModal from './components/ProfileEditModal';
 import { ImageLoadProvider } from './contexts/ImageLoadContext';
 import { useScrollManager } from './hooks/useScrollManager';
+import { useModal } from './hooks';
 import AuthSection from './components/layout/AuthSection';
 import Navigation from './components/layout/Navigation';
 import DeckEditingSidebar from './components/layout/DeckEditingSidebar';
+import Footer from './components/Footer';
 
 function AppContent() {
-  const location = useLocation();
   const navigate = useNavigate();
   const { navVisible } = useScrollManager();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const loginModal = useModal();
+  const profileModal = useModal();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isEditingDeck, currentDeck, stopEditingDeck, removeCardFromDeck, updateCardQuantity, updateDeck, validateDeck, deleteDeck } = useDeck();
 
-  const isActivePath = (path: string) => {
-    if (path === '/cards') {
-      return location.pathname === '/' || location.pathname === '/cards';
-    }
-    if (path === '/collections') {
-      return location.pathname.startsWith('/collections') || location.pathname.startsWith('/collection');
-    }
-    return location.pathname.startsWith(path);
-  };
 
-  const isDeckPage = location.pathname.includes('/deck/');
-  const shouldHideNavigation = isDeckPage;
+  // Don't hide navigation - show it on all pages including individual deck and user profile pages
+  const shouldHideNavigation = false;
   
   const handleDeleteDeck = async () => {
     if (currentDeck) {
@@ -56,7 +47,7 @@ function AppContent() {
   
   const handleViewDeck = (deckId?: string) => {
     if (deckId) {
-      navigate(`/deck/${deckId}`);
+      navigate(`/decks/${deckId}`);
     }
   };
   
@@ -90,7 +81,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-lorcana-cream">
           {/* Mobile Header - Full Width */}
-          <div className="sm:hidden bg-lorcana-navy shadow-xl border-b-2 border-lorcana-gold">
+          <div className="sm:hidden bg-lorcana-navy shadow-xl">
             <header className="px-4 py-3 flex items-center justify-between">
               <div className="flex-1 flex justify-center">
                 <img 
@@ -104,8 +95,29 @@ function AppContent() {
               <div className="flex-shrink-0">
                 <AuthSection
                   isMobile
-                  onLoginClick={() => setShowLoginModal(true)}
-                  onProfileClick={() => setShowProfileModal(true)}
+                  onLoginClick={() => loginModal.open()}
+                  onProfileClick={() => profileModal.open()}
+                />
+              </div>
+            </header>
+          </div>
+
+          {/* Desktop Header section - Full Width */}
+          <div className="hidden sm:block bg-lorcana-navy shadow-xl">
+            <header className="p-6 pb-4 relative">
+              <div className="flex flex-col items-center">
+                <img 
+                  src="/imgs/lorebook-wide.png" 
+                  alt="Lorebook" 
+                  className="h-24 object-contain"
+                />
+              </div>
+              
+              {/* Auth section - top right */}
+              <div className="absolute top-4 right-6">
+                <AuthSection
+                  onLoginClick={() => loginModal.open()}
+                  onProfileClick={() => profileModal.open()}
                 />
               </div>
             </header>
@@ -115,77 +127,23 @@ function AppContent() {
           <div className={`transition-all duration-300 ease-in-out ${
             isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
           }`}>
-            <div className="container mx-auto px-2 sm:px-4 py-0 sm:py-6">
-              {/* Desktop Header section */}
-              <div className="hidden sm:block bg-lorcana-navy rounded-t-sm shadow-xl border-2 border-lorcana-gold border-b-0">
-                <header className="p-6 pb-4 relative">
-                  <div className="flex flex-col items-center">
-                    <img 
-                      src="/imgs/lorebook-wide.png" 
-                      alt="Lorebook" 
-                      className="h-24 object-contain"
-                    />
-                  </div>
-                  
-                  {/* Auth section - top right */}
-                  <div className="absolute top-4 right-6">
-                    <AuthSection
-                      onLoginClick={() => setShowLoginModal(true)}
-                      onProfileClick={() => setShowProfileModal(true)}
-                    />
-                  </div>
-                </header>
-
-                {/* Desktop Navigation */}
-                {!shouldHideNavigation && (
-                  <nav className="px-6 pb-3">
-                    <div className="flex justify-center">
-                      <div className="bg-lorcana-purple/50 backdrop-blur border border-lorcana-gold/50 rounded-sm p-1">
-                        <div className="flex space-x-1">
-                          {[
-                            { id: '/cards', label: 'Cards', icon: BookOpen },
-                            { id: '/collections', label: 'Collections', icon: Package },
-                            { id: '/decks', label: 'Decks', icon: Layers3 },
-                            { id: '/users', label: 'Users', icon: Users },
-                          ].map((tab) => {
-                            const Icon = tab.icon;
-                            return (
-                              <Link
-                                key={tab.id}
-                                to={tab.id}
-                                className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-sm transition-all duration-200 ${
-                                  isActivePath(tab.id)
-                                    ? 'bg-lorcana-gold text-lorcana-navy shadow-md'
-                                    : 'text-lorcana-cream hover:bg-lorcana-purple hover:text-lorcana-gold'
-                                }`}
-                              >
-                                <Icon size={20} />
-                                <span className="font-medium">{tab.label}</span>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </nav>
-                )}
-              </div>
-
-              <main className="pb-20 sm:pb-0">
+            <main className="pb-20 sm:pb-0">
                 <Routes>
                   <Route path="/" element={<CardBrowser />} />
                   <Route path="/cards" element={<CardBrowser />} />
                   <Route path="/collections" element={<Collections />} />
                   <Route path="/collection/binder/:setCode" element={<SetBinder />} />
                   <Route path="/binder/:binderId" element={<SetBinder />} />
-                  <Route path="/decks" element={<MyDecks onBuildDeck={() => {}} onViewDeck={(deckId: string) => navigate(`/deck/${deckId}`)} />} />
-                  <Route path="/deck/:deckId" element={<DeckSummary onBack={() => navigate('/decks')} onEditDeck={() => {}} />} />
-                  <Route path="/users" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/users/${userId}`)} />} />
-                  <Route path="/users/:userId" element={<UserProfileComponent onBack={() => navigate('/users')} />} />
+                  <Route path="/decks" element={<MyDecks onBuildDeck={() => {}} onViewDeck={(deckId: string) => navigate(`/decks/${deckId}`)} />} />
+                  <Route path="/decks/:deckId" element={<DeckSummary onBack={() => navigate('/decks')} onEditDeck={() => {}} />} />
+                  <Route path="/community" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/community/${userId}`)} />} />
+                  <Route path="/community/:userId" element={<UserProfileComponent onBack={() => navigate('/community')} />} />
                 </Routes>
-              </main>
-            </div>
+            </main>
           </div>
+
+          {/* Footer */}
+          <Footer />
 
           <DeckEditingSidebar
             isEditingDeck={isEditingDeck}
@@ -207,19 +165,18 @@ function AppContent() {
           <Navigation
             shouldHideNavigation={shouldHideNavigation}
             navVisible={navVisible}
-            isActivePath={isActivePath}
           />
           
           {/* Login Modal */}
           <LoginModal
-            isOpen={showLoginModal}
-            onClose={() => setShowLoginModal(false)}
+            isOpen={loginModal.isOpen}
+            onClose={loginModal.close}
           />
 
           {/* Profile Edit Modal */}
           <ProfileEditModal
-            isOpen={showProfileModal}
-            onClose={() => setShowProfileModal(false)}
+            isOpen={profileModal.isOpen}
+            onClose={profileModal.close}
           />
         </div>
   );

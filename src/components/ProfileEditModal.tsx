@@ -166,7 +166,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ isOpen, onClose }) 
               className="rounded border-lorcana-gold text-lorcana-navy focus:ring-lorcana-gold"
             />
             <label htmlFor="isPublic" className="text-sm text-lorcana-ink">
-              Make my profile public (visible in Users directory)
+              Make my profile public (visible in Community directory)
             </label>
           </div>
 
