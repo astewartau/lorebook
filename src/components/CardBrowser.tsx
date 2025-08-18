@@ -68,35 +68,41 @@ const CardBrowser: React.FC = () => {
       {/* Tab Bar */}
       <TabBar />
       
-      {/* Search section */}
-      <CardSearch
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        filters={filters}
-        setFilters={setFilters}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        groupBy={groupBy}
-        setGroupBy={setGroupBy}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        activeFiltersCount={activeFiltersCount}
-        showFilterNotification={showFilterNotification}
-        refreshStaleCards={refreshStaleCards}
-      />
-      
-      <div className="container mx-auto px-2 sm:px-4 space-y-0">
+      {/* Sticky container for Search and QuickFilters */}
+      <div className="sticky top-0 z-30">
+        {/* Search section */}
+        <CardSearch
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          filters={filters}
+          setFilters={setFilters}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          groupBy={groupBy}
+          setGroupBy={setGroupBy}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          activeFiltersCount={activeFiltersCount}
+          showFilterNotification={showFilterNotification}
+          refreshStaleCards={refreshStaleCards}
+        />
+        
         {/* Quick Filters - hidden on mobile */}
         <div className="hidden md:block">
-          <QuickFilters
-            filters={filters}
-            setFilters={setFilters}
-            colorIconMap={COLOR_ICONS}
-            rarityIconMap={RARITY_ICONS}
-          />
+          <div className="container mx-auto px-2 sm:px-4">
+            <QuickFilters
+              filters={filters}
+              setFilters={setFilters}
+              colorIconMap={COLOR_ICONS}
+              rarityIconMap={RARITY_ICONS}
+            />
+          </div>
         </div>
+      </div>
+      
+      <div className="container mx-auto px-2 sm:px-4 space-y-0">
 
         {/* Filters Sidebar */}
         <CardFilters

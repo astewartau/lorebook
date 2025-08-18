@@ -17,14 +17,19 @@ const Collections: React.FC = () => {
   // Show auth required if not signed in
   if (!user) {
     return (
-      <AuthRequired 
-        feature="collections" 
-        onSignIn={() => {
-          // Open login modal - need to pass this from App.tsx
-          const signInButton = document.querySelector('[data-sign-in-button]') as HTMLButtonElement;
-          if (signInButton) signInButton.click();
-        }}
-      />
+      <div>
+        {/* Tab Bar */}
+        <TabBar />
+        
+        <AuthRequired 
+          feature="collections" 
+          onSignIn={() => {
+            // Open login modal - need to pass this from App.tsx
+            const signInButton = document.querySelector('[data-sign-in-button]') as HTMLButtonElement;
+            if (signInButton) signInButton.click();
+          }}
+        />
+      </div>
     );
   }
 

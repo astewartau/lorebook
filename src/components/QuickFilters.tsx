@@ -30,7 +30,7 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
       {/* Subtle inner glow for connection */}
       <div className="absolute inset-0 bg-gradient-to-b from-lorcana-gold/10 via-transparent to-transparent rounded-b-sm pointer-events-none"></div>
       <div className="relative z-10">
-      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
         {/* Color match mode dropdown */}
         <CustomDropdown
           value={filters.colorMatchMode}
