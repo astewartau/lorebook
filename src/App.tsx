@@ -14,6 +14,8 @@ import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import ProfileEditModal from './components/ProfileEditModal';
+import LegalNoticeModal from './components/LegalNoticeModal';
+import DataAttributionModal from './components/DataAttributionModal';
 import { ImageLoadProvider } from './contexts/ImageLoadContext';
 import { useScrollManager } from './hooks/useScrollManager';
 import { useModal } from './hooks';
@@ -28,6 +30,8 @@ function AppContent() {
   const { navVisible } = useScrollManager();
   const loginModal = useModal();
   const profileModal = useModal();
+  const legalModal = useModal();
+  const dataAttributionModal = useModal();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isEditingDeck, currentDeck, stopEditingDeck, removeCardFromDeck, updateCardQuantity, updateDeck, validateDeck, deleteDeck } = useDeck();
 
@@ -199,7 +203,7 @@ function AppContent() {
           <div className={`flex-1 transition-all duration-300 ease-in-out ${
             isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
           }`}>
-            <main className="pb-20 sm:pb-0">
+            <main className="pb-20 sm:pb-10">
                 <Routes>
                   <Route path="/" element={<CardBrowser />} />
                   <Route path="/cards" element={<CardBrowser />} />
@@ -215,7 +219,10 @@ function AppContent() {
           </div>
 
           {/* Footer */}
-          <Footer />
+          <Footer 
+            onLegalClick={legalModal.open}
+            onDataAttributionClick={dataAttributionModal.open}
+          />
 
           <DeckEditingSidebar
             isEditingDeck={isEditingDeck}
@@ -249,6 +256,18 @@ function AppContent() {
           <ProfileEditModal
             isOpen={profileModal.isOpen}
             onClose={profileModal.close}
+          />
+
+          {/* Legal Notice Modal */}
+          <LegalNoticeModal
+            isOpen={legalModal.isOpen}
+            onClose={legalModal.close}
+          />
+
+          {/* Data Attribution Modal */}
+          <DataAttributionModal
+            isOpen={dataAttributionModal.isOpen}
+            onClose={dataAttributionModal.close}
           />
         </div>
   );
