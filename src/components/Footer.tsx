@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Heart } from 'lucide-react';
+import { ExternalLink, Heart, Coffee } from 'lucide-react';
 
 const Footer: React.FC = () => {
   return (
@@ -52,7 +52,7 @@ const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Section - Made with Love */}
+          {/* Bottom Section - Made with Love & Support */}
           <div className="border-t border-lorcana-gold/30 pt-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-lorcana-cream/80 text-sm">
@@ -61,8 +61,25 @@ const Footer: React.FC = () => {
                 <span>for the Lorcana community</span>
               </div>
               
-              <div className="text-lorcana-cream/60 text-xs">
-                © {new Date().getFullYear()} Lorebook
+              <div className="flex items-center gap-4">
+                {/* Buy Me a Coffee Button */}
+                <a
+                  href="https://buymeacoffee.com/lorebook"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center hover:opacity-80 transition-opacity duration-200"
+                  title="Support Lorebook development"
+                >
+                  <img 
+                    src="/imgs/bmc-logo-alt.svg" 
+                    alt="Buy Me A Coffee" 
+                    className="h-10 w-auto bg-yellow-400 rounded-lg px-3 py-2"
+                  />
+                </a>
+                
+                <div className="text-lorcana-cream/60 text-xs">
+                  © {new Date().getFullYear()} Lorebook
+                </div>
               </div>
             </div>
           </div>

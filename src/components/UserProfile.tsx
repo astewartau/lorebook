@@ -283,7 +283,7 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                   </div>
                   
                   <button 
-                    onClick={() => navigate(`/deck/${deck.id}`)}
+                    onClick={() => navigate(`/decks/${deck.id}`)}
                     className="btn-lorcana-gold-sm w-full flex items-center justify-center gap-1"
                   >
                     <Eye size={14} />
