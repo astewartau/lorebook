@@ -38,7 +38,6 @@ const Footer: React.FC<FooterProps> = ({ onLegalClick, onDataAttributionClick })
             <span className="text-lorcana-cream/60 text-xs font-light">© {new Date().getFullYear()}</span>
           </div>
         </div>
-
         {/* Right side - Buy me a coffee */}
         <div className="flex justify-end flex-1">
           <a
