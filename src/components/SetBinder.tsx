@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Book, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Book, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { useCollection } from '../contexts/CollectionContext';
 import { useImageLoad } from '../contexts/ImageLoadContext';
 import { allCards, sets } from '../data/allCards';
@@ -27,6 +27,8 @@ const SetBinder: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const binderRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -37,6 +39,33 @@ const SetBinder: React.FC = () => {
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement && binderRef.current) {
+      binderRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch((err) => {
+        console.error(`Error attempting to exit fullscreen: ${err.message}`);
+      });
+    }
+  }, []);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   // Load published binder data if we have a binderId
@@ -223,41 +252,41 @@ const SetBinder: React.FC = () => {
     }
   }, [currentPageSpread, cardsWithOwnership, totalPageSpreads]);
   
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     if (currentPageSpread < totalPageSpreads - 1) {
       console.log(`[SetBinder] Navigating to next page: ${currentPageSpread} → ${currentPageSpread + 1}`);
       setCurrentPageSpread(prev => prev + 1);
       // Update mobile page to show equivalent content
       setCurrentMobilePage(prev => Math.min(prev + 2, totalMobilePages - 1));
     }
-  };
+  }, [currentPageSpread, totalPageSpreads, totalMobilePages]);
   
-  const handlePrevPage = () => {
+  const handlePrevPage = useCallback(() => {
     if (currentPageSpread > 0) {
       console.log(`[SetBinder] Navigating to prev page: ${currentPageSpread} → ${currentPageSpread - 1}`);
       setCurrentPageSpread(prev => prev - 1);
       // Update mobile page to show equivalent content
       setCurrentMobilePage(prev => Math.max(prev - 2, 0));
     }
-  };
+  }, [currentPageSpread]);
 
-  const handleNextMobilePage = () => {
+  const handleNextMobilePage = useCallback(() => {
     if (currentMobilePage < totalMobilePages - 1) {
       console.log(`[SetBinder] Mobile navigating to next page: ${currentMobilePage} → ${currentMobilePage + 1}`);
       setCurrentMobilePage(prev => prev + 1);
       // Update desktop spread to show equivalent content
       setCurrentPageSpread(Math.floor(currentMobilePage / 2));
     }
-  };
+  }, [currentMobilePage, totalMobilePages]);
   
-  const handlePrevMobilePage = () => {
+  const handlePrevMobilePage = useCallback(() => {
     if (currentMobilePage > 0) {
       console.log(`[SetBinder] Mobile navigating to prev page: ${currentMobilePage} → ${currentMobilePage - 1}`);
       setCurrentMobilePage(prev => prev - 1);
       // Update desktop spread to show equivalent content
       setCurrentPageSpread(Math.floor((currentMobilePage - 1) / 2));
     }
-  };
+  }, [currentMobilePage]);
 
   // Swipe detection
   const minSwipeDistance = 50;
@@ -368,71 +397,98 @@ const SetBinder: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen w-screen fixed inset-0 overflow-auto" style={{
+    <div ref={binderRef} className="min-h-screen relative" style={{
       background: 'linear-gradient(135deg, #2c1810 0%, #3d2817 25%, #4a3320 50%, #3d2817 75%, #2c1810 100%)',
       margin: 0,
       padding: 0
     }}>
       {/* Leather texture overlay for background - TEST */}
-      <div className="fixed inset-0 opacity-70" style={{
+      <div className="absolute inset-0 opacity-70 pointer-events-none" style={{
         background: `url('/imgs/leather.png')`,
         backgroundSize: '100px 100px',
         mixBlendMode: 'normal',
-        zIndex: -1
+        zIndex: 0
       }} />
-      {/* Header - floating above the binder */}
-      <div className="relative z-10 p-4 pb-0">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white/95 backdrop-blur border-2 border-lorcana-gold rounded-lg shadow-xl p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => navigate(binderId ? '/community' : '/collections')}
-                  className="flex items-center gap-2 text-lorcana-navy hover:text-lorcana-gold transition-colors"
-                >
-                  <ArrowLeft size={20} />
-                  <span>{binderId ? 'Back to Community' : 'Back to Collections'}</span>
-                </button>
-                <div className="w-px h-8 bg-lorcana-gold"></div>
-                <div className="flex items-center gap-3">
-                  <Book size={24} className="text-lorcana-gold" />
-                  <div>
-                    <h1 className="text-2xl font-bold text-lorcana-ink">
-                      {publishedBinder ? publishedBinder.name : `${setData.name} Binder`}
-                    </h1>
-                    <p className="text-lorcana-navy">
-                      {publishedBinder && publishedBinderOwner ? (
-                        <>
-                          {publishedBinderOwner.display_name}'s Collection • Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
-                        </>
-                      ) : (
-                        <>
-                          Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
-                        </>
-                      )}
-                    </p>
+      {/* Header - floating above the binder - hidden in fullscreen */}
+      {!isFullscreen && (
+        <div className="relative z-10 p-4 pb-0">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-white/95 backdrop-blur border-2 border-lorcana-gold rounded-lg shadow-xl p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => navigate(binderId ? '/community' : '/collections')}
+                    className="flex items-center gap-2 text-lorcana-navy hover:text-lorcana-gold transition-colors"
+                  >
+                    <ArrowLeft size={20} />
+                    <span>{binderId ? 'Back to Community' : 'Back to Collections'}</span>
+                  </button>
+                  <div className="w-px h-8 bg-lorcana-gold"></div>
+                  <div className="flex items-center gap-3">
+                    <Book size={24} className="text-lorcana-gold" />
+                    <div>
+                      <h1 className="text-2xl font-bold text-lorcana-ink">
+                        {publishedBinder ? publishedBinder.name : `${setData.name} Binder`}
+                      </h1>
+                      <p className="text-lorcana-navy">
+                        {publishedBinder && publishedBinderOwner ? (
+                          <>
+                            {publishedBinderOwner.display_name}'s Collection • Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
+                          </>
+                        ) : (
+                          <>
+                            Set {setData.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
+                          </>
+                        )}
+                      </p>
+                    </div>
                   </div>
+                </div>
+                
+                {/* Right side - Fullscreen button */}
+                <div className="flex items-center">
+                  <button
+                    onClick={toggleFullscreen}
+                    className="flex items-center gap-2 px-3 py-2 text-lorcana-navy hover:text-lorcana-gold transition-colors border border-lorcana-gold/30 hover:border-lorcana-gold rounded-lg"
+                    title="Enter Fullscreen"
+                  >
+                    <Maximize2 size={18} />
+                    <span className="hidden sm:inline">Fullscreen</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+      
+      {/* Fullscreen exit button overlay */}
+      {isFullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-black/70 hover:bg-black/90 text-white rounded-lg transition-colors backdrop-blur-sm border border-white/20"
+          title="Exit Fullscreen"
+        >
+          <Minimize2 size={18} />
+          <span className="hidden sm:inline">Exit Fullscreen</span>
+        </button>
+      )}
 
-      {/* Page Navigation - Above Binder */}
-      <div className="sm:p-4 sm:pb-2 p-2 pb-1">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center sm:mb-4 mb-2">
+      {/* Page Navigation - Above Binder - hidden in fullscreen */}
+      {!isFullscreen && (
+        <div className="sm:p-4 sm:pb-2 p-2 pb-1">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center sm:mb-4 mb-2">
             {/* Desktop navigation buttons */}
             <button
               onClick={() => {
                 handlePrevPage();
               }}
               disabled={currentPageSpread === 0}
-              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 currentPageSpread === 0
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
-                  : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700 hover:scale-105 shadow-lg'
+                  : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700 shadow-lg'
               }`}
             >
               <ChevronLeft size={20} />
@@ -478,10 +534,10 @@ const SetBinder: React.FC = () => {
                         setCurrentMobilePage(i * 2);
                       }
                     }}
-                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                    className={`w-2 h-2 rounded-full transition-colors ${
                       i === currentPageSpread 
-                        ? 'bg-amber-300 scale-125' 
-                        : 'bg-amber-600/60 hover:bg-amber-400'
+                        ? 'bg-amber-300' 
+                        : 'bg-amber-600/60 hover:bg-amber-500/80'
                     }`}
                   />
                 ))}
@@ -499,10 +555,10 @@ const SetBinder: React.FC = () => {
                         setCurrentPageSpread(Math.floor(i / 2));
                       }
                     }}
-                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                    className={`w-2 h-2 rounded-full transition-colors ${
                       i === currentMobilePage 
-                        ? 'bg-amber-300 scale-125' 
-                        : 'bg-amber-600/60 hover:bg-amber-400'
+                        ? 'bg-amber-300' 
+                        : 'bg-amber-600/60 hover:bg-amber-500/80'
                     }`}
                   />
                 ))}
@@ -518,10 +574,10 @@ const SetBinder: React.FC = () => {
                 handleNextPage();
               }}
               disabled={currentPageSpread >= totalPageSpreads - 1}
-              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+              className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 currentPageSpread >= totalPageSpreads - 1
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
-                  : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700 hover:scale-105 shadow-lg'
+                  : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700 shadow-lg'
               }`}
             >
               <span>Next</span>
@@ -533,13 +589,14 @@ const SetBinder: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Binder Physical Representation */}
-      <div className="sm:p-4 sm:pt-0 p-2 pt-0">
-        <div className="max-w-7xl mx-auto">
+      <div className={`${isFullscreen ? 'h-screen flex items-center justify-center p-4' : 'sm:p-4 sm:pt-0 p-2 pt-0'}`}>
+        <div className={`mx-auto ${isFullscreen ? 'w-[75vw] h-[90vh]' : 'max-w-7xl'}`} style={isFullscreen ? { minWidth: 'calc(3 * 25vh * 5 / 7 + 8rem)' } : {}}>
           {/* Binder Cover/Spine Effect */}
           <div 
-            className="relative flex flex-col"
+            className={`relative flex flex-col ${isFullscreen ? 'h-full w-full' : ''}`}
             style={{
               background: `
                 url('/imgs/leather.png'),
@@ -589,10 +646,10 @@ const SetBinder: React.FC = () => {
             </div>
 
             {/* Main binder content area */}
-            <div className="sm:pl-16 sm:pr-8 sm:py-8 pl-4 pr-4 pt-8 pb-4 flex-1 flex flex-col">
+            <div className={`sm:pl-16 sm:pr-8 sm:py-8 pl-4 pr-4 pt-8 pb-4 flex flex-col ${isFullscreen ? 'flex-1 min-h-0' : 'flex-1'}`}>
 
               {/* Binder Page Spread */}
-              <div className="page-container relative flex-1">
+              <div className={`page-container relative ${isFullscreen ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1'}`}>
                 {/* Desktop: Two-page spread with 3D effects */}
                 <div className="hidden sm:flex page-spread gap-0 h-full relative">
                   {/* Page stack effects - multiple layers for deeper 3D effect */}
@@ -717,13 +774,13 @@ const SetBinder: React.FC = () => {
                       mixBlendMode: 'normal'
                     }} />
                     {/* Page content */}
-                    <div className="grid grid-cols-3 gap-3 flex-1">
+                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 max-h-full overflow-auto w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentPageSpread * 18, currentPageSpread * 18 + 9)
                         .map((cardData, index) => (
                           <div
                             key={cardData.id}
-                            className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
+                            className={`relative overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer aspect-[5/7] ${isFullscreen ? 'w-[calc(25vh*5/7)]' : ''}`}
                             onClick={() => handleCardClick(cardData)}
                             onMouseMove={(e) => handleCardMouseMove(e, cardData.id.toString())}
                             onMouseLeave={handleCardMouseLeave}
@@ -875,13 +932,13 @@ const SetBinder: React.FC = () => {
                       mixBlendMode: 'normal'
                     }} />
                     {/* Page content */}
-                    <div className="grid grid-cols-3 gap-3 flex-1">
+                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 max-h-full overflow-auto w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentPageSpread * 18 + 9, currentPageSpread * 18 + 18)
                         .map((cardData, index) => (
                           <div
                             key={cardData.id}
-                            className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer"
+                            className={`relative overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer aspect-[5/7] ${isFullscreen ? 'w-[calc(25vh*5/7)]' : ''}`}
                             onClick={() => handleCardClick(cardData)}
                             onMouseMove={(e) => handleCardMouseMove(e, cardData.id.toString())}
                             onMouseLeave={handleCardMouseLeave}
@@ -1029,7 +1086,7 @@ const SetBinder: React.FC = () => {
                     }} />
                     
                     {/* Page content - show 9 cards per mobile page */}
-                    <div className="grid grid-cols-3 gap-1 flex-1">
+                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-4 max-h-full overflow-auto w-full justify-items-center px-4' : 'gap-1 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentMobilePage * 9, (currentMobilePage + 1) * 9)
                         .map((cardData, index) => (
