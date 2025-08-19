@@ -87,13 +87,13 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-lorcana-cream flex flex-col">
           {/* Mobile Header - Full Width */}
-          <div className="sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden">
+          <div className="sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative">
             <div className="absolute inset-0 opacity-15">
               <div className="absolute top-0 left-0 w-24 h-24 bg-lorcana-gold transform rotate-45 -translate-x-12 -translate-y-12"></div>
               <div className="absolute top-0 right-0 w-16 h-16 bg-lorcana-gold rounded-full -translate-y-6 translate-x-6"></div>
               <div className="absolute bottom-0 right-1/4 w-28 h-28 bg-lorcana-gold transform rotate-45 translate-y-14"></div>
             </div>
-            <header className="px-4 py-4 flex items-center justify-between relative z-10">
+            <header className="px-4 py-4 flex items-center justify-between relative z-50">
               <div className="flex-1 flex justify-center">
                 <button 
                   onClick={() => navigate('/cards')}
@@ -119,7 +119,7 @@ function AppContent() {
           </div>
 
           {/* Desktop Header and TabBar Container - Combined with continuous pattern */}
-          <div className="hidden sm:block bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden">
+          <div className="hidden sm:block bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative">
             <div className="absolute inset-0 opacity-20">
               <div className="absolute top-0 left-0 w-32 h-32 bg-lorcana-gold transform rotate-45 -translate-x-16 -translate-y-16"></div>
               <div className="absolute top-0 right-0 w-24 h-24 bg-lorcana-gold rounded-full -translate-y-8 translate-x-8"></div>
@@ -133,7 +133,7 @@ function AppContent() {
             </div>
             
             {/* Header */}
-            <header className="p-6 pb-0 relative z-10">
+            <header className="p-6 pb-0 relative z-50">
               <div className="flex flex-col items-center">
                 <button 
                   onClick={() => navigate('/cards')}
