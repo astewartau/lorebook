@@ -1,88 +1,59 @@
 import React from 'react';
-import { ExternalLink, Heart, Coffee } from 'lucide-react';
+import { Heart } from 'lucide-react';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  onLegalClick: () => void;
+  onDataAttributionClick: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onLegalClick, onDataAttributionClick }) => {
   return (
-    <footer className="bg-lorcana-navy border-t-2 border-lorcana-gold">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Main Footer Content */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-            {/* Left Column - Legal Disclaimer */}
-            <div className="space-y-4">
-              <h3 className="text-lorcana-gold font-semibold text-lg">Legal Notice</h3>
-              <div className="text-lorcana-cream/90 text-sm leading-relaxed space-y-2">
-                <p>
-                  Lorebook uses trademarks and/or copyrights associated with Disney Lorcana TCG, 
-                  used under Ravensburger's Community Code Policy. We are expressly prohibited from charging 
-                  you to use or access this content.
-                </p>
-                <p>
-                  Lorebook is not published, endorsed, or specifically approved by Disney or Ravensburger.
-                </p>
-                <a 
-                  href="https://www.disneylorcana.com/en-US/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-lorcana-gold hover:text-lorcana-cream transition-colors duration-200"
-                >
-                  Learn more about Disney Lorcana TCG
-                  <ExternalLink size={14} />
-                </a>
-              </div>
-            </div>
+    <footer className="sm:fixed bottom-0 left-0 right-0 bg-lorcana-navy/95 backdrop-blur-sm border-t border-lorcana-gold/30 z-40">
+      <div className="px-4 py-2 relative flex items-center">
+        {/* Left side - Made with love */}
+        <div className="flex items-center gap-1 text-lorcana-cream/80 text-xs flex-1">
+          <span className="hidden sm:inline">Made with</span>
+          <span className="sm:hidden">Made with</span>
+          <Heart size={12} className="text-red-400 fill-current" />
+          <span className="hidden sm:inline">for the Lorcana community</span>
+        </div>
 
-            {/* Right Column - Data Attribution */}
-            <div className="space-y-4">
-              <h3 className="text-lorcana-gold font-semibold text-lg">Data Attribution</h3>
-              <div className="text-lorcana-cream/90 text-sm leading-relaxed space-y-2">
-                <p>
-                  Card data is provided by the community-driven LorcanaJSON project.
-                </p>
-                <a 
-                  href="https://github.com/LorcanaJSON/LorcanaJSON" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-lorcana-gold hover:text-lorcana-cream transition-colors duration-200"
-                >
-                  Visit LorcanaJSON on GitHub
-                  <ExternalLink size={14} />
-                </a>
-              </div>
-            </div>
+        {/* Center - Links (absolutely positioned for true centering) */}
+        <div className="absolute left-1/2 transform -translate-x-1/2">
+          <div className="flex items-center gap-2 bg-lorcana-purple/30 backdrop-blur-sm border border-lorcana-gold/20 rounded-full px-3 py-1">
+            <button
+              onClick={onLegalClick}
+              className="text-lorcana-cream/70 hover:text-lorcana-gold transition-colors cursor-pointer text-xs font-medium"
+            >
+              Legal
+            </button>
+            <span className="text-lorcana-gold/50 text-xs">•</span>
+            <button
+              onClick={onDataAttributionClick}
+              className="text-lorcana-cream/70 hover:text-lorcana-gold transition-colors cursor-pointer text-xs font-medium"
+            >
+              Data
+            </button>
+            <span className="text-lorcana-gold/50 text-xs">•</span>
+            <span className="text-lorcana-cream/60 text-xs font-light">© {new Date().getFullYear()}</span>
           </div>
+        </div>
 
-          {/* Bottom Section - Made with Love & Support */}
-          <div className="border-t border-lorcana-gold/30 pt-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-lorcana-cream/80 text-sm">
-                <span>Made with</span>
-                <Heart size={16} className="text-red-400 fill-current" />
-                <span>for the Lorcana community</span>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                {/* Buy Me a Coffee Button */}
-                <a
-                  href="https://buymeacoffee.com/lorebook"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center hover:opacity-80 transition-opacity duration-200"
-                  title="Support Lorebook development"
-                >
-                  <img 
-                    src="/imgs/bmc-logo-alt.svg" 
-                    alt="Buy Me A Coffee" 
-                    className="h-10 w-auto bg-yellow-400 rounded-lg px-3 py-2"
-                  />
-                </a>
-                
-                <div className="text-lorcana-cream/60 text-xs">
-                  © {new Date().getFullYear()} Lorebook
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Right side - Buy me a coffee */}
+        <div className="flex justify-end flex-1">
+          <a
+            href="https://buymeacoffee.com/lorebook"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-80 transition-opacity duration-200"
+            title="Support Lorebook development"
+          >
+            <img 
+              src="/imgs/bmc-logo-alt.svg" 
+              alt="Buy Me A Coffee" 
+              className="h-8 w-8 bg-yellow-400 rounded p-1 object-contain"
+            />
+          </a>
         </div>
       </div>
     </footer>
