@@ -93,7 +93,7 @@ function AppContent() {
               <div className="absolute top-0 right-0 w-16 h-16 bg-lorcana-gold rounded-full -translate-y-6 translate-x-6"></div>
               <div className="absolute bottom-0 right-1/4 w-28 h-28 bg-lorcana-gold transform rotate-45 translate-y-14"></div>
             </div>
-            <header className="px-4 py-4 flex items-center justify-between relative z-50">
+            <header className="px-4 py-4 flex items-center justify-between relative">
               <div className="flex-1 flex justify-center">
                 <button 
                   onClick={() => navigate('/cards')}
@@ -133,7 +133,7 @@ function AppContent() {
             </div>
             
             {/* Header */}
-            <header className="p-6 pb-0 relative z-50">
+            <header className="p-6 pb-0 relative">
               <div className="flex flex-col items-center">
                 <button 
                   onClick={() => navigate('/cards')}

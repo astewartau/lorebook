@@ -155,7 +155,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                             {/* Quantity Controls */}
                             <div className="flex items-center space-x-1 ml-2">
                               <button
-                                onClick={() => onRemoveCard(card.id)}
+                                onClick={() => onUpdateQuantity(card.id, card.quantity - 1)}
                                 className="w-6 h-6 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 rounded-sm transition-colors"
                               >
                                 <Minus size={12} />
@@ -165,7 +165,10 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                               </span>
                               <button
                                 onClick={() => onUpdateQuantity(card.id, card.quantity + 1)}
-                                disabled={card.quantity >= DECK_RULES.MAX_COPIES_PER_CARD || totalCards >= DECK_RULES.MAX_CARDS}
+                                disabled={(() => {
+                                  const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+                                  return card.quantity >= maxCopies || totalCards >= DECK_RULES.MAX_CARDS;
+                                })()}
                                 className="w-6 h-6 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed rounded-sm transition-colors"
                               >
                                 <Plus size={12} />

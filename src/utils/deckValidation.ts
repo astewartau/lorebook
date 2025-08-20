@@ -13,20 +13,29 @@ export const validateDeck = (deck: Deck): DeckValidationResult => {
   
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   
-  // Rule 1: Deck must have exactly the required number of cards
-  if (totalCards !== DECK_RULES.MAX_CARDS) {
-    if (totalCards < DECK_RULES.MIN_CARDS) {
-      errors.push(`Deck needs ${DECK_RULES.MIN_CARDS - totalCards} more cards (currently ${totalCards}/${DECK_RULES.MIN_CARDS})`);
-    } else {
-      errors.push(`Deck has ${totalCards - DECK_RULES.MAX_CARDS} too many cards (currently ${totalCards}/${DECK_RULES.MAX_CARDS})`);
-    }
+  // Rule 1: Deck must have at least the minimum number of cards
+  if (totalCards < DECK_RULES.MIN_CARDS) {
+    errors.push(`Deck needs ${DECK_RULES.MIN_CARDS - totalCards} more cards (currently ${totalCards}/${DECK_RULES.MIN_CARDS} minimum)`);
   }
   
-  // Rule 2: No more than maximum copies of any card
-  const overLimitCards = deck.cards.filter(card => card.quantity > DECK_RULES.MAX_COPIES_PER_CARD);
+  // Rule 2: No more than maximum copies of any card (with special exceptions)
+  const overLimitCards = deck.cards.filter(card => {
+    // Special case: Dalmatian Puppy - Tail Wagger can have up to 99 copies
+    if (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') {
+      return card.quantity > 99;
+    }
+    // Standard 4-copy limit for all other cards
+    return card.quantity > DECK_RULES.MAX_COPIES_PER_CARD;
+  });
+  
   if (overLimitCards.length > 0) {
     overLimitCards.forEach(card => {
-      errors.push(`"${card.name}" exceeds ${DECK_RULES.MAX_COPIES_PER_CARD}-copy limit (${card.quantity} copies)`);
+      // Special error message for Dalmatian Puppy
+      if (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') {
+        errors.push(`"${card.name} - ${card.version}" exceeds 99-copy limit (${card.quantity} copies)`);
+      } else {
+        errors.push(`"${card.name}" exceeds ${DECK_RULES.MAX_COPIES_PER_CARD}-copy limit (${card.quantity} copies)`);
+      }
     });
   }
   

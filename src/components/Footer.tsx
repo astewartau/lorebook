@@ -8,7 +8,7 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ onLegalClick, onDataAttributionClick }) => {
   return (
-    <footer className="sm:fixed bottom-0 left-0 right-0 bg-lorcana-navy/95 backdrop-blur-sm border-t border-lorcana-gold/30 z-40">
+    <footer className="sm:fixed bottom-0 left-0 right-0 bg-lorcana-navy/95 backdrop-blur-sm border-t border-lorcana-gold/30 z-20">
       <div className="px-4 py-2 relative flex items-center">
         {/* Left side - Made with love */}
         <div className="flex items-center gap-1 text-lorcana-cream/80 text-xs flex-1">

@@ -45,13 +45,17 @@ const DeckEditingSidebar: React.FC<DeckEditingSidebarProps> = ({
       {/* Mobile Deck Button - positioned above mobile navigation, slides down when nav is hidden */}
       <button
         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        className={`sm:hidden fixed right-4 z-50 px-3 py-2 bg-lorcana-navy text-lorcana-gold border-2 border-lorcana-gold rounded-sm shadow-xl hover:bg-lorcana-purple transition-all duration-300 ease-in-out ${
+        className={`sm:hidden fixed right-4 z-30 px-3 py-2 bg-lorcana-navy text-lorcana-gold border-2 border-lorcana-gold rounded-sm shadow-xl hover:bg-lorcana-purple transition-all duration-300 ease-in-out ${
           navVisible ? 'bottom-20' : 'bottom-6'
         }`}
       >
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium">Deck</span>
-          <span className="text-xs bg-lorcana-gold text-lorcana-navy px-2 py-1 rounded-sm font-bold">
+          <span className={`text-xs px-2 py-1 rounded-sm font-bold ${
+            totalCards > 60 
+              ? 'bg-orange-500 text-white' 
+              : 'bg-lorcana-gold text-lorcana-navy'
+          }`}>
             {totalCards}/60
           </span>
         </div>
@@ -66,11 +70,11 @@ const DeckEditingSidebar: React.FC<DeckEditingSidebarProps> = ({
       )}
       
       {/* Deck Sidebar */}
-      <div className={`fixed top-0 right-0 h-screen transition-all duration-300 ease-in-out z-40 ${sidebarCollapsed ? 'w-16' : 'w-80'}`}>
+      <div className={`fixed top-0 right-0 h-screen transition-all duration-300 ease-in-out z-30 ${sidebarCollapsed ? 'w-16' : 'w-80'}`}>
         {/* Desktop Collapse/Expand Button - hidden on mobile */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-50 w-8 h-12 bg-white border-2 border-lorcana-gold rounded-l-sm shadow-xl hover:bg-lorcana-cream transition-colors items-center justify-center"
+          className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-30 w-8 h-12 bg-white border-2 border-lorcana-gold rounded-l-sm shadow-xl hover:bg-lorcana-cream transition-colors items-center justify-center"
         >
           {sidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
         </button>

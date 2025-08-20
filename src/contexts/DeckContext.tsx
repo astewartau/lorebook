@@ -330,8 +330,11 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
 
     const existingCard = targetDeck.cards.find(c => c.id === card.id);
     
+    // Get the max copies allowed for this card
+    const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+    
     if (existingCard) {
-      if (existingCard.quantity >= DECK_RULES.MAX_COPIES_PER_CARD) return false;
+      if (existingCard.quantity >= maxCopies) return false;
       existingCard.quantity++;
     } else {
       targetDeck.cards.push({ ...card, quantity: 1 });
@@ -358,9 +361,12 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const card = targetDeck.cards.find(c => c.id === cardId);
     if (!card) return;
 
+    // Get the max copies allowed for this card
+    const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+    
     if (quantity <= 0) {
       removeCardFromDeck(cardId, deckId);
-    } else if (quantity <= 4) {
+    } else if (quantity <= maxCopies) {
       card.quantity = quantity;
       targetDeck.updatedAt = new Date();
       updateDeck(targetDeck);
