@@ -33,7 +33,8 @@ const Card: React.FC<CardProps> = ({
   const handleAddToDeck = () => {
     if (currentDeck) {
       const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
-      if (deckQuantity < DECK_RULES.MAX_COPIES_PER_CARD && totalCards < DECK_RULES.MAX_CARDS) {
+      const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+      if (deckQuantity < maxCopies && totalCards < DECK_RULES.MAX_CARDS) {
         addCardToDeck(card);
       }
     }
@@ -53,7 +54,9 @@ const Card: React.FC<CardProps> = ({
   const canAddToDeck = () => {
     if (!currentDeck) return false;
     const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
-    return deckQuantity < DECK_RULES.MAX_COPIES_PER_CARD && totalCards < DECK_RULES.MAX_CARDS;
+    const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+    
+    return deckQuantity < maxCopies && totalCards < DECK_RULES.MAX_CARDS;
   };
 
   const handleRightClick = (e: React.MouseEvent) => {

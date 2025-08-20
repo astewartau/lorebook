@@ -306,7 +306,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm font-medium text-lorcana-navy">
-              Cards: {totalCards}/{DECK_RULES.MAX_CARDS}
+              Cards: {totalCards}/{DECK_RULES.MIN_CARDS}
             </span>
             <span className="text-sm text-lorcana-purple">
               Avg: {averageCost}

@@ -35,7 +35,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40" 
+        className="fixed inset-0 z-50" 
         onClick={onClose}
       />
       
