@@ -6,6 +6,7 @@ import Collections from './components/Collections';
 import SetBinder from './components/SetBinder';
 import MyDecks from './components/MyDecks';
 import DeckSummary from './components/DeckSummary';
+import DeckForge from './components/DeckForge';
 import UsersComponent from './components/Users';
 import UserProfileComponent from './components/UserProfile';
 import LoginModal from './components/LoginModal';
@@ -211,6 +212,7 @@ function AppContent() {
                   <Route path="/collection/binder/:setCode" element={<SetBinder />} />
                   <Route path="/binder/:binderId" element={<SetBinder />} />
                   <Route path="/decks" element={<MyDecks onBuildDeck={() => {}} onViewDeck={(deckId: string) => navigate(`/decks/${deckId}`)} />} />
+                  <Route path="/deck-forge" element={<DeckForge />} />
                   <Route path="/decks/:deckId" element={<DeckSummary onBack={() => navigate('/decks')} onEditDeck={() => {}} />} />
                   <Route path="/community" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/community/${userId}`)} />} />
                   <Route path="/community/:userId" element={<UserProfileComponent onBack={() => navigate('/community')} />} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, Search, Globe, Lock, Copy, Trash2, Edit, Eye, User, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Upload, Search, Globe, Lock, Copy, Trash2, Edit, Eye, User, X, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
 import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
@@ -394,6 +394,14 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
                 >
                   <Plus size={16} />
                   <span>Build New Deck</span>
+                </button>
+                
+                <button
+                  onClick={() => navigate('/deck-forge')}
+                  className="btn-lorcana-purple-sm flex items-center space-x-2 bg-gradient-to-r from-lorcana-purple to-lorcana-navy hover:from-lorcana-navy hover:to-lorcana-purple text-lorcana-cream"
+                >
+                  <Sparkles size={16} />
+                  <span>Deck Forge</span>
                 </button>
                 
                 <button
