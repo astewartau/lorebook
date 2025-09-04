@@ -16,7 +16,6 @@ interface DeckEditingSidebarProps {
   onUpdateDeckName: (name: string) => void;
   onUpdateDeckDescription: (description: string) => void;
   deckValidation: { isValid: boolean; errors: string[] };
-  navVisible?: boolean;
 }
 
 const DeckEditingSidebar: React.FC<DeckEditingSidebarProps> = ({
@@ -31,8 +30,7 @@ const DeckEditingSidebar: React.FC<DeckEditingSidebarProps> = ({
   onStopEditing,
   onUpdateDeckName,
   onUpdateDeckDescription,
-  deckValidation,
-  navVisible = true
+  deckValidation
 }) => {
   if (!isEditingDeck || !currentDeck) {
     return null;
@@ -42,12 +40,10 @@ const DeckEditingSidebar: React.FC<DeckEditingSidebarProps> = ({
 
   return (
     <>
-      {/* Mobile Deck Button - positioned above mobile navigation, slides down when nav is hidden */}
+      {/* Mobile Deck Button - positioned above mobile navigation */}
       <button
         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        className={`sm:hidden fixed right-4 z-30 px-3 py-2 bg-lorcana-navy text-lorcana-gold border-2 border-lorcana-gold rounded-sm shadow-xl hover:bg-lorcana-purple transition-all duration-300 ease-in-out ${
-          navVisible ? 'bottom-20' : 'bottom-6'
-        }`}
+        className="sm:hidden fixed right-4 bottom-20 z-30 px-3 py-2 bg-lorcana-navy text-lorcana-gold border-2 border-lorcana-gold rounded-sm shadow-xl hover:bg-lorcana-purple transition-all duration-300 ease-in-out"
       >
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium">Deck</span>

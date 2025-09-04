@@ -5,31 +5,48 @@ export const useScrollManager = () => {
   const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
+    let ticking = false;
+    
     const controlNavbar = () => {
-      const currentScrollY = window.scrollY;
-      const threshold = 10; // Minimum scroll distance to trigger hide/show
-      
-      // Don't hide/show if we're near the top
-      if (currentScrollY < 100) {
-        setNavVisible(true);
-      } else if (Math.abs(currentScrollY - lastScrollY) > threshold) {
-        if (currentScrollY > lastScrollY) {
-          // Scrolling down - hide navbar
-          setNavVisible(false);
-        } else {
-          // Scrolling up - show navbar
-          setNavVisible(true);
-        }
-        setLastScrollY(currentScrollY);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const threshold = 8; // Minimum scroll distance to trigger hide/show
+          
+          // Always show if we're near the top
+          if (currentScrollY < 50) {
+            if (!navVisible) setNavVisible(true);
+            setLastScrollY(currentScrollY);
+            ticking = false;
+            return;
+          }
+          
+          // Only change visibility if we've scrolled enough
+          const scrollDiff = currentScrollY - lastScrollY;
+          if (Math.abs(scrollDiff) > threshold) {
+            if (scrollDiff > 0 && navVisible) {
+              // Scrolling down - hide navbar
+              setNavVisible(false);
+            } else if (scrollDiff < 0 && !navVisible) {
+              // Scrolling up - show navbar
+              setNavVisible(true);
+            }
+            setLastScrollY(currentScrollY);
+          }
+          
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
-    window.addEventListener('scroll', controlNavbar);
+    // Use passive listeners for better performance
+    window.addEventListener('scroll', controlNavbar, { passive: true });
     
     return () => {
       window.removeEventListener('scroll', controlNavbar);
     };
-  }, [lastScrollY]);
+  }, [lastScrollY, navVisible]);
 
   return { navVisible, setNavVisible };
 };

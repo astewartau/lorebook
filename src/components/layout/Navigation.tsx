@@ -40,22 +40,21 @@ const Navigation: React.FC<NavigationProps> = ({
   }
 
   return (
-    /* Mobile Navigation - sticky and scroll-responsive */
-    <nav className={`
-      sm:hidden fixed bottom-0 left-0 right-0 z-50 
-      bg-lorcana-navy/95 backdrop-blur border-t-2 border-lorcana-gold
-      transition-transform duration-300 ease-in-out
-      ${navVisible ? 'translate-y-0' : 'translate-y-full'}
-    `}>
-      <div className="px-2 py-2">
-        <div className="flex justify-around space-x-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <Link
-                key={tab.id}
-                to={tab.id}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-sm transition-all duration-200 flex-1 ${
+    /* Mobile Navigation - scroll responsive */
+    <nav 
+      className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-lorcana-navy/95 backdrop-blur border-t-2 border-lorcana-gold transition-transform duration-200 ease-in-out"
+      style={{
+        transform: navVisible ? 'translateY(0)' : 'translateY(100%)'
+      }}
+    >
+      <div className="flex justify-around px-4 py-2">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <Link
+              key={tab.id}
+              to={tab.id}
+              className={`flex flex-col items-center justify-center px-3 py-2 rounded-sm transition-all duration-200 flex-1 ${
                   isActivePath(tab.id)
                     ? 'bg-lorcana-gold text-lorcana-navy shadow-md'
                     : 'text-lorcana-cream hover:bg-lorcana-purple hover:text-lorcana-gold'
@@ -66,7 +65,6 @@ const Navigation: React.FC<NavigationProps> = ({
               </Link>
             );
           })}
-        </div>
       </div>
     </nav>
   );

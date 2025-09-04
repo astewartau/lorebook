@@ -64,7 +64,7 @@ const CardBrowser: React.FC = () => {
 
   return (
     <div>
-      {/* Sticky container for Search and QuickFilters */}
+      {/* Search container - sticky */}
       <div className="sticky top-0 z-30">
         {/* Search section */}
         <CardSearch
@@ -98,7 +98,8 @@ const CardBrowser: React.FC = () => {
         </div>
       </div>
       
-      <div className="container mx-auto px-2 sm:px-4 space-y-0">
+      <div>
+        <div className="container mx-auto px-2 sm:px-4 space-y-0">
 
         {/* Filters Sidebar */}
         <CardFilters
@@ -151,6 +152,7 @@ const CardBrowser: React.FC = () => {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Card Preview Modal */}

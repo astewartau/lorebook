@@ -17,8 +17,8 @@ import ProfileEditModal from './components/ProfileEditModal';
 import LegalNoticeModal from './components/LegalNoticeModal';
 import DataAttributionModal from './components/DataAttributionModal';
 import { ImageLoadProvider } from './contexts/ImageLoadContext';
-import { useScrollManager } from './hooks/useScrollManager';
 import { useModal } from './hooks';
+import { useScrollManager } from './hooks/useScrollManager';
 import AuthSection from './components/layout/AuthSection';
 import Navigation from './components/layout/Navigation';
 import DeckEditingSidebar from './components/layout/DeckEditingSidebar';
@@ -85,9 +85,9 @@ function AppContent() {
 
 
   return (
-    <div className="min-h-screen bg-lorcana-cream flex flex-col">
+    <div className="min-h-screen bg-lorcana-cream">
           {/* Mobile Header - Full Width */}
-          <div className="sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative">
+          <div className="sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 opacity-15">
               <div className="absolute top-0 left-0 w-24 h-24 bg-lorcana-gold transform rotate-45 -translate-x-12 -translate-y-12"></div>
               <div className="absolute top-0 right-0 w-16 h-16 bg-lorcana-gold rounded-full -translate-y-6 translate-x-6"></div>
@@ -200,7 +200,7 @@ function AppContent() {
           </div>
 
           {/* Main Content Area - shifts when deck sidebar is open on desktop */}
-          <div className={`flex-1 transition-all duration-300 ease-in-out ${
+          <div className={`transition-all duration-300 ease-in-out ${
             isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
           }`}>
             <main className="pb-20 sm:pb-10">
@@ -237,10 +237,9 @@ function AppContent() {
             onUpdateDeckName={handleUpdateDeckName}
             onUpdateDeckDescription={handleUpdateDeckDescription}
             deckValidation={currentDeck ? validateDeck(currentDeck) : { isValid: false, errors: [] }}
-            navVisible={navVisible}
           />
 
-          {/* Mobile Navigation - sticky and scroll-responsive */}
+          {/* Mobile Navigation - scroll responsive */}
           <Navigation
             shouldHideNavigation={shouldHideNavigation}
             navVisible={navVisible}
