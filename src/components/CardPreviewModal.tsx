@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { LorcanaCard } from '../types';
-import { Sparkles, Zap } from 'lucide-react';
 
 interface CardPreviewModalProps {
   card: LorcanaCard | null;
@@ -12,234 +11,11 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
   const [shouldRender, setShouldRender] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [currentCard, setCurrentCard] = useState<LorcanaCard | null>(null);
-  const [viewMode, setViewMode] = useState<'normal' | 'foil' | 'enchanted'>('normal');
-  const [foilMaskDataUrl, setFoilMaskDataUrl] = useState<string | null>(null);
-  const [foilMaskLoading, setFoilMaskLoading] = useState(false);
   
   // 3D tilt effect state
   const cardRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState('');
-  const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 }); // Virtual position for foil effects
-  const [targetLightPosition, setTargetLightPosition] = useState({ x: 50, y: 50 }); // Real mouse position
   const [isHovered, setIsHovered] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTouching, setIsTouching] = useState(false);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-
-  // Smooth interpolation for light position
-  const animateLightPosition = () => {
-    setLightPosition(current => {
-      const dx = targetLightPosition.x - current.x;
-      const dy = targetLightPosition.y - current.y;
-      
-      // Lerp factor - higher = faster animation
-      const lerpFactor = isHovered ? 0.15 : 0.08;
-      
-      const newX = current.x + dx * lerpFactor;
-      const newY = current.y + dy * lerpFactor;
-      
-      // If we're close enough, stop animating
-      const threshold = 0.5;
-      if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
-        return targetLightPosition;
-      }
-      
-      return { x: newX, y: newY };
-    });
-    
-    animationFrameRef.current = requestAnimationFrame(animateLightPosition);
-  };
-
-  // Start/stop animation based on hover/touch state
-  useEffect(() => {
-    if (isHovered || isTouching || (lightPosition.x !== 50 || lightPosition.y !== 50)) {
-      animationFrameRef.current = requestAnimationFrame(animateLightPosition);
-    }
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHovered, isTouching, targetLightPosition, lightPosition]);
-
-  // Detect mobile device and setup orientation handlers
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                     window.innerWidth <= 768;
-      setIsMobile(mobile);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
-  }, []);
-
-  // Setup simple device orientation when foil mode is activated
-  useEffect(() => {
-    if (!isMobile || viewMode !== 'foil' || !isVisible) return;
-
-    console.log('Setting up device orientation for mobile foil effect');
-
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      // Skip gyroscope updates when user is touching the screen
-      if (isTouching) return;
-      
-      console.log('🔥 DeviceOrientationEvent fired!', event);
-      
-      const alpha = event.alpha || 0; // Z axis (0-360)
-      const beta = event.beta || 0;   // X axis (-180 to 180) - front/back tilt
-      const gamma = event.gamma || 0; // Y axis (-90 to 90) - left/right tilt
-
-      console.log(`📱 Orientation: Alpha=${alpha.toFixed(1)}°, Beta=${beta.toFixed(1)}°, Gamma=${gamma.toFixed(1)}°`);
-
-      // Test if values are actually changing
-      if (alpha === 0 && beta === 0 && gamma === 0) {
-        console.warn('⚠️ All orientation values are 0 - sensor might not be working');
-      }
-
-      // Convert to light position (50% = center)
-      const maxTilt = 30; // Max degrees to consider for effect
-      const lightX = 50 + Math.max(-50, Math.min(50, (gamma / maxTilt) * 50));
-      const lightY = 50 + Math.max(-50, Math.min(50, (beta / maxTilt) * 50));
-
-      console.log(`✨ Light position: X=${lightX.toFixed(1)}%, Y=${lightY.toFixed(1)}%`);
-      setTargetLightPosition({ x: lightX, y: lightY });
-    };
-
-    // Check for DeviceOrientationEvent support
-    if (window.DeviceOrientationEvent) {
-      console.log('DeviceOrientationEvent is supported');
-      
-      // For iOS 13+ - request permission first
-      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        console.log('iOS device detected - requesting permission');
-        (DeviceOrientationEvent as any).requestPermission()
-          .then((permission: string) => {
-            if (permission === 'granted') {
-              window.addEventListener('deviceorientation', handleOrientation);
-            } else {
-              console.warn('Device orientation permission denied');
-            }
-          })
-          .catch((error: any) => console.error('Error requesting orientation permission:', error));
-      } else {
-        // For Android and older iOS - just add the listener
-        console.log('Android device detected - adding orientation listener');
-        window.addEventListener('deviceorientation', handleOrientation);
-      }
-    } else {
-      console.warn('DeviceOrientationEvent is not supported on this device');
-    }
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
-      console.log('Device orientation listener removed');
-    };
-  }, [isMobile, viewMode, isVisible, isTouching]);
-
-  // Load foil mask as data URL using CorsProxy.io
-  const loadFoilMaskAsDataUrl = async (maskUrl: string) => {
-    // Prevent multiple simultaneous requests for the same URL
-    if (foilMaskLoading) return;
-    
-    setFoilMaskLoading(true);
-    setFoilMaskDataUrl(null);
-    
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(maskUrl)}`;
-    
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const response = await fetch(proxyUrl, {
-        mode: 'cors',
-        cache: 'default',
-        signal: controller.signal,
-        headers: {
-          'Accept': 'image/*,*/*',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Verify it's actually an image
-      if (!blob.type.startsWith('image/')) {
-        throw new Error('Response is not an image');
-      }
-      
-      // Convert to data URL synchronously to avoid race conditions
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('FileReader error'));
-        reader.readAsDataURL(blob);
-      });
-      
-      setFoilMaskDataUrl(dataUrl);
-      
-      // Create inverted version using canvas
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          
-          // Draw the image
-          ctx.drawImage(img, 0, 0);
-          
-          // Get image data and invert it
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
-          
-          // Invert luminance values
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            // Calculate luminance and invert it
-            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-            const invertedLuminance = 255 - luminance;
-            // Set all RGB channels to the inverted luminance (grayscale)
-            data[i] = invertedLuminance;     // R
-            data[i + 1] = invertedLuminance; // G
-            data[i + 2] = invertedLuminance; // B
-            // Keep alpha unchanged
-          }
-          
-          // Put the modified data back
-          ctx.putImageData(imageData, 0, 0);
-          
-          // Convert to data URL
-          // setInvertedFoilMaskDataUrl(canvas.toDataURL());
-        }
-      };
-      img.src = dataUrl;
-      
-      setFoilMaskLoading(false);
-      
-    } catch (error) {
-      setFoilMaskLoading(false);
-      setFoilMaskDataUrl(null);
-      // setInvertedFoilMaskDataUrl(null);
-    }
-  };
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -252,14 +28,8 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       // Store the current card and start rendering
       setCurrentCard(card);
       setShouldRender(true);
-      setViewMode('normal'); // Reset to normal version when opening
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
-      
-      // Load foil mask if available
-      if (card.images.foilMask) {
-        loadFoilMaskAsDataUrl(card.images.foilMask);
-      }
       
       // Force a reflow, then start animation
       requestAnimationFrame(() => {
@@ -275,7 +45,6 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       const cleanup = setTimeout(() => {
         setShouldRender(false);
         setCurrentCard(null);
-        setViewMode('normal');
         document.body.style.overflow = 'unset';
       }, 300);
 
@@ -292,453 +61,65 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
 
   // 3D tilt effect handlers
   const handleMouseEnter = () => {
-    if (!isMobile) {
-      setIsHovered(true);
-    }
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setTransform('');
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isMobile || !cardRef.current) return;
-    
-    const card = cardRef.current;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // Calculate rotation based on mouse position (reduced intensity for larger modal)
-    const rotateX = ((y - centerY) / centerY) * -8; // Max 8 degrees (reduced from 15)
-    const rotateY = ((x - centerX) / centerX) * 8; // Max 8 degrees (reduced from 15)
-    
-    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
-    
-    // Update target light position - the virtual position will smoothly follow
-    const lightX = (x / rect.width) * 100;
-    const lightY = (y / rect.height) * 100;
-    setTargetLightPosition({ x: lightX, y: lightY });
-  };
-  
-  const handleMouseLeave = () => {
-    if (!isMobile) {
-      setIsHovered(false);
-      setTransform('');
-      setTargetLightPosition({ x: 50, y: 50 }); // Virtual position will smoothly return to center
-    }
-  };
+    if (!isHovered || !cardRef.current) return;
 
-  // Touch event handlers for mobile
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isMobile || !cardRef.current) return;
-    
-    e.preventDefault(); // Prevent scrolling
-    const touch = e.touches[0];
     const rect = cardRef.current.getBoundingClientRect();
-    
-    touchStartRef.current = {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    };
-    
-    setIsTouching(true);
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const mouseX = e.clientX - centerX;
+    const mouseY = e.clientY - centerY;
+
+    const rotateX = (mouseY / rect.height) * -10; // Max 10 degrees
+    const rotateY = (mouseX / rect.width) * 10;   // Max 10 degrees
+
+    const newTransform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+    setTransform(newTransform);
   };
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isMobile || !cardRef.current || !touchStartRef.current) return;
-    
-    e.preventDefault(); // Prevent scrolling
-    const touch = e.touches[0];
-    const card = cardRef.current;
-    const rect = card.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // Calculate rotation based on touch position (increased intensity for mobile)
-    const rotateX = ((y - centerY) / centerY) * -20; // Max 20 degrees (was 8)
-    const rotateY = ((x - centerX) / centerX) * 20; // Max 20 degrees (was 8)
-    
-    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
-    
-    // Update target light position - the virtual position will smoothly follow
-    const lightX = (x / rect.width) * 100;
-    const lightY = (y / rect.height) * 100;
-    setTargetLightPosition({ x: lightX, y: lightY });
-  };
-
-  const handleTouchEnd = () => {
-    if (!isMobile) return;
-    
-    setIsTouching(false);
-    touchStartRef.current = null;
-    setTransform('');
-    setTargetLightPosition({ x: 50, y: 50 }); // Virtual position will smoothly return to center
-  };
-
-  if (!shouldRender || !currentCard) return null;
-
-  const hasEnchanted = currentCard.rarity === 'Enchanted';
-  const hasFoil = currentCard.images.foilMask;
+  if (!shouldRender || !currentCard) {
+    return null;
+  }
 
   return (
-    <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ease-out ${
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
+      onClick={onClose}
     >
-      {/* Dimmed background overlay */}
-      <div 
-        className={`absolute inset-0 bg-black transition-all duration-300 ease-out ${
-          isVisible ? 'opacity-50' : 'opacity-0'
+      <div
+        className={`relative p-8 transition-all duration-300 ${
+          isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
         }`}
-        onClick={onClose}
-      />
-      
-      {/* Card container with version switcher */}
-      <div className="relative flex flex-col items-center gap-4">
-        {/* Card images with 3D tilt effect */}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div 
           ref={cardRef}
-          className="relative cursor-pointer transform-gpu select-none"
+          className="relative cursor-pointer"
           onMouseEnter={handleMouseEnter}
-          onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{
-            transform: transform,
-            transition: isHovered || isTouching ? 'transform 0.1s ease-out' : 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-          }}
+          onMouseMove={handleMouseMove}
         >
-          {/* Holographic light effect overlay for non-foil modes */}
-          {viewMode !== 'foil' && (
-            <div 
-              className="absolute inset-0 rounded-lg pointer-events-none"
-              style={{
-                background: `radial-gradient(circle at ${lightPosition.x}% ${lightPosition.y}%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)`,
-                opacity: transform ? 0.8 : 0,
-                transition: 'opacity 0.3s ease-out'
-              }}
-            />
-          )}
-          
-          {/* Base card image */}
+          {/* Card image with 3D effect */}
           <img
             src={currentCard.images.full}
-            alt={currentCard.fullName}
-            className={`max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-all duration-500 ease-out ${
-              isVisible && viewMode === 'normal' ? 'opacity-100 scale-100' : 
-              isVisible && viewMode !== 'normal' ? 'opacity-0 scale-95' : 'opacity-0 scale-75'
-            }`}
-            onClick={onClose}
-            draggable={false}
+            alt={currentCard.name}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl transition-transform duration-150 ease-out"
+            style={{
+              transform: transform || 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
+            }}
           />
-          
-          {/* Foil version with shimmer effect */}
-          {hasFoil && (
-            <img
-              src={currentCard.images.full}
-              alt={`${currentCard.fullName} (Foil)`}
-              className={`max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-all duration-500 ease-out ${
-                isVisible && viewMode === 'foil' ? 'opacity-100 scale-100' : 
-                isVisible ? 'opacity-0 scale-105' : 'opacity-0 scale-75'
-              }`}
-              onClick={onClose}
-              draggable={false}
-              style={{
-                position: 'absolute',
-                top: '0',
-                left: '50%',
-                transform: `translateX(-50%) ${isVisible && viewMode === 'foil' ? 'scale(1)' : isVisible ? 'scale(1.05)' : 'scale(0.75)'}`
-              }}
-            />
-          )}
-              
-          {/* Foil shimmer overlay - using data URL to bypass CORS */}
-          {hasFoil && viewMode === 'foil' && (
-            <div
-              className={`absolute inset-0 rounded-lg pointer-events-none overflow-hidden transition-all duration-500 ease-out ${
-                isVisible ? 'opacity-100' : 'opacity-0'
-              }`}
-              style={{
-                // Use data URL if available, otherwise fall back to whole-card effect
-                ...(foilMaskDataUrl ? {
-                  // Use the foil mask as an alpha mask - grayscale values determine shimmer intensity
-                  maskImage: `url(${foilMaskDataUrl})`,
-                  maskSize: '100% 100%', // Force exact size match with container
-                  maskRepeat: 'no-repeat',
-                  maskPosition: 'center center',
-                  maskMode: 'luminance', // Use luminance (grayscale) values for masking
-                  WebkitMaskImage: `url(${foilMaskDataUrl})`,
-                  WebkitMaskSize: '100% 100%',
-                  WebkitMaskRepeat: 'no-repeat', 
-                  WebkitMaskPosition: 'center center',
-                  WebkitMaskMode: 'luminance',
-                  // Full opacity so mask controls the shimmer intensity
-                  opacity: 1.0
-                } : {
-                  // Fallback: whole-card effect with lower opacity while loading or if failed
-                  opacity: foilMaskLoading ? 0.2 : 0.4
-                })
-              }}
-            >
-              {/* Main holographic rainbow sweep - wider band */}
-              <div
-                className="absolute inset-0 opacity-60"
-                style={{
-                  background: `
-                    linear-gradient(
-                      ${(lightPosition.x - 50) * 0.6 + (lightPosition.y - 30) * 0.4}deg,
-                      transparent 0%,
-                      transparent 15%,
-                      rgba(255, 0, 150, 0.6) 25%,
-                      rgba(255, 0, 150, 0.65) 30%,
-                      rgba(0, 255, 255, 0.7) 40%,
-                      rgba(0, 255, 255, 0.7) 45%,
-                      rgba(255, 255, 0, 0.6) 50%,
-                      rgba(255, 255, 0, 0.65) 55%,
-                      rgba(255, 0, 255, 0.6) 60%,
-                      rgba(255, 0, 255, 0.65) 65%,
-                      rgba(0, 255, 0, 0.5) 70%,
-                      rgba(0, 255, 0, 0.4) 75%,
-                      transparent 85%,
-                      transparent 100%
-                    )
-                  `,
-                  mixBlendMode: 'screen',
-                  filter: 'brightness(1.3) contrast(1.1)'
-                }}
-              />
-              
-              {/* Directional light reflection - increased shininess */}
-              <div
-                className="absolute inset-0 opacity-80"
-                style={{
-                  background: `
-                    radial-gradient(
-                      ellipse ${Math.abs(lightPosition.x - 50) * 0.8 + 30}% ${Math.abs(lightPosition.y - 50) * 0.8 + 20}% at ${lightPosition.x}% ${lightPosition.y}%,
-                      rgba(255, 255, 255, 0.9) 0%,
-                      rgba(255, 255, 255, 0.4) 15%,
-                      rgba(255, 255, 255, 0.15) 30%,
-                      transparent 45%
-                    )
-                  `,
-                  mixBlendMode: 'overlay'
-                }}
-              />
-              
-              {/* Rotating prismatic rainbow - more subtle */}
-              <div
-                className="absolute inset-0 opacity-15"
-                style={{
-                  background: `
-                    conic-gradient(
-                      from ${((lightPosition.x - 50) * 0.8 + (lightPosition.y + 15) * 0.5) + 45}deg at ${lightPosition.x}% ${Math.max(lightPosition.y - 50, 0)}%,
-                      rgba(255, 0, 128, 0.3) 0deg,
-                      rgba(0, 255, 128, 0.3) 60deg,
-                      rgba(128, 0, 255, 0.3) 120deg,
-                      rgba(255, 128, 0, 0.3) 180deg,
-                      rgba(0, 128, 255, 0.3) 240deg,
-                      rgba(255, 0, 128, 0.3) 360deg
-                    )
-                  `,
-                  mixBlendMode: 'color-dodge',
-                  filter: 'blur(2px)'
-                }}
-              />
-              
-              {/* Holographic texture pattern */}
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  background: `
-                    repeating-linear-gradient(
-                      ${((lightPosition.x - 50) + (lightPosition.y + 15)) * 0.3}deg,
-                      transparent 0px,
-                      rgba(255, 255, 255, 0.08) 1px,
-                      transparent 2px,
-                      transparent 8px
-                    ),
-                    repeating-linear-gradient(
-                      ${(-(lightPosition.x - 50) + (lightPosition.y + 15)) * 0.3 + 90}deg,
-                      transparent 0px,
-                      rgba(0, 255, 255, 0.08) 1px,
-                      transparent 2px,
-                      transparent 12px
-                    )
-                  `,
-                  mixBlendMode: 'soft-light'
-                }}
-              />
-              
-              {/* Sparkle highlights - enhanced for more shine */}
-              <div
-                className="absolute inset-0 opacity-70"
-                style={{
-                  background: `
-                    radial-gradient(
-                      circle at ${lightPosition.x + 10}% ${lightPosition.y - 10}%,
-                      rgba(255, 255, 255, 1) 0%,
-                      transparent 2.5%
-                    ),
-                    radial-gradient(
-                      circle at ${lightPosition.x - 15}% ${lightPosition.y + 15}%,
-                      rgba(255, 255, 255, 0.9) 0%,
-                      transparent 2%
-                    ),
-                    radial-gradient(
-                      circle at ${lightPosition.x + 5}% ${lightPosition.y + 20}%,
-                      rgba(255, 255, 255, 0.95) 0%,
-                      transparent 2%
-                    ),
-                    radial-gradient(
-                      circle at ${lightPosition.x - 8}% ${lightPosition.y - 5}%,
-                      rgba(255, 255, 255, 0.85) 0%,
-                      transparent 1.5%
-                    )
-                  `
-                }}
-              />
-            </div>
-          )}
-          
-          {/* Inverse foil effect using mix-blend-mode approach */}
-          {hasFoil && viewMode === 'foil' && foilMaskDataUrl && (
-            <div
-              className="absolute inset-0 rounded-lg pointer-events-none overflow-hidden"
-              style={{
-                // Use the original mask as a background and blend it to create inverse effect
-                backgroundImage: `url(${foilMaskDataUrl})`,
-                backgroundSize: '100% 100%',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center center',
-                // Use difference blend mode to invert the effect
-                mixBlendMode: 'difference',
-                opacity: 0.3
-              }}
-            >
-              {/* Rainbow sweep effect */}
-              <div
-                className="absolute inset-0 opacity-60"
-                style={{
-                  background: `
-                    linear-gradient(
-                      ${(lightPosition.x - 50) * -0.8 + (lightPosition.y - 50) * 0.6 + 90}deg,
-                      transparent 0%,
-                      transparent 15%,
-                      rgba(0, 255, 128, 0.7) 25%,
-                      rgba(255, 128, 0, 0.7) 40%,
-                      rgba(128, 0, 255, 0.7) 55%,
-                      rgba(0, 128, 255, 0.6) 70%,
-                      transparent 80%,
-                      transparent 100%
-                    )
-                  `,
-                  mixBlendMode: 'screen'
-                }}
-              />
-              
-              {/* Bright white highlights */}
-              <div
-                className="absolute inset-0 opacity-50"
-                style={{
-                  background: `
-                    radial-gradient(
-                      circle at ${100 - lightPosition.x}% ${100 - lightPosition.y}%,
-                      rgba(255, 255, 255, 0.8) 0%,
-                      rgba(255, 255, 255, 0.3) 15%,
-                      transparent 30%
-                    )
-                  `,
-                  mixBlendMode: 'overlay'
-                }}
-              />
-            </div>
-          )}
-          
-          {/* Enchanted card image */}
-          {hasEnchanted && (
-            <img
-              src={currentCard.images.full}
-              alt={`${currentCard.fullName} (Enchanted)`}
-              className={`max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-all duration-500 ease-out ${
-                isVisible && viewMode === 'enchanted' ? 'opacity-100 scale-100' : isVisible ? 'opacity-0 scale-105' : 'opacity-0 scale-75'
-              }`}
-              onClick={onClose}
-              draggable={false}
-              style={{
-                position: 'absolute',
-                top: '0',
-                left: '50%',
-                transform: `translateX(-50%) ${isVisible && viewMode === 'enchanted' ? 'scale(1)' : isVisible ? 'scale(1.05)' : 'scale(0.75)'}`
-              }}
-            />
-          )}
         </div>
-        
-        {/* Version switcher buttons */}
-        {(hasEnchanted || hasFoil) && (
-          <div className={`flex gap-2 transition-all duration-300 ${
-            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setViewMode('normal');
-              }}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                viewMode === 'normal'
-                  ? 'bg-white text-gray-900 shadow-lg transform scale-105'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              Normal
-            </button>
-            
-            {hasFoil && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewMode('foil');
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                  viewMode === 'foil'
-                    ? 'bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-white shadow-lg transform scale-105'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-                title={
-                  isMobile 
-                    ? 'Foil effect - tilt your device to see the shimmer!' 
-                    : foilMaskLoading ? 'Loading foil mask...' : foilMaskDataUrl ? 'Foil mask loaded' : 'Using fallback foil effect'
-                }
-              >
-                <Zap size={16} />
-                Foil{isMobile && ' 📱'}
-                {foilMaskLoading && <span className="text-xs animate-pulse">⏳</span>}
-                {!foilMaskLoading && !foilMaskDataUrl && <span className="text-xs">⚠</span>}
-              </button>
-            )}
-            
-            {hasEnchanted && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewMode('enchanted');
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                  viewMode === 'enchanted'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg transform scale-105'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                <Sparkles size={16} />
-                Enchanted
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
