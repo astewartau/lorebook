@@ -24,6 +24,7 @@ const SetBinder: React.FC = () => {
   const [publishedBinderOwner, setPublishedBinderOwner] = useState<any>(null);
   const [ownerCollectionData, setOwnerCollectionData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -107,22 +108,41 @@ const SetBinder: React.FC = () => {
       setPublishedBinderOwner(profileData);
 
       // Check if the binder publisher is currently in a group
-      const { data: memberData } = await supabase
+      const { data: memberData, error: memberError } = await supabase
         .from('collection_group_members')
-        .select(`
-          group_id,
-          role,
-          collection_groups(owner_id)
-        `)
+        .select('group_id, role')
         .eq('user_id', binderData.user_id)
         .single();
 
+      // Check for membership query errors
+      if (memberError && memberError.code !== 'PGRST116') {
+        // PGRST116 is "not found" which is expected for non-group users
+        console.error('Error checking group membership:', memberError);
+        throw new Error(`Could not verify group membership: ${memberError.message}`);
+      }
+
       let targetUserId = binderData.user_id; // Default to publisher's collection
       let collectionSource = 'personal';
+      let groupOwnerId = null;
 
       if (memberData?.group_id) {
-        // Publisher is in a group - load the group owner's collection
-        const groupOwnerId = (memberData as any).collection_groups.owner_id;
+        // Publisher is in a group - get the group owner
+        const { data: groupData, error: groupError } = await supabase
+          .from('collection_groups')
+          .select('owner_id')
+          .eq('id', memberData.group_id)
+          .single();
+
+        if (groupError) {
+          console.error('Error fetching group data:', groupError);
+          throw new Error(`Could not load group information: ${groupError.message}`);
+        }
+
+        if (!groupData?.owner_id) {
+          throw new Error('Group exists but has no owner');
+        }
+
+        groupOwnerId = groupData.owner_id;
         targetUserId = groupOwnerId;
         collectionSource = 'group';
         console.log(`[SetBinder] Publisher is in group ${memberData.group_id}, loading owner's collection (${groupOwnerId})`);
@@ -138,7 +158,13 @@ const SetBinder: React.FC = () => {
 
       if (collectionError) {
         console.error('Collection data error:', collectionError);
-        throw collectionError;
+        throw new Error(`Could not load collection data for ${collectionSource} collection: ${collectionError.message}`);
+      }
+
+      // Verify we got collection data when we expected it
+      if (!collectionData || collectionData.length === 0) {
+        console.warn(`[SetBinder] No collection data found for ${collectionSource} collection (user: ${targetUserId})`);
+        // This is not necessarily an error - user might have empty collection
       }
       
       // Store the collection data
@@ -152,6 +178,8 @@ const SetBinder: React.FC = () => {
 
     } catch (error) {
       console.error('Error loading published binder:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(`Could not load binder: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -370,6 +398,38 @@ const SetBinder: React.FC = () => {
   }
 
   // Handle error cases
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-bold text-red-600 mb-2">
+            Error Loading Binder
+          </h2>
+          <p className="text-gray-700 mb-4">
+            {error}
+          </p>
+          <button 
+            onClick={() => navigate(binderId ? '/community' : '/collections')}
+            className="btn-lorcana mr-2"
+          >
+            Go Back
+          </button>
+          <button 
+            onClick={() => {
+              setError(null);
+              if (binderId) {
+                loadPublishedBinder();
+              }
+            }}
+            className="btn-secondary"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!setData || (!setCode && !effectiveSetCode)) {
     const isBinderNotFound = binderId && !publishedBinder;
     return (
@@ -462,16 +522,60 @@ const SetBinder: React.FC = () => {
         </div>
       )}
       
-      {/* Fullscreen exit button overlay */}
+      {/* Fullscreen controls overlay */}
       {isFullscreen && (
-        <button
-          onClick={toggleFullscreen}
-          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-black/70 hover:bg-black/90 text-white rounded-lg transition-colors backdrop-blur-sm border border-white/20"
-          title="Exit Fullscreen"
-        >
-          <Minimize2 size={18} />
-          <span className="hidden sm:inline">Exit Fullscreen</span>
-        </button>
+        <>
+          {/* Exit fullscreen button */}
+          <button
+            onClick={toggleFullscreen}
+            className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-black/70 hover:bg-black/90 text-white rounded-lg transition-colors backdrop-blur-sm border border-white/20"
+            title="Exit Fullscreen"
+          >
+            <Minimize2 size={18} />
+            <span className="hidden sm:inline">Exit Fullscreen</span>
+          </button>
+          
+          {/* Navigation buttons for fullscreen */}
+          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-4">
+            {/* Previous button */}
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPageSpread === 0}
+              className={`flex items-center justify-center gap-2 px-4 py-2 w-32 rounded-lg transition-all backdrop-blur-sm ${
+                currentPageSpread === 0
+                  ? 'bg-gray-600/70 text-gray-400 cursor-not-allowed opacity-50'
+                  : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700/90 shadow-lg'
+              }`}
+            >
+              <ChevronLeft size={20} />
+              <span>Previous</span>
+            </button>
+            
+            {/* Page indicator */}
+            <div className={`px-4 py-2 bg-black/70 text-white rounded-lg backdrop-blur-sm ${isFullscreen ? 'hidden' : ''}`}>
+              <span className="font-semibold">
+                {currentPageSpread * 2 + 1}-{Math.min(currentPageSpread * 2 + 2, totalPageSpreads * 2)}
+              </span>
+              <span className="text-sm opacity-80 ml-2">
+                of {totalPageSpreads * 2}
+              </span>
+            </div>
+            
+            {/* Next button */}
+            <button
+              onClick={handleNextPage}
+              disabled={currentPageSpread >= totalPageSpreads - 1}
+              className={`flex items-center justify-center gap-2 px-4 py-2 w-32 rounded-lg transition-all backdrop-blur-sm ${
+                currentPageSpread >= totalPageSpreads - 1
+                  ? 'bg-gray-600/70 text-gray-400 cursor-not-allowed opacity-50'
+                  : 'bg-amber-800/80 text-amber-100 hover:bg-amber-700/90 shadow-lg'
+              }`}
+            >
+              <span>Next</span>
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </>
       )}
 
       {/* Page Navigation - Above Binder - hidden in fullscreen */}
@@ -593,7 +697,7 @@ const SetBinder: React.FC = () => {
 
       {/* Binder Physical Representation */}
       <div className={`${isFullscreen ? 'h-screen flex items-center justify-center p-4' : 'sm:p-4 sm:pt-0 p-2 pt-0'}`}>
-        <div className={`mx-auto ${isFullscreen ? 'w-[75vw] h-[90vh]' : 'max-w-7xl'}`} style={isFullscreen ? { minWidth: 'calc(3 * 25vh * 5 / 7 + 8rem)' } : {}}>
+        <div className={`mx-auto ${isFullscreen ? 'w-[80vw] h-[93vh]' : 'max-w-7xl'}`} style={isFullscreen ? { minWidth: 'calc(3 * 25vh * 5 / 7 + 12rem)' } : {}}>
           {/* Binder Cover/Spine Effect */}
           <div 
             className={`relative flex flex-col ${isFullscreen ? 'h-full w-full' : ''}`}
@@ -774,7 +878,7 @@ const SetBinder: React.FC = () => {
                       mixBlendMode: 'normal'
                     }} />
                     {/* Page content */}
-                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 max-h-full overflow-auto w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
+                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 h-[calc(100%-4rem)] w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentPageSpread * 18, currentPageSpread * 18 + 9)
                         .map((cardData, index) => (
@@ -890,7 +994,7 @@ const SetBinder: React.FC = () => {
                     </div>
                     
                     {/* Page number */}
-                    <div className="mt-auto pt-4 text-center text-amber-800 text-sm font-medium relative z-10">
+                    <div className={`mt-auto text-center text-amber-800 text-sm font-medium relative z-10 ${isFullscreen ? 'pt-8' : 'pt-4'}`}>
                       Page {currentPageSpread * 2 + 1}
                     </div>
                     </div>
@@ -932,7 +1036,7 @@ const SetBinder: React.FC = () => {
                       mixBlendMode: 'normal'
                     }} />
                     {/* Page content */}
-                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 max-h-full overflow-auto w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
+                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 h-[calc(100%-4rem)] w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentPageSpread * 18 + 9, currentPageSpread * 18 + 18)
                         .map((cardData, index) => (
@@ -1048,7 +1152,7 @@ const SetBinder: React.FC = () => {
                     </div>
                     
                     {/* Page number */}
-                    <div className="mt-auto pt-4 text-center text-amber-800 text-sm font-medium relative z-10">
+                    <div className={`mt-auto text-center text-amber-800 text-sm font-medium relative z-10 ${isFullscreen ? 'pt-8' : 'pt-4'}`}>
                       Page {currentPageSpread * 2 + 2}
                     </div>
                     </div>
@@ -1086,7 +1190,7 @@ const SetBinder: React.FC = () => {
                     }} />
                     
                     {/* Page content - show 9 cards per mobile page */}
-                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-4 max-h-full overflow-auto w-full justify-items-center px-4' : 'gap-1 flex-1'}`}>
+                    <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-4 h-[calc(100%-3rem)] w-full justify-items-center px-4' : 'gap-1 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentMobilePage * 9, (currentMobilePage + 1) * 9)
                         .map((cardData, index) => (
@@ -1149,7 +1253,7 @@ const SetBinder: React.FC = () => {
                     </div>
                     
                     {/* Page number */}
-                    <div className="mt-auto pt-1 text-center text-amber-800 text-sm font-medium relative z-10">
+                    <div className={`mt-auto text-center text-amber-800 text-sm font-medium relative z-10 ${isFullscreen ? 'pt-4' : 'pt-1'}`}>
                       Page {currentMobilePage + 1}
                     </div>
                   </div>

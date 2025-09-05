@@ -23,6 +23,9 @@ const Card: React.FC<CardProps> = ({
   const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity, createDeckAndStartEditing } = useDeck();
   const { getCardQuantity } = useCollection();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [transform, setTransform] = useState('');
+  const [isHovered, setIsHovered] = useState(false);
+  const cardRef = React.useRef<HTMLDivElement>(null);
   
   // Get current quantities for this specific card ID
   const quantities = getCardQuantity(card.id);
@@ -83,6 +86,32 @@ const Card: React.FC<CardProps> = ({
     if (onQuantityChange) {
       onQuantityChange(0, change);
     }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    
+    const cardEl = cardRef.current;
+    const rect = cardEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Calculate rotation based on mouse position
+    const rotateX = ((y - centerY) / centerY) * -15;
+    const rotateY = ((x - centerX) / centerX) * 15;
+    
+    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
+  };
+  
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+  
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setTransform('');
   };
 
   const getCardBackground = () => {
@@ -192,14 +221,25 @@ const Card: React.FC<CardProps> = ({
     <div className="flex flex-col space-y-2">
       {/* Card Image */}
       <div 
+        ref={cardRef}
         className={`relative rounded-sm shadow-lg hover:shadow-2xl transition-all duration-300 ease-out aspect-[2.5/3.5] overflow-hidden cursor-pointer transform-gpu select-none border-2 ${getCardBackground()}`}
+        style={{
+          transform: transform,
+          transformOrigin: 'center center',
+          transition: isHovered 
+            ? 'transform 0.1s ease-out, box-shadow 0.3s ease-out' 
+            : 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease-out'
+        }}
         onClick={() => onCardClick?.(card)}
         onContextMenu={handleRightClick}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <CardImage
           card={card}
           enableHover={true}
-          enableTilt={true}
+          enableTilt={false}
           size="full"
           className="w-full h-full"
         />

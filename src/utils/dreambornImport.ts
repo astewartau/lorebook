@@ -180,7 +180,7 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null
   // Parse card number
   const cardNumber = parseInt(csvCardNumber?.toString().trim() || '0');
   
-  if (!csvSet || !cardNumber) {
+  if (!csvSet || (cardNumber < 0 || isNaN(cardNumber))) {
     console.warn(`Invalid set or card number: Set="${csvSet}", Card Number="${csvCardNumber}" for card: ${csvName}`);
     return null;
   }
