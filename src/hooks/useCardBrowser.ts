@@ -4,6 +4,7 @@ import { FilterOptions, SortOption, LorcanaCard } from '../types';
 import { allCards } from '../data/allCards';
 import { useCollection } from '../contexts/CollectionContext';
 import { usePagination } from './usePagination';
+import { useDebounce } from './useDebounce';
 import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils/cardFiltering';
 import { getDefaultFilters, parseURLState } from '../utils/filterDefaults';
 import { PAGINATION } from '../constants';
@@ -20,6 +21,7 @@ export const useCardBrowser = () => {
   // ================================
   const urlState = parseURLState(searchParams);
   const [searchTerm, setSearchTermState] = useState(urlState.searchTerm);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // 300ms debounce
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(urlState.viewMode);
   const [sortBy, setSortByState] = useState<SortOption>(urlState.sortBy);
   const [groupBy, setGroupByState] = useState<string>(urlState.groupBy);
@@ -44,7 +46,7 @@ export const useCardBrowser = () => {
   const cardsPerPage = PAGINATION.CARDS_PER_PAGE;
 
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
-    const filtered = filterCards(allCards, searchTerm, filters, staleCardIds, getCardQuantity);
+    const filtered = filterCards(allCards, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);
     const sorted = sortCards(filtered, sortBy);
     const grouped = groupCards(sorted, groupBy);
     const activeCount = countActiveFilters(filters);
@@ -55,12 +57,12 @@ export const useCardBrowser = () => {
       totalCards: sorted.length,
       activeFiltersCount: activeCount
     };
-  }, [searchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity]);
+  }, [debouncedSearchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity]);
   
   const pagination = usePagination({
     totalItems: totalCards,
     itemsPerPage: cardsPerPage,
-    resetTriggers: [searchTerm, filters, sortBy, groupBy]
+    resetTriggers: [debouncedSearchTerm, filters, sortBy, groupBy]
   });
   
   const paginatedCards = useMemo(() => {
@@ -95,8 +97,13 @@ export const useCardBrowser = () => {
   // ================================
   const setSearchTerm = useCallback((term: string) => {
     setSearchTermState(term);
-    updateURLParams({ search: term || undefined });
-  }, [updateURLParams]);
+    // URL update will happen via useEffect when debouncedSearchTerm changes
+  }, []);
+  
+  // Update URL when debounced search term changes
+  useEffect(() => {
+    updateURLParams({ search: debouncedSearchTerm || undefined });
+  }, [debouncedSearchTerm, updateURLParams]);
 
   const setSortBy = useCallback((sort: SortOption) => {
     setSortByState(sort);
@@ -217,7 +224,7 @@ export const useCardBrowser = () => {
     setStaleCardIds(new Set());
     setShowFilterNotification(false);
     setStaleCardCount(0);
-  }, [filters, searchTerm, sortBy, groupBy]);
+  }, [filters, debouncedSearchTerm, sortBy, groupBy]);
 
   // ================================
   // 9. RETURN INTERFACE

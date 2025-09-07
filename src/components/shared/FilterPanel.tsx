@@ -95,7 +95,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 src={rarityIconMap[rarity]}
                 alt={rarity}
                 className="w-full h-auto max-w-8 max-h-8"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
               />
+              <span className="hidden text-xs font-bold text-lorcana-gold flex items-center justify-center w-8 h-8">
+                {rarity.substring(0, 2).toUpperCase()}
+              </span>
             </button>
           ))}
         </div>

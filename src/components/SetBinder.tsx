@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Book, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { useCollection } from '../contexts/CollectionContext';
-import { useImageLoad } from '../contexts/ImageLoadContext';
 import { allCards, sets } from '../data/allCards';
 import CardImage from './CardImage';
 import CardPreviewModal from './CardPreviewModal';
@@ -13,7 +12,6 @@ const SetBinder: React.FC = () => {
   const { setCode, binderId } = useParams<{ setCode?: string; binderId?: string }>();
   const navigate = useNavigate();
   const { getCardQuantity } = useCollection();
-  const imageLoad = useImageLoad();
   const [currentPageSpread, setCurrentPageSpread] = useState(0);
   const [currentMobilePage, setCurrentMobilePage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
@@ -238,47 +236,6 @@ const SetBinder: React.FC = () => {
   const totalPageSpreads = Math.ceil(cardsWithOwnership.length / 18);
   const totalMobilePages = Math.ceil(cardsWithOwnership.length / 9);
 
-  // Preload adjacent pages for smooth navigation
-  useEffect(() => {
-    console.log(`[SetBinder] Preloading adjacent pages for current page: ${currentPageSpread}`);
-    
-    // Get cards for previous and next page spreads
-    const prevPageStart = (currentPageSpread - 1) * 18;
-    const nextPageStart = (currentPageSpread + 1) * 18;
-    
-    const prevPageCards = cardsWithOwnership.slice(prevPageStart, prevPageStart + 18);
-    const nextPageCards = cardsWithOwnership.slice(nextPageStart, nextPageStart + 18);
-    
-    // Preload previous page images at low priority
-    if (currentPageSpread > 0) {
-      console.log(`[SetBinder] Preloading ${prevPageCards.length} cards from previous page ${currentPageSpread - 1}`);
-      prevPageCards.forEach(cardData => {
-        imageLoad.registerImage(
-          cardData.images.full,
-          'regular-full',
-          `preload-${cardData.id}`,
-          false, // not in viewport
-          () => {}, // no callback needed
-          () => {}  // no error callback needed
-        );
-      });
-    }
-    
-    // Preload next page images at low priority  
-    if (currentPageSpread < totalPageSpreads - 1) {
-      console.log(`[SetBinder] Preloading ${nextPageCards.length} cards from next page ${currentPageSpread + 1}`);
-      nextPageCards.forEach(cardData => {
-        imageLoad.registerImage(
-          cardData.images.full,
-          'regular-full', 
-          `preload-${cardData.id}`,
-          false, // not in viewport
-          () => {}, // no callback needed
-          () => {}  // no error callback needed
-        );
-      });
-    }
-  }, [currentPageSpread, cardsWithOwnership, totalPageSpreads]);
   
   const handleNextPage = useCallback(() => {
     if (currentPageSpread < totalPageSpreads - 1) {
@@ -910,7 +867,6 @@ const SetBinder: React.FC = () => {
                               <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
                                 <CardImage
                                   card={cardData}
-                                  size="full"
                                   enableHover={false}
                                   enableTilt={false}
                                   className="w-full h-full"
@@ -1068,7 +1024,6 @@ const SetBinder: React.FC = () => {
                               <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
                                 <CardImage
                                   card={cardData}
-                                  size="full"
                                   enableHover={false}
                                   enableTilt={false}
                                   className="w-full h-full"
@@ -1218,7 +1173,6 @@ const SetBinder: React.FC = () => {
                               <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
                                 <CardImage
                                   card={cardData}
-                                  size="full"
                                   enableHover={false}
                                   enableTilt={false}
                                   className="w-full h-full"

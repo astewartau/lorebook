@@ -12,7 +12,7 @@ export const sets = Object.entries(db.sets).map(([key, set]) => ({
 }));
 
 // Extract unique values from card data
-export const rarityOrder = ['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Enchanted', 'Special'];
+export const rarityOrder = ['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Epic', 'Enchanted', 'Iconic', 'Special'];
 
 export const rarities = Array.from(new Set(allCards.map(card => card.rarity))).sort((a, b) => {
   const aIndex = rarityOrder.indexOf(a);

@@ -4,7 +4,9 @@ export const RARITY_ICONS: Record<string, string> = {
   'Rare': '/imgs/rare.svg',
   'Super Rare': '/imgs/super_rare.svg',
   'Legendary': '/imgs/legendary.svg',
+  'Epic': '/imgs/epic.svg', // Fan-shaped with rainbow fill (placeholder)
   'Enchanted': '/imgs/enchanted.png',
+  'Iconic': '/imgs/iconic.svg', // Donut-shaped with rainbow fill (placeholder)
   'Special': '/imgs/promo.png',
   'Promo': '/imgs/promo.png'
 };

@@ -1,7 +1,6 @@
 import React from 'react';
 import { LorcanaCard } from '../../types';
-import Card from '../Card';
-import { useDynamicGrid } from '../../hooks';
+import VirtualizedCardGrid from './VirtualizedCardGrid';
 
 interface CardGridViewProps {
   cards: LorcanaCard[];
@@ -14,26 +13,13 @@ const CardGridView: React.FC<CardGridViewProps> = ({
   onQuantityChange,
   onCardClick
 }) => {
-  const { containerRef, gridStyle } = useDynamicGrid();
-
+  // Now using window scrolling, no need for height calculations
   return (
-    <div 
-      ref={containerRef}
-      className="pb-8"
-      style={gridStyle}
-    >
-      {cards.map((card) => (
-        <div key={card.id} className="relative">
-          <Card
-            card={card}
-            onQuantityChange={(normalChange, foilChange) => 
-              onQuantityChange(card, normalChange, foilChange)
-            }
-            onCardClick={onCardClick}
-          />
-        </div>
-      ))}
-    </div>
+    <VirtualizedCardGrid
+      cards={cards}
+      onQuantityChange={onQuantityChange}
+      onCardClick={onCardClick}
+    />
   );
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Deck, LorcanaCard } from '../../types';
+import { Deck } from '../../types';
 import { useCollection } from '../../contexts/CollectionContext';
 import PieChart from '../shared/PieChart';
 import { allCards } from '../../data/allCards';

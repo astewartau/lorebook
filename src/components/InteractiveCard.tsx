@@ -14,7 +14,7 @@ interface CardProps {
   onCardClick?: (card: LorcanaCard) => void;
 }
 
-const Card: React.FC<CardProps> = ({ 
+const InteractiveCard: React.FC<CardProps> = ({ 
   card,
   onQuantityChange,
   onCardClick
@@ -240,7 +240,6 @@ const Card: React.FC<CardProps> = ({
           card={card}
           enableHover={true}
           enableTilt={false}
-          size="full"
           className="w-full h-full"
         />
       </div>
@@ -276,4 +275,4 @@ const Card: React.FC<CardProps> = ({
   );
 };
 
-export default Card;
+export default InteractiveCard;

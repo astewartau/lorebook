@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Edit3, Copy, Trash2, Download } from 'lucide-react';
+import { Edit, Eye, Copy, Trash2, Upload, Globe, Lock } from 'lucide-react';
 import { Deck } from '../types';
 import { COLOR_ICONS } from '../constants/icons';
 
@@ -16,6 +16,8 @@ interface DeckBox3DProps {
   onDuplicate: (deckId: string) => void;
   onDelete: (deckId: string) => void;
   onExport: (deckId: string) => void;
+  onPublish?: (deckId: string) => void;
+  onUnpublish?: (deckId: string) => void;
 }
 
 const DeckBox3D: React.FC<DeckBox3DProps> = ({
@@ -25,7 +27,9 @@ const DeckBox3D: React.FC<DeckBox3DProps> = ({
   onEdit,
   onDuplicate,
   onDelete,
-  onExport
+  onExport,
+  onPublish,
+  onUnpublish
 }) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -241,9 +245,9 @@ const DeckBox3D: React.FC<DeckBox3DProps> = ({
         </div>
       </div>
       
-      {/* Action Buttons */}
+      {/* Action Buttons with Text */}
       <div 
-        className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 -mt-24"
+        className="flex flex-wrap gap-2 justify-center mt-2"
         onMouseEnter={(e) => e.stopPropagation()}
         onMouseMove={(e) => e.stopPropagation()}
         onMouseLeave={(e) => e.stopPropagation()}
@@ -253,40 +257,78 @@ const DeckBox3D: React.FC<DeckBox3DProps> = ({
             e.stopPropagation();
             onEdit(deck.id);
           }}
-          className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-          title="Edit deck"
+          className="btn-lorcana-gold-sm flex items-center gap-1"
         >
-          <Edit3 size={12} />
+          <Edit size={14} />
+          Edit
         </button>
+        
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onView(deck.id);
+          }}
+          className="btn-lorcana-navy-outline-sm flex items-center gap-1"
+        >
+          <Eye size={14} />
+          View
+        </button>
+        
+        {deck.isPublic && onUnpublish ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnpublish(deck.id);
+            }}
+            className="btn-lorcana-navy-outline-sm flex items-center gap-1"
+          >
+            <Lock size={14} />
+            Unpublish
+          </button>
+        ) : onPublish ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPublish(deck.id);
+            }}
+            className="btn-lorcana-gold-sm flex items-center gap-1"
+          >
+            <Globe size={14} />
+            Publish
+          </button>
+        ) : null}
+        
         <button
           onClick={(e) => {
             e.stopPropagation();
             onDuplicate(deck.id);
           }}
-          className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors"
-          title="Duplicate deck"
+          className="btn-lorcana-navy-outline-sm flex items-center gap-1"
+          title="Duplicate"
         >
-          <Copy size={12} />
+          <Copy size={14} />
         </button>
+        
         <button
           onClick={(e) => {
             e.stopPropagation();
             onExport(deck.id);
           }}
-          className="p-1.5 text-purple-600 hover:bg-purple-100 rounded transition-colors"
-          title="Export deck"
+          className="btn-lorcana-navy-outline-sm flex items-center gap-1"
+          title="Export"
         >
-          <Download size={12} />
+          <Upload size={14} />
         </button>
+        
         <button
           onClick={(e) => {
             e.stopPropagation();
             onDelete(deck.id);
           }}
-          className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
-          title="Delete deck"
+          className="btn-lorcana-navy-outline-sm flex items-center gap-1 hover:bg-red-500 hover:text-white"
+          title="Delete"
         >
-          <Trash2 size={12} />
+          <Trash2 size={14} />
         </button>
       </div>
     </div>

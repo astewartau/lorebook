@@ -17,7 +17,6 @@ import { ProfileProvider } from './contexts/ProfileContext';
 import ProfileEditModal from './components/ProfileEditModal';
 import LegalNoticeModal from './components/LegalNoticeModal';
 import DataAttributionModal from './components/DataAttributionModal';
-import { ImageLoadProvider } from './contexts/ImageLoadContext';
 import { useModal } from './hooks';
 import { useScrollManager } from './hooks/useScrollManager';
 import AuthSection from './components/layout/AuthSection';
@@ -88,7 +87,9 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-lorcana-cream">
           {/* Mobile Header - Full Width */}
-          <div className="sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden">
+          <div className={`sm:hidden bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden transition-all duration-300 ease-in-out ${
+            isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
+          }`}>
             <div className="absolute inset-0 opacity-15">
               <div className="absolute top-0 left-0 w-24 h-24 bg-lorcana-gold transform rotate-45 -translate-x-12 -translate-y-12"></div>
               <div className="absolute top-0 right-0 w-16 h-16 bg-lorcana-gold rounded-full -translate-y-6 translate-x-6"></div>
@@ -120,10 +121,12 @@ function AppContent() {
           </div>
 
           {/* Desktop Header and TabBar Container - Combined with continuous pattern */}
-          <div className="hidden sm:block bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative">
+          <div className={`hidden sm:block bg-gradient-to-br from-lorcana-navy via-lorcana-purple to-lorcana-navy shadow-xl relative overflow-hidden transition-all duration-300 ease-in-out ${
+            isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
+          }`}>
             <div className="absolute inset-0 opacity-20">
               <div className="absolute top-0 left-0 w-32 h-32 bg-lorcana-gold transform rotate-45 -translate-x-16 -translate-y-16"></div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-lorcana-gold rounded-full -translate-y-8 translate-x-8"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-lorcana-gold rounded-full -translate-y-8 -translate-x-4"></div>
               <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-lorcana-gold transform rotate-45 translate-y-20"></div>
               <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-lorcana-gold rounded-full opacity-50"></div>
               <div className="absolute bottom-4 right-1/3 w-16 h-16 bg-lorcana-gold rounded-full opacity-30"></div>
@@ -279,13 +282,11 @@ function App() {
     <AuthProvider>
       <ProfileProvider>
         <CollectionProvider>
-          <ImageLoadProvider>
-            <DeckProvider>
-              <Router>
-                <AppContent />
-              </Router>
-            </DeckProvider>
-          </ImageLoadProvider>
+          <DeckProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </DeckProvider>
         </CollectionProvider>
       </ProfileProvider>
     </AuthProvider>

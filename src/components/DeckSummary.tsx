@@ -325,10 +325,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                         >
                           <CardImage
                             card={card}
-                            size="thumbnail"
                             className="w-full h-full rounded-sm shadow-md border-2 border-lorcana-gold"
-                            priority="normal"
-                            rootMargin="200px"
                           />
                         </div>
                       ))}

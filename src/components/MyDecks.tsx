@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { Deck } from '../types';
 import DeckBox3D from './DeckBox3D';
+import DeleteDeckModal from './DeleteDeckModal';
 import { DECK_RULES } from '../constants';
 
 interface MyDecksProps {
@@ -20,7 +21,8 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
   const { 
     decks, 
     publicDecks, 
-    createDeck, 
+    createDeck,
+    createDeckAndStartEditing,
     deleteDeck, 
     duplicateDeck, 
     getDeckSummary, 
@@ -38,6 +40,12 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [deckProfiles, setDeckProfiles] = useState<Record<string, string>>({});
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; deckId: string; deckName: string }>({ 
+    isOpen: false, 
+    deckId: '', 
+    deckName: '' 
+  });
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Show notification with auto-dismiss
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -103,25 +111,39 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
 
   const handleCreateDeck = async () => {
     try {
-      // Create deck with default name and navigate immediately
+      // Create deck with default name and start editing immediately
       const defaultName = `New Deck ${decks.length + 1}`;
-      const deckId = await createDeck(defaultName);
-      onBuildDeck(deckId);
+      const newDeck = await createDeckAndStartEditing(defaultName);
+      navigate('/cards');
     } catch (error) {
       console.error('Error creating deck:', error);
       showNotification('error', 'Failed to create deck');
     }
   };
 
-  const handleDeleteDeck = async (deckId: string) => {
-    if (window.confirm('Are you sure you want to delete this deck?')) {
-      try {
-        await deleteDeck(deckId);
-      } catch (error) {
-        console.error('Error deleting deck:', error);
-        showNotification('error', 'Failed to delete deck');
-      }
+  const handleDeleteDeck = (deckId: string) => {
+    const deck = decks.find(d => d.id === deckId);
+    if (deck) {
+      setDeleteModal({ isOpen: true, deckId, deckName: deck.name });
     }
+  };
+
+  const confirmDeleteDeck = async () => {
+    setDeleteLoading(true);
+    try {
+      await deleteDeck(deleteModal.deckId);
+      setDeleteModal({ isOpen: false, deckId: '', deckName: '' });
+      showNotification('success', 'Deck deleted successfully');
+    } catch (error) {
+      console.error('Error deleting deck:', error);
+      showNotification('error', 'Failed to delete deck');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const cancelDeleteDeck = () => {
+    setDeleteModal({ isOpen: false, deckId: '', deckName: '' });
   };
 
   const handleDuplicateDeck = async (deckId: string) => {
@@ -459,6 +481,8 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
                     onDuplicate={() => handleDuplicateDeck(deck.id)}
                     onDelete={() => handleDeleteDeck(deck.id)}
                     onExport={() => handleExportDeck(deck.id)}
+                    onPublish={() => handlePublishDeck(deck.id)}
+                    onUnpublish={() => handleUnpublishDeck(deck.id)}
                   />
                   
                   <div className="mt-4">
@@ -484,69 +508,6 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
                     {deck.description && (
                       <p className="text-sm text-lorcana-navy mb-3">{deck.description}</p>
                     )}
-                    
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => {
-                          setCurrentDeck(deck);
-                          onBuildDeck(deck.id);
-                        }}
-                        className="btn-lorcana-gold-sm flex items-center gap-1"
-                      >
-                        <Edit size={14} />
-                        Edit
-                      </button>
-                      
-                      <button
-                        onClick={() => onViewDeck(deck.id)}
-                        className="btn-lorcana-navy-outline-sm flex items-center gap-1"
-                      >
-                        <Eye size={14} />
-                        View
-                      </button>
-                      
-                      {deck.isPublic ? (
-                        <button
-                          onClick={() => handleUnpublishDeck(deck.id)}
-                          className="btn-lorcana-navy-outline-sm flex items-center gap-1"
-                        >
-                          <Lock size={14} />
-                          Unpublish
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handlePublishDeck(deck.id)}
-                          className="btn-lorcana-gold-sm flex items-center gap-1"
-                        >
-                          <Globe size={14} />
-                          Publish
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => handleDuplicateDeck(deck.id)}
-                        className="btn-lorcana-navy-outline-sm flex items-center gap-1"
-                        title="Duplicate"
-                      >
-                        <Copy size={14} />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleExportDeck(deck.id)}
-                        className="btn-lorcana-navy-outline-sm flex items-center gap-1"
-                        title="Export"
-                      >
-                        <Upload size={14} />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeleteDeck(deck.id)}
-                        className="btn-lorcana-navy-outline-sm flex items-center gap-1 hover:bg-red-500 hover:text-white"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
                   </div>
                 </div>
               );
@@ -622,6 +583,15 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
           )
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteDeckModal
+        isOpen={deleteModal.isOpen}
+        onClose={cancelDeleteDeck}
+        onConfirm={confirmDeleteDeck}
+        deckName={deleteModal.deckName}
+        loading={deleteLoading}
+      />
     </div>
   </div>
   );

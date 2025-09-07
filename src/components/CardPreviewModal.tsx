@@ -1,13 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { LorcanaCard } from '../types';
 
 interface CardPreviewModalProps {
   card: LorcanaCard | null;
   isOpen: boolean;
   onClose: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  canGoToPrevious?: boolean;
+  canGoToNext?: boolean;
 }
 
-const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClose }) => {
+const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ 
+  card, 
+  isOpen, 
+  onClose, 
+  onPrevious, 
+  onNext, 
+  canGoToPrevious = false, 
+  canGoToNext = false 
+}) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [currentCard, setCurrentCard] = useState<LorcanaCard | null>(null);
@@ -18,9 +31,13 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+      } else if (e.key === 'ArrowLeft' && canGoToPrevious && onPrevious) {
+        onPrevious();
+      } else if (e.key === 'ArrowRight' && canGoToNext && onNext) {
+        onNext();
       }
     };
 
@@ -28,7 +45,7 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
       // Store the current card and start rendering
       setCurrentCard(card);
       setShouldRender(true);
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
       
       // Force a reflow, then start animation
@@ -50,12 +67,12 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
 
       return () => {
         clearTimeout(cleanup);
-        document.removeEventListener('keydown', handleEscape);
+        document.removeEventListener('keydown', handleKeyDown);
       };
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose, card, shouldRender]);
 
@@ -103,6 +120,28 @@ const CardPreviewModal: React.FC<CardPreviewModalProps> = ({ card, isOpen, onClo
         }`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Previous button */}
+        {canGoToPrevious && onPrevious && (
+          <button
+            onClick={onPrevious}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-full transition-all duration-200 hover:scale-110"
+            title="Previous card (←)"
+          >
+            <ChevronLeft size={24} />
+          </button>
+        )}
+
+        {/* Next button */}
+        {canGoToNext && onNext && (
+          <button
+            onClick={onNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-full transition-all duration-200 hover:scale-110"
+            title="Next card (→)"
+          >
+            <ChevronRight size={24} />
+          </button>
+        )}
+
         <div 
           ref={cardRef}
           className="relative cursor-pointer"

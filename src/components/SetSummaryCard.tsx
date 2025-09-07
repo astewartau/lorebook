@@ -117,7 +117,7 @@ export const SetSummaryCard: React.FC<SetSummaryCardProps> = ({
               {Object.entries(setData.rarityBreakdown)
                 .filter(([, data]) => data.total > 0)
                 .sort(([a], [b]) => {
-                  const rarityOrder = ['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Enchanted', 'Special'];
+                  const rarityOrder = ['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Epic', 'Enchanted', 'Iconic', 'Special'];
                   return rarityOrder.indexOf(a) - rarityOrder.indexOf(b);
                 })
                 .map(([rarity, data]) => (

@@ -42,11 +42,44 @@ const CardBrowser: React.FC = () => {
     totalCards,
     activeFiltersCount,
     paginatedCards,
-    pagination
+    pagination,
+    sortedCards
   } = useCardBrowser();
 
   const handleCardClick = (card: LorcanaCard) => {
     cardPreviewModal.open(card);
+  };
+
+  // Navigation functions for card modal
+  const getCurrentCardIndex = () => {
+    if (!cardPreviewModal.data) return -1;
+    return sortedCards.findIndex(c => c.id === cardPreviewModal.data!.id);
+  };
+
+  const handlePreviousCard = () => {
+    const currentIndex = getCurrentCardIndex();
+    if (currentIndex > 0) {
+      const previousCard = sortedCards[currentIndex - 1];
+      cardPreviewModal.open(previousCard);
+    }
+  };
+
+  const handleNextCard = () => {
+    const currentIndex = getCurrentCardIndex();
+    if (currentIndex < sortedCards.length - 1) {
+      const nextCard = sortedCards[currentIndex + 1];
+      cardPreviewModal.open(nextCard);
+    }
+  };
+
+  const canGoToPrevious = () => {
+    const currentIndex = getCurrentCardIndex();
+    return currentIndex > 0;
+  };
+
+  const canGoToNext = () => {
+    const currentIndex = getCurrentCardIndex();
+    return currentIndex >= 0 && currentIndex < sortedCards.length - 1;
   };
 
   // Close sidebar when clicking outside on mobile
@@ -118,6 +151,7 @@ const CardBrowser: React.FC = () => {
           totalCards={totalCards}
           groupedCards={groupedCards}
           paginatedCards={paginatedCards}
+          sortedCards={sortedCards}
           pagination={pagination}
           handleCardQuantityChange={handleCardQuantityChange}
           staleCardIds={staleCardIds}
@@ -160,6 +194,10 @@ const CardBrowser: React.FC = () => {
         card={cardPreviewModal.data}
         isOpen={cardPreviewModal.isOpen}
         onClose={cardPreviewModal.close}
+        onPrevious={handlePreviousCard}
+        onNext={handleNextCard}
+        canGoToPrevious={canGoToPrevious()}
+        canGoToNext={canGoToNext()}
       />
     </div>
   );

@@ -1,88 +1,31 @@
-import React, { useRef, useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { LorcanaCard } from '../types';
-import { useProgressiveImage, useInViewport } from '../hooks';
 import CardFallback from './CardFallback';
 
 interface CardImageProps {
   card: LorcanaCard;
-  enchantedCard?: LorcanaCard;
-  showEnchanted?: boolean;
   enableHover?: boolean;
   enableTilt?: boolean;
-  size?: 'thumbnail' | 'full';
   className?: string;
   onClick?: () => void;
-  rootMargin?: string;
-  priority?: 'high' | 'normal' | 'low';
 }
 
 const CardImage: React.FC<CardImageProps> = ({
   card,
-  enchantedCard,
-  showEnchanted = false,
   enableHover = false,
   enableTilt = false,
-  size = 'full',
   className = '',
-  onClick,
-  rootMargin = '200px',
-  priority = 'normal'
+  onClick
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [transform, setTransform] = useState('');
   const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 });
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
-  // Viewport detection with customizable root margin (only if priority is not set)
-  const [viewportRef, isInViewport] = useInViewport<HTMLDivElement>({ 
-    rootMargin,
-    enabled: priority === 'normal' // Only enable viewport detection for normal priority
-  });
-  
-  // Adjust viewport priority based on priority prop
-  const adjustedInViewport = priority === 'high' ? true : 
-                            priority === 'low' ? false : 
-                            isInViewport;
-  
-  // Debug viewport detection (only on mount)
-  React.useEffect(() => {
-    console.log(`[CardImage] ${card.name} (#${card.number}): priority=${priority}, adjustedInViewport=${adjustedInViewport}`);
-  }, [card.name, card.number]); // Only log on mount, not on every change
-  
-  // Generate a unique card ID for the image manager
-  const cardUniqueId = `card-${card.id}`;
-  
-  // Progressive image loading for base card
-  const baseImageProps = useProgressiveImage({
-    thumbnail: card.images.thumbnail,
-    full: size === 'thumbnail' ? card.images.thumbnail : card.images.full,
-    cardId: cardUniqueId,
-    isInViewport: adjustedInViewport,
-    imageType: 'regular'
-  });
-
-  // Debug: Log what CardImage receives from useProgressiveImage
-  console.log(`[CardImage] ${card.name} (#${card.number}): baseImageProps.src=${baseImageProps.src ? baseImageProps.src.split('/').pop() : 'NULL'}, isLoading=${baseImageProps.isLoading}`);
-
-  // Debug: Log when component mounts/unmounts
-  React.useEffect(() => {
-    console.log(`[CardImage] Mounting card: ${card.name} (#${card.number}) - will register images`);
-    return () => {
-      console.log(`[CardImage] Unmounting card: ${card.name} (#${card.number})`);
-    };
-  }, [card.name, card.number]);
-  
-  // Progressive image loading for enchanted card (if exists)
-  const hasEnchanted = !!enchantedCard;
-  const enchantedImageProps = useProgressiveImage({
-    thumbnail: enchantedCard?.images.thumbnail || card.images.thumbnail,
-    full: size === 'thumbnail' 
-      ? (enchantedCard?.images.thumbnail || card.images.thumbnail)
-      : (enchantedCard?.images.full || card.images.full),
-    cardId: cardUniqueId,
-    isInViewport: adjustedInViewport && hasEnchanted,
-    imageType: 'enchanted'
-  });
+  // Always use full resolution image
+  const imageSrc = card.images.full;
   
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!enableTilt || !cardRef.current) return;
@@ -118,12 +61,11 @@ const CardImage: React.FC<CardImageProps> = ({
     setLightPosition({ x: 50, y: 50 });
   };
   
-  // Determine which image to show
-  const shouldShowEnchanted = showEnchanted || (enableHover && isHovered && hasEnchanted);
+  // Use browser native lazy loading
+  const loadingAttr = 'lazy';
   
   return (
     <div 
-      ref={viewportRef}
       className={`relative ${className}`}
       onClick={onClick}
     >
@@ -141,64 +83,38 @@ const CardImage: React.FC<CardImageProps> = ({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Base card image or fallback */}
-        {!baseImageProps.src ? (
-          <CardFallback
-            name={card.name}
-            version={card.version}
-            className="w-full h-full"
-          />
-        ) : (
-          <img 
-            src={baseImageProps.src} 
-            alt={card.fullName}
-            className="w-full h-full object-cover block"
-            loading="lazy"
-            style={{ 
-              pointerEvents: 'none',
-              opacity: shouldShowEnchanted && enchantedImageProps.src ? 0 : 1,
-              transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+        {/* Show cardback placeholder only until image starts loading, or fallback on error */}
+        {imageError ? (
+          <div className="absolute inset-0">
+            <CardFallback
+              name={card.name}
+              version={card.version}
+              className="w-full h-full"
+            />
+          </div>
+        ) : !imageLoaded && (
+          <div 
+            className="absolute inset-0 w-full h-full bg-cover bg-center"
+            style={{
+              backgroundImage: 'url(/imgs/cardback.svg)'
             }}
           />
         )}
         
-        {/* Enchanted card image (only render if we have enchanted) */}
-        {hasEnchanted && enchantedCard && (
-          enchantedImageProps.src ? (
-            <img 
-              src={enchantedImageProps.src} 
-              alt={enchantedCard.fullName}
-              className="absolute inset-0 w-full h-full object-contain"
-              loading="lazy"
-              style={{ 
-                pointerEvents: 'none',
-                opacity: shouldShowEnchanted ? 1 : 0,
-                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                transform: shouldShowEnchanted ? 'scale(1)' : 'scale(1.05)',
-                filter: shouldShowEnchanted ? 'none' : 'brightness(1.2) saturate(1.3)'
-              }}
-            />
-          ) : (
-            shouldShowEnchanted && !baseImageProps.src && (
-              <div className="absolute inset-0" style={{ 
-                opacity: 1,
-                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}>
-                <CardFallback
-                  name={enchantedCard.name}
-                  version={enchantedCard.version}
-                  className="w-full h-full"
-                />
-              </div>
-            )
-          )
-        )}
-        
-        {/* Loading indicator overlay */}
-        {(baseImageProps.isLoading || (hasEnchanted && enchantedImageProps.isLoading)) && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-8 h-8 border-2 border-lorcana-gold border-t-transparent rounded-full animate-spin opacity-30" />
-          </div>
+        {/* Card image */}
+        {!imageError && (
+          <img 
+            src={imageSrc} 
+            alt={card.fullName}
+            className="w-full h-full object-cover block"
+            loading={loadingAttr}
+            decoding="async"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+            style={{ 
+              pointerEvents: 'none'
+            }}
+          />
         )}
         
         {/* Light overlay effect (only if hover effects enabled) */}

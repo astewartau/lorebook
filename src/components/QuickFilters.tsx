@@ -157,7 +157,14 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
                 src={rarityIconMap[rarity]}
                 alt={rarity}
                 className="w-6 h-6"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
               />
+              <span className="hidden text-xs font-bold text-lorcana-gold">
+                {rarity.charAt(0)}
+              </span>
             </button>
           ))}
         </div>

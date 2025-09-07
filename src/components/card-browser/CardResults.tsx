@@ -11,6 +11,7 @@ interface CardResultsProps {
   totalCards: number;
   groupedCards: Record<string, LorcanaCard[]>;
   paginatedCards: LorcanaCard[];
+  sortedCards: LorcanaCard[]; // All cards for virtual scrolling
   pagination: {
     currentPage: number;
     totalPages: number;
@@ -31,6 +32,7 @@ const CardResults: React.FC<CardResultsProps> = ({
   totalCards,
   groupedCards,
   paginatedCards,
+  sortedCards,
   pagination,
   handleCardQuantityChange,
   staleCardIds,
@@ -38,11 +40,17 @@ const CardResults: React.FC<CardResultsProps> = ({
 }) => {
   return (
     <div className="w-full">
-      <div className="space-y-6 p-3 sm:p-6">
+      <div className={`space-y-6 ${viewMode === 'grid' && groupBy === 'none' ? 'px-3 sm:px-6 pt-3 sm:pt-6' : 'p-3 sm:p-6'}`}>
         {groupBy !== 'none' ? (
           <div className="flex justify-between items-center mb-4">
             <div className="text-lorcana-ink font-medium">
               Showing {totalCards} cards in {Object.keys(groupedCards).length} groups
+            </div>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-lorcana-ink font-medium">
+              Showing {totalCards} cards (virtual scrolling)
             </div>
           </div>
         ) : (
@@ -73,7 +81,7 @@ const CardResults: React.FC<CardResultsProps> = ({
           />
         ) : viewMode === 'grid' ? (
           <CardGridView
-            cards={paginatedCards}
+            cards={sortedCards}
             onQuantityChange={handleCardQuantityChange}
             onCardClick={handleCardClick}
           />
@@ -89,7 +97,7 @@ const CardResults: React.FC<CardResultsProps> = ({
           />
         )}
 
-        {groupBy === 'none' && (
+        {groupBy === 'none' && viewMode !== 'grid' && (
           <PaginationControls
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
