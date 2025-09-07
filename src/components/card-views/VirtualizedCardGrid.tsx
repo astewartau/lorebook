@@ -26,13 +26,11 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   const verticalSpacing = 8;
   const gapSize = 16;
   
-  // Calculate card height based on width
+  // Calculate card width based on container
   const cardWidth = useMemo(() => {
     if (!containerRef.current) return 180;
     const containerWidth = containerRef.current.clientWidth;
-    // Ensure minimum card width on mobile for better visibility
-    const calculatedWidth = (containerWidth - (gapSize * (columns - 1))) / columns;
-    return Math.max(140, calculatedWidth); // Minimum 140px width
+    return (containerWidth - (gapSize * (columns - 1))) / columns;
   }, [columns, containerRef, gapSize]);
   
   const cardHeight = useMemo(() => {
@@ -53,47 +51,24 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
       }
     };
     
-    // Initial update
     updateContainerTop();
-    
-    // Update after a small delay to ensure layout is stable
-    const timer = setTimeout(updateContainerTop, 100);
-    
     window.addEventListener('resize', updateContainerTop);
-    window.addEventListener('orientationchange', updateContainerTop);
     
-    return () => {
-      window.removeEventListener('resize', updateContainerTop);
-      window.removeEventListener('orientationchange', updateContainerTop);
-      clearTimeout(timer);
-    };
+    return () => window.removeEventListener('resize', updateContainerTop);
   }, [containerRef, cards.length]);
   
-  // Handle window scroll with RAF for smooth updates
+  // Handle window scroll
   useEffect(() => {
-    let rafId: number | null = null;
-    
     const handleScroll = () => {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-      
-      rafId = requestAnimationFrame(() => {
-        const windowScrollTop = window.scrollY;
-        const relativeScrollTop = Math.max(0, windowScrollTop - containerTop);
-        setScrollTop(relativeScrollTop);
-      });
+      const windowScrollTop = window.scrollY;
+      const relativeScrollTop = Math.max(0, windowScrollTop - containerTop);
+      setScrollTop(relativeScrollTop);
     };
     
     handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll);
     
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [containerTop]);
   
   // Virtual scrolling calculations with mobile adjustments
@@ -101,8 +76,10 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
     const isMobile = window.innerWidth < 768;
     const viewportHeight = window.innerHeight;
     
-    // Calculate visible range with larger buffers for mobile
-    const bufferRows = isMobile ? 3 : 1; // More buffer rows on mobile
+    // Calculate visible range with larger buffers for fast scrolling
+    // Desktop: 3 extra rows above + 3 below = ~18-24 extra cards loaded
+    // Mobile: 5 extra rows above + 5 below = ~10-20 extra cards loaded (fewer columns)
+    const bufferRows = isMobile ? 5 : 3;
     const startRow = Math.max(0, Math.floor(scrollTop / cardHeight) - bufferRows);
     const endRow = Math.ceil((scrollTop + viewportHeight) / cardHeight) + bufferRows;
     
@@ -137,8 +114,7 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
                 left: `${left}px`,
                 top: `${top}px`,
                 width: `${cardWidth}px`,
-                height: `${cardHeight - gapSize}px`, // Remove gap from height to prevent overlap
-                contain: 'layout style paint'
+                height: `${cardHeight - gapSize}px`
               }}
             >
               <InteractiveCard

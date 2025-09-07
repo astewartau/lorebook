@@ -21,11 +21,12 @@ const CardImage: React.FC<CardImageProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [transform, setTransform] = useState('');
   const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 });
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [fullImageLoaded, setFullImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   
-  // Always use full resolution image
-  const imageSrc = card.images.full;
+  // Start with thumbnail, upgrade to full image
+  const thumbnailSrc = card.images.thumbnail;
+  const fullImageSrc = card.images.full;
   
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!enableTilt || !cardRef.current) return;
@@ -83,8 +84,39 @@ const CardImage: React.FC<CardImageProps> = ({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Show cardback placeholder only until image starts loading, or fallback on error */}
-        {imageError ? (
+        {/* Thumbnail image - shows immediately */}
+        <img 
+          src={thumbnailSrc} 
+          alt={card.fullName}
+          className="w-full h-full object-cover block"
+          loading={loadingAttr}
+          decoding="async"
+          onError={() => setImageError(true)}
+          style={{ 
+            pointerEvents: 'none'
+          }}
+        />
+        
+        {/* Full resolution image - loads on top when ready */}
+        {!imageError && (
+          <img 
+            src={fullImageSrc} 
+            alt={card.fullName}
+            className="w-full h-full object-cover block absolute inset-0"
+            loading={loadingAttr}
+            decoding="async"
+            onLoad={() => setFullImageLoaded(true)}
+            onError={() => setImageError(true)}
+            style={{ 
+              pointerEvents: 'none',
+              opacity: fullImageLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out'
+            }}
+          />
+        )}
+        
+        {/* Error fallback */}
+        {imageError && (
           <div className="absolute inset-0">
             <CardFallback
               name={card.name}
@@ -92,29 +124,6 @@ const CardImage: React.FC<CardImageProps> = ({
               className="w-full h-full"
             />
           </div>
-        ) : !imageLoaded && (
-          <div 
-            className="absolute inset-0 w-full h-full bg-cover bg-center"
-            style={{
-              backgroundImage: 'url(/imgs/cardback.svg)'
-            }}
-          />
-        )}
-        
-        {/* Card image */}
-        {!imageError && (
-          <img 
-            src={imageSrc} 
-            alt={card.fullName}
-            className="w-full h-full object-cover block"
-            loading={loadingAttr}
-            decoding="async"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-            style={{ 
-              pointerEvents: 'none'
-            }}
-          />
         )}
         
         {/* Light overlay effect (only if hover effects enabled) */}
