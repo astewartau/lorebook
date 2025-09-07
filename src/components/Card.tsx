@@ -31,7 +31,7 @@ const Card: React.FC<CardProps> = ({
   const quantities = getCardQuantity(card.id);
   
   // Get deck quantity for this card
-  const deckQuantity = currentDeck?.cards.find(c => c.id === card.id)?.quantity || 0;
+  const deckQuantity = currentDeck?.cards.find(c => c.cardId === card.id)?.quantity || 0;
   
   const handleAddToDeck = () => {
     if (currentDeck) {

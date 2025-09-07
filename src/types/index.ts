@@ -42,7 +42,8 @@ export interface CollectionCardEntry {
   quantityFoil: number; // Foil quantity
 }
 
-export interface DeckCard extends LorcanaCard {
+export interface DeckCardEntry {
+  cardId: number;
   quantity: number;
 }
 
@@ -50,7 +51,7 @@ export interface Deck {
   id: string;
   name: string;
   description?: string;
-  cards: DeckCard[];
+  cards: DeckCardEntry[];
   createdAt: Date;
   updatedAt: Date;
   isPublic?: boolean;

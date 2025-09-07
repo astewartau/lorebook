@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
-import { Deck } from '../../types';
+import { Deck, LorcanaCard } from '../../types';
 import { COLOR_ICONS } from '../../constants/icons';
 import { DECK_RULES } from '../../constants';
+import { allCards } from '../../data/allCards';
 
 interface DeckCardListProps {
   deck: Deck;
@@ -20,10 +21,20 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
   const [groupBy, setGroupBy] = useState<'cost' | 'type' | 'color'>('cost');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
+  const totalCards = deck.cards.reduce((sum, entry) => sum + entry.quantity, 0);
+
+  // Look up card data and combine with quantities
+  type CardWithQuantity = LorcanaCard & { quantity: number };
+  const cardsWithData: CardWithQuantity[] = deck.cards
+    .map(entry => {
+      const card = allCards.find(c => c.id === entry.cardId);
+      if (!card) return null;
+      return { ...card, quantity: entry.quantity };
+    })
+    .filter(card => card !== null) as CardWithQuantity[];
 
   // Group cards
-  const groupedCards = deck.cards.reduce((acc, card) => {
+  const groupedCards = cardsWithData.reduce((acc, card) => {
     let groupKey: string;
     switch (groupBy) {
       case 'cost':
@@ -42,7 +53,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(card);
     return acc;
-  }, {} as Record<string, typeof deck.cards>);
+  }, {} as Record<string, CardWithQuantity[]>);
 
   // Sort groups
   const sortedGroups = Object.entries(groupedCards).sort(([a], [b]) => {

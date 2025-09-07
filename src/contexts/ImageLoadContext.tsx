@@ -12,6 +12,7 @@ interface ImageLoadContextType {
   ) => void;
   updatePriority: (url: string, isInViewport: boolean) => void;
   cancelLoad: (url: string) => void;
+  cancelCallback: (url: string, cardId: string) => void;
   clearStaleRequests: () => void;
   isLoaded: (url: string) => boolean;
   isLoading: (url: string) => boolean;
@@ -45,6 +46,9 @@ export const ImageLoadProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     },
     cancelLoad: (url) => {
       managerRef.current.cancelLoad(url);
+    },
+    cancelCallback: (url, cardId) => {
+      managerRef.current.cancelCallback(url, cardId);
     },
     clearStaleRequests: () => {
       managerRef.current.clearStaleRequests();

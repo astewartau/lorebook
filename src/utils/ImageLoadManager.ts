@@ -12,6 +12,12 @@ interface LoadRequest {
   retryCount: number;
   isInViewport: boolean;
   hasFailed?: boolean;
+  // New: Store multiple callbacks for the same URL
+  callbacks: Array<{
+    onLoad: (url: string) => void;
+    onError: (url: string) => void;
+    cardId: string;
+  }>;
 }
 
 interface LoadState {
@@ -91,36 +97,62 @@ class ImageLoadManager {
       return;
     }
 
-    // Calculate priority
+    // Check if this URL is already registered
+    const existingRequest = this.registeredImages.get(url);
+    
+    if (existingRequest) {
+      // Add callback to existing request instead of creating new one
+      existingRequest.callbacks.push({ onLoad, onError, cardId });
+      
+      // Update priority if this request has higher priority
+      const newPriority = this.calculatePriority(imageType, isInViewport, state?.hasFailed);
+      if (newPriority < existingRequest.priority) {
+        // Remove from old queue
+        this.removeFromQueue(existingRequest);
+        
+        // Update priority and viewport status
+        existingRequest.priority = newPriority;
+        existingRequest.isInViewport = existingRequest.isInViewport || isInViewport;
+        
+        // Add back to queue with new priority
+        this.addToQueue(existingRequest);
+        
+        if (this.debug) {
+          console.log(`[ImageLoadManager] Updated priority for ${url.split('/').pop()} from ${existingRequest.priority} to ${newPriority}, ${existingRequest.callbacks.length} total callbacks`);
+        }
+      } else {
+        if (this.debug) {
+          console.log(`[ImageLoadManager] Added callback to existing request for ${url.split('/').pop()}, ${existingRequest.callbacks.length} total callbacks`);
+        }
+      }
+      
+      // Process queue in case priority changed
+      this.processQueue();
+      return;
+    }
+
+    // Calculate priority for new request
     const priority = this.calculatePriority(imageType, isInViewport, state?.hasFailed);
 
     if (this.debug) {
-      console.log(`[ImageLoadManager] Priority ${priority} for ${url.split('/').pop()}`);
+      console.log(`[ImageLoadManager] New request with priority ${priority} for ${url.split('/').pop()}`);
     }
 
-    // Create or update request
+    // Create new request with callbacks array
     const request: LoadRequest = {
       url,
       priority,
       imageType,
       cardId,
-      onLoad,
-      onError,
+      onLoad, // Keep original for compatibility
+      onError, // Keep original for compatibility
       retryCount: state?.retryCount || 0,
       isInViewport,
-      hasFailed: state?.hasFailed
+      hasFailed: state?.hasFailed,
+      callbacks: [{ onLoad, onError, cardId }]
     };
 
-    // Remove from old priority queue if exists
-    const existingRequest = this.registeredImages.get(url);
-    if (existingRequest) {
-      this.removeFromQueue(existingRequest);
-      if (this.debug) {
-        console.log(`[ImageLoadManager] Updated existing request for ${url.split('/').pop()}`);
-      }
-    }
-
-    // Add to new priority queue
+    // Add to registry and queue
     this.registeredImages.set(url, request);
     this.addToQueue(request);
 
@@ -174,6 +206,21 @@ class ImageLoadManager {
       
       // Process next item in queue since we freed up a slot
       this.processQueue();
+    }
+  }
+
+  // New method to cancel a specific callback instead of the whole URL
+  cancelCallback(url: string, cardId: string): void {
+    const request = this.registeredImages.get(url);
+    if (request && request.callbacks.length > 1) {
+      // Remove only this callback, keep others
+      request.callbacks = request.callbacks.filter(cb => cb.cardId !== cardId);
+      if (this.debug) {
+        console.log(`[ImageLoadManager] Removed callback for ${cardId}, ${request.callbacks.length} callbacks remaining for ${url.split('/').pop()}`);
+      }
+    } else if (request && request.callbacks.length === 1) {
+      // This was the last callback, cancel the whole request
+      this.cancelLoad(url);
     }
   }
 
@@ -251,7 +298,7 @@ class ImageLoadManager {
 
     img.onload = () => {
       if (this.debug) {
-        console.log(`[ImageLoadManager] ✅ Loaded: ${request.url.split('/').pop()}`);
+        console.log(`[ImageLoadManager] ✅ Loaded: ${request.url.split('/').pop()}, calling ${request.callbacks.length} callbacks`);
       }
 
       // Update state
@@ -266,8 +313,10 @@ class ImageLoadManager {
       this.activeLoads.delete(request.url);
       this.registeredImages.delete(request.url);
 
-      // Callback
-      request.onLoad(request.url);
+      // Call all registered callbacks
+      request.callbacks.forEach(callback => {
+        callback.onLoad(request.url);
+      });
 
       // Process next
       this.processQueue();
@@ -315,7 +364,11 @@ class ImageLoadManager {
       } else {
         // Max retries exceeded
         this.registeredImages.delete(request.url);
-        request.onError(request.url);
+        
+        // Call all registered error callbacks
+        request.callbacks.forEach(callback => {
+          callback.onError(request.url);
+        });
 
         // If thumbnail failed completely, prioritize full image
         if (request.imageType === 'regular-thumbnail' && request.isInViewport) {

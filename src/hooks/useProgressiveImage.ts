@@ -54,14 +54,21 @@ export const useProgressiveImage = ({
 
     setIsLoading(true);
 
+    // Check if thumbnail and full URLs are the same (thumbnail-only mode)
+    const isThumbnailOnly = thumbnail === full;
+
     // Check if already in cache first
     const thumbnailFromCache = imageLoad.getLoadedImageUrl(thumbnail);
-    const fullFromCache = imageLoad.getLoadedImageUrl(full);
+    const fullFromCache = isThumbnailOnly ? thumbnailFromCache : imageLoad.getLoadedImageUrl(full);
     
     if (thumbnailFromCache) {
       setThumbnailSrc(thumbnailFromCache);
+      if (isThumbnailOnly) {
+        setFullSrc(thumbnailFromCache); // Same image serves as both
+        setIsLoading(false);
+      }
     }
-    if (fullFromCache) {
+    if (!isThumbnailOnly && fullFromCache) {
       setFullSrc(fullFromCache);
       setIsLoading(false);
     }
@@ -69,8 +76,12 @@ export const useProgressiveImage = ({
     // Also check ImageLoadManager
     if (imageLoad.isLoaded(thumbnail)) {
       setThumbnailSrc(thumbnail);
+      if (isThumbnailOnly) {
+        setFullSrc(thumbnail); // Same image serves as both
+        setIsLoading(false);
+      }
     }
-    if (imageLoad.isLoaded(full)) {
+    if (!isThumbnailOnly && imageLoad.isLoaded(full)) {
       setFullSrc(full);
       setIsLoading(false);
     }
@@ -86,50 +97,63 @@ export const useProgressiveImage = ({
         imageLoad.setImageLoaded(url);
         if (mountedRef.current) {
           setThumbnailSrc(url);
+          if (isThumbnailOnly) {
+            // In thumbnail-only mode, this serves as both thumbnail and full
+            setFullSrc(url);
+            setIsLoading(false);
+          }
         }
       },
       () => {
-        // Thumbnail failed - full image will be prioritized automatically
+        // Thumbnail failed - full image will be prioritized automatically (unless it's thumbnail-only mode)
         if (mountedRef.current) {
-          setIsLoading(false);
+          if (isThumbnailOnly) {
+            setIsLoading(false); // No fallback in thumbnail-only mode
+          }
         }
       }
     );
 
-    // Register full image
-    imageLoad.registerImage(
-      full,
-      fullType,
-      cardId,
-      isInViewport,
-      (url) => {
-        // Update both local state AND global cache when image loads
-        imageLoad.setImageLoaded(url);
-        if (mountedRef.current) {
-          setFullSrc(url);
-          setIsLoading(false);
+    // Only register full image if it's different from thumbnail
+    if (!isThumbnailOnly) {
+      imageLoad.registerImage(
+        full,
+        fullType,
+        cardId,
+        isInViewport,
+        (url) => {
+          // Update both local state AND global cache when image loads
+          imageLoad.setImageLoaded(url);
+          if (mountedRef.current) {
+            setFullSrc(url);
+            setIsLoading(false);
+          }
+        },
+        () => {
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
         }
-      },
-      () => {
-        if (mountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    );
+      );
+    }
 
-    // Cleanup
+    // Cleanup - use more granular cancelCallback to only remove this specific component's callbacks
     return () => {
-      imageLoadRef.current.cancelLoad(thumbnail);
-      imageLoadRef.current.cancelLoad(full);
+      imageLoadRef.current.cancelCallback(thumbnail, cardId);
+      if (!isThumbnailOnly) {
+        imageLoadRef.current.cancelCallback(full, cardId);
+      }
     };
   }, [thumbnail, full, cardId, isInViewport, thumbnailType, fullType]);
 
   // Update priorities when viewport changes
   useEffect(() => {
+    const isThumbnailOnly = thumbnail === full;
+    
     if (thumbnail) {
       imageLoadRef.current.updatePriority(thumbnail, isInViewport);
     }
-    if (full) {
+    if (full && !isThumbnailOnly) {
       imageLoadRef.current.updatePriority(full, isInViewport);
     }
   }, [isInViewport, thumbnail, full]);

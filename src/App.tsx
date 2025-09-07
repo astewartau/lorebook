@@ -9,6 +9,7 @@ import DeckSummary from './components/DeckSummary';
 import UsersComponent from './components/Users';
 import UserProfileComponent from './components/UserProfile';
 import LoginModal from './components/LoginModal';
+import ResetPassword from './components/ResetPassword';
 import { CollectionProvider } from './contexts/CollectionContext';
 import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -214,6 +215,7 @@ function AppContent() {
                   <Route path="/decks/:deckId" element={<DeckSummary onBack={() => navigate('/decks')} onEditDeck={() => {}} />} />
                   <Route path="/community" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/community/${userId}`)} />} />
                   <Route path="/community/:userId" element={<UserProfileComponent onBack={() => navigate('/community')} />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                 </Routes>
             </main>
           </div>

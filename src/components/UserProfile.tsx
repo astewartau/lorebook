@@ -9,6 +9,7 @@ import { COLOR_ICONS } from '../constants/icons';
 import ProfileEditModal from './ProfileEditModal';
 import { DECK_RULES } from '../constants';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
+import { allCards } from '../data/allCards';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -231,12 +232,15 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
             {userDecks.map(deck => {
               const cardCount = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
               const inkColors = Object.entries(
-                deck.cards.reduce((acc, card) => {
-                  // Split dual-ink colors
-                  const colors = card.color.includes('-') ? card.color.split('-') : [card.color];
-                  colors.forEach(color => {
-                    acc[color] = (acc[color] || 0) + card.quantity;
-                  });
+                deck.cards.reduce((acc, entry) => {
+                  const card = allCards.find(c => c.id === entry.cardId);
+                  if (card) {
+                    // Split dual-ink colors
+                    const colors = card.color.includes('-') ? card.color.split('-') : [card.color];
+                    colors.forEach(color => {
+                      acc[color] = (acc[color] || 0) + entry.quantity;
+                    });
+                  }
                   return acc;
                 }, {} as Record<string, number>)
               ).filter(([, count]) => count > 0).sort(([, a], [, b]) => b - a);

@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Deck, LorcanaCard, DeckSummary, DeckCard } from '../types';
+import { Deck, LorcanaCard, DeckSummary, DeckCardEntry } from '../types';
 import { validateDeck as validateDeckUtil } from '../utils/deckValidation';
 import { supabase, UserDeck, TABLES } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { DECK_RULES } from '../constants';
+import { allCards } from '../data/allCards';
 
 interface DeckContextType {
   decks: Deck[];
@@ -77,7 +78,10 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
           id: d.id,
           name: d.name,
           description: d.description,
-          cards: d.cards as DeckCard[],
+          cards: (d.cards as any[]).map(c => ({
+            cardId: c.id || c.cardId,
+            quantity: c.quantity
+          })),
           createdAt: new Date(d.created_at),
           updatedAt: new Date(d.updated_at),
           isPublic: d.is_public,
@@ -118,7 +122,10 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
           id: d.id,
           name: d.name,
           description: d.description,
-          cards: d.cards as DeckCard[],
+          cards: (d.cards as any[]).map(c => ({
+            cardId: c.id || c.cardId,
+            quantity: c.quantity
+          })),
           createdAt: new Date(d.created_at),
           updatedAt: new Date(d.updated_at),
           isPublic: d.is_public,
@@ -177,7 +184,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
   const createDeckAndStartEditing = async (name: string, description?: string, initialCard?: LorcanaCard): Promise<Deck> => {
     if (!user) throw new Error('Authentication required');
     
-    const initialCards = initialCard ? [{ ...initialCard, quantity: 1 }] : [];
+    const initialCards: DeckCardEntry[] = initialCard ? [{ cardId: initialCard.id, quantity: 1 }] : [];
     
     const newDeck: Deck = {
       id: uuidv4(),
@@ -328,16 +335,16 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const targetDeck = deckId ? decks.find(d => d.id === deckId) : currentDeck;
     if (!targetDeck) return false;
 
-    const existingCard = targetDeck.cards.find(c => c.id === card.id);
+    const existingEntry = targetDeck.cards.find(c => c.cardId === card.id);
     
     // Get the max copies allowed for this card
     const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
     
-    if (existingCard) {
-      if (existingCard.quantity >= maxCopies) return false;
-      existingCard.quantity++;
+    if (existingEntry) {
+      if (existingEntry.quantity >= maxCopies) return false;
+      existingEntry.quantity++;
     } else {
-      targetDeck.cards.push({ ...card, quantity: 1 });
+      targetDeck.cards.push({ cardId: card.id, quantity: 1 });
     }
 
     targetDeck.updatedAt = new Date();
@@ -349,7 +356,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const targetDeck = deckId ? decks.find(d => d.id === deckId) : currentDeck;
     if (!targetDeck) return;
 
-    targetDeck.cards = targetDeck.cards.filter(c => c.id !== cardId);
+    targetDeck.cards = targetDeck.cards.filter(c => c.cardId !== cardId);
     targetDeck.updatedAt = new Date();
     updateDeck(targetDeck);
   };
@@ -358,16 +365,17 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const targetDeck = deckId ? decks.find(d => d.id === deckId) : currentDeck;
     if (!targetDeck) return;
 
-    const card = targetDeck.cards.find(c => c.id === cardId);
-    if (!card) return;
+    const entry = targetDeck.cards.find(c => c.cardId === cardId);
+    if (!entry) return;
 
-    // Get the max copies allowed for this card
-    const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+    // Look up the card to check for special rules
+    const card = allCards.find(c => c.id === cardId);
+    const maxCopies = (card?.name === 'Dalmatian Puppy' && card?.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
     
     if (quantity <= 0) {
       removeCardFromDeck(cardId, deckId);
     } else if (quantity <= maxCopies) {
-      card.quantity = quantity;
+      entry.quantity = quantity;
       targetDeck.updatedAt = new Date();
       updateDeck(targetDeck);
     }
@@ -378,14 +386,17 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     if (!deck) return null;
 
     const inkDistribution: Record<string, number> = {};
-    deck.cards.forEach(card => {
+    deck.cards.forEach(entry => {
+      const card = allCards.find(c => c.id === entry.cardId);
+      if (!card) return;
+      
       // Split dual-ink colors (e.g., "Amber-Amethyst" -> ["Amber", "Amethyst"])
       const colors = card.color.includes('-') ? card.color.split('-') : [card.color];
       colors.forEach(color => {
         if (!inkDistribution[color]) {
           inkDistribution[color] = 0;
         }
-        inkDistribution[color] += card.quantity;
+        inkDistribution[color] += entry.quantity;
       });
     });
 
@@ -395,7 +406,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
       id: deck.id,
       name: deck.name,
       description: deck.description,
-      cardCount: deck.cards.reduce((sum, card) => sum + card.quantity, 0),
+      cardCount: deck.cards.reduce((sum, entry) => sum + entry.quantity, 0),
       inkDistribution,
       isValid: validation.isValid,
       createdAt: deck.createdAt,
@@ -418,11 +429,14 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const deckData = {
       name: deck.name,
       description: deck.description,
-      cards: deck.cards.map(card => ({
-        id: card.id,
-        name: card.name,
-        quantity: card.quantity
-      }))
+      cards: deck.cards.map(entry => {
+        const card = allCards.find(c => c.id === entry.cardId);
+        return {
+          id: entry.cardId,
+          name: card?.fullName || 'Unknown Card',
+          quantity: entry.quantity
+        };
+      })
     };
 
     return JSON.stringify(deckData, null, 2);

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Deck } from '../../types';
+import { Deck, LorcanaCard } from '../../types';
 import { useCollection } from '../../contexts/CollectionContext';
 import PieChart from '../shared/PieChart';
+import { allCards } from '../../data/allCards';
 
 interface DeckStatisticsProps {
   deck: Deck;
@@ -18,66 +19,78 @@ const DeckStatistics: React.FC<DeckStatisticsProps> = ({
 
 
   // Calculate statistics
-  const inkDistribution = deck.cards.reduce((acc, card) => {
-    const color = card.color || 'None';
-    acc[color] = (acc[color] || 0) + card.quantity;
+  const inkDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const color = card?.color || 'None';
+    acc[color] = (acc[color] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 
-  const costDistribution = deck.cards.reduce((acc, card) => {
-    acc[card.cost] = (acc[card.cost] || 0) + card.quantity;
+  const costDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    if (card) {
+      acc[card.cost] = (acc[card.cost] || 0) + entry.quantity;
+    }
     return acc;
   }, {} as Record<number, number>);
 
   // Calculate color distribution by cost
-  const costColorDistribution = deck.cards.reduce((acc, card) => {
-    const cost = card.cost;
-    const color = card.color || 'None';
-    
-    if (!acc[cost]) acc[cost] = {};
-    acc[cost][color] = (acc[cost][color] || 0) + card.quantity;
+  const costColorDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    if (card) {
+      const cost = card.cost;
+      const color = card.color || 'None';
+      
+      if (!acc[cost]) acc[cost] = {};
+      acc[cost][color] = (acc[cost][color] || 0) + entry.quantity;
+    }
     return acc;
   }, {} as Record<number, Record<string, number>>);
 
 
   // Additional statistics for pie charts
-  const inkableDistribution = deck.cards.reduce((acc, card) => {
-    const key = card.inkwell ? 'Inkable' : 'Uninkable';
-    acc[key] = (acc[key] || 0) + card.quantity;
+  const inkableDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const key = card?.inkwell ? 'Inkable' : 'Uninkable';
+    acc[key] = (acc[key] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 
-  const typeDistribution = deck.cards.reduce((acc, card) => {
-    const type = card.type || 'Unknown';
-    acc[type] = (acc[type] || 0) + card.quantity;
+  const typeDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const type = card?.type || 'Unknown';
+    acc[type] = (acc[type] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 
-  const storyDistribution = deck.cards.reduce((acc, card) => {
-    const story = card.story || 'Unknown';
-    acc[story] = (acc[story] || 0) + card.quantity;
+  const storyDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const story = card?.story || 'Unknown';
+    acc[story] = (acc[story] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 
-  const setDistribution = deck.cards.reduce((acc, card) => {
-    const setCode = card.setCode || 'Unknown';
-    acc[setCode] = (acc[setCode] || 0) + card.quantity;
+  const setDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const setCode = card?.setCode || 'Unknown';
+    acc[setCode] = (acc[setCode] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 
-  const rarityDistribution = deck.cards.reduce((acc, card) => {
-    const rarity = card.rarity || 'Unknown';
-    acc[rarity] = (acc[rarity] || 0) + card.quantity;
+  const rarityDistribution = deck.cards.reduce((acc, entry) => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const rarity = card?.rarity || 'Unknown';
+    acc[rarity] = (acc[rarity] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 
-  const collectionDistribution = deck.cards.reduce((acc, card) => {
+  const collectionDistribution = deck.cards.reduce((acc, entry) => {
     // Check if card is in collection
-    const quantities = getCardQuantity(card.id);
+    const quantities = getCardQuantity(entry.cardId);
     const totalInCollection = quantities.total;
     
     const key = totalInCollection > 0 ? 'In Collection' : 'Not in Collection';
-    acc[key] = (acc[key] || 0) + card.quantity;
+    acc[key] = (acc[key] || 0) + entry.quantity;
     return acc;
   }, {} as Record<string, number>);
 

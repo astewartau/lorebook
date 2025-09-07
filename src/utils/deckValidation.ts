@@ -1,5 +1,6 @@
 import { Deck } from '../types';
 import { DECK_RULES } from '../constants';
+import { allCards } from '../data/allCards';
 
 export interface DeckValidationResult {
   isValid: boolean;
@@ -19,22 +20,28 @@ export const validateDeck = (deck: Deck): DeckValidationResult => {
   }
   
   // Rule 2: No more than maximum copies of any card (with special exceptions)
-  const overLimitCards = deck.cards.filter(card => {
+  const overLimitCards = deck.cards.filter(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    if (!card) return false;
+    
     // Special case: Dalmatian Puppy - Tail Wagger can have up to 99 copies
     if (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') {
-      return card.quantity > 99;
+      return entry.quantity > 99;
     }
     // Standard 4-copy limit for all other cards
-    return card.quantity > DECK_RULES.MAX_COPIES_PER_CARD;
+    return entry.quantity > DECK_RULES.MAX_COPIES_PER_CARD;
   });
   
   if (overLimitCards.length > 0) {
-    overLimitCards.forEach(card => {
+    overLimitCards.forEach(entry => {
+      const card = allCards.find(c => c.id === entry.cardId);
+      if (!card) return;
+      
       // Special error message for Dalmatian Puppy
       if (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') {
-        errors.push(`"${card.name} - ${card.version}" exceeds 99-copy limit (${card.quantity} copies)`);
+        errors.push(`"${card.name} - ${card.version}" exceeds 99-copy limit (${entry.quantity} copies)`);
       } else {
-        errors.push(`"${card.name}" exceeds ${DECK_RULES.MAX_COPIES_PER_CARD}-copy limit (${card.quantity} copies)`);
+        errors.push(`"${card.name}" exceeds ${DECK_RULES.MAX_COPIES_PER_CARD}-copy limit (${entry.quantity} copies)`);
       }
     });
   }
@@ -46,7 +53,10 @@ export const validateDeck = (deck: Deck): DeckValidationResult => {
   }
   
   // Rule 4: Check ink color restrictions (max 2 colors in competitive play)
-  const allColors = deck.cards.map(card => card.color).filter(color => color !== '');
+  const allColors = deck.cards.map(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    return card?.color || '';
+  }).filter(color => color !== '');
   const baseColors = new Set<string>();
   
   // Extract base colors from both single and dual-ink cards
@@ -80,8 +90,11 @@ export const validateDeck = (deck: Deck): DeckValidationResult => {
   }
   
   // Rule 5: Check for sufficient inkwell cards (recommended: at least 12-15)
-  const inkwellCards = deck.cards.filter(card => card.inkwell);
-  const inkwellCount = inkwellCards.reduce((sum, card) => sum + card.quantity, 0);
+  const inkwellCards = deck.cards.filter(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    return card?.inkwell;
+  });
+  const inkwellCount = inkwellCards.reduce((sum, entry) => sum + entry.quantity, 0);
   if (inkwellCount < 12) {
     warnings.push(`Only ${inkwellCount} inkwell cards. Consider adding more (recommended: 12-15).`);
   } else if (inkwellCount > 20) {
@@ -100,38 +113,54 @@ export const getDeckStatistics = (deck: Deck) => {
   
   // Cost distribution
   const costDistribution: Record<number, number> = {};
-  deck.cards.forEach(card => {
-    costDistribution[card.cost] = (costDistribution[card.cost] || 0) + card.quantity;
+  deck.cards.forEach(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    if (card) {
+      costDistribution[card.cost] = (costDistribution[card.cost] || 0) + entry.quantity;
+    }
   });
   
   // Ink color distribution
   const inkDistribution: Record<string, number> = {};
-  deck.cards.forEach(card => {
-    const color = card.color || 'None';
-    inkDistribution[color] = (inkDistribution[color] || 0) + card.quantity;
+  deck.cards.forEach(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    const color = card?.color || 'None';
+    inkDistribution[color] = (inkDistribution[color] || 0) + entry.quantity;
   });
   
   // Type distribution
   const typeDistribution: Record<string, number> = {};
-  deck.cards.forEach(card => {
-    typeDistribution[card.type] = (typeDistribution[card.type] || 0) + card.quantity;
+  deck.cards.forEach(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    if (card) {
+      typeDistribution[card.type] = (typeDistribution[card.type] || 0) + entry.quantity;
+    }
   });
   
   // Rarity distribution
   const rarityDistribution: Record<string, number> = {};
-  deck.cards.forEach(card => {
-    rarityDistribution[card.rarity] = (rarityDistribution[card.rarity] || 0) + card.quantity;
+  deck.cards.forEach(entry => {
+    const card = allCards.find(c => c.id === entry.cardId);
+    if (card) {
+      rarityDistribution[card.rarity] = (rarityDistribution[card.rarity] || 0) + entry.quantity;
+    }
   });
   
   // Average cost
   const averageCost = totalCards > 0 
-    ? deck.cards.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards
+    ? deck.cards.reduce((sum, entry) => {
+        const card = allCards.find(c => c.id === entry.cardId);
+        return sum + ((card?.cost || 0) * entry.quantity);
+      }, 0) / totalCards
     : 0;
   
   // Inkwell count
   const inkwellCount = deck.cards
-    .filter(card => card.inkwell)
-    .reduce((sum, card) => sum + card.quantity, 0);
+    .filter(entry => {
+      const card = allCards.find(c => c.id === entry.cardId);
+      return card?.inkwell;
+    })
+    .reduce((sum, entry) => sum + entry.quantity, 0);
   
   // Cost curve (0-7+ costs)
   const costCurve = Array.from({ length: 8 }, (_, i) => ({
@@ -165,35 +194,40 @@ export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck) => {
     newQuantity?: number;
   }> = [];
   
-  const oldCardMap = new Map(oldDeck.cards.map(card => [card.id, card]));
-  const newCardMap = new Map(newDeck.cards.map(card => [card.id, card]));
+  const oldCardMap = new Map(oldDeck.cards.map(entry => [entry.cardId, entry]));
+  const newCardMap = new Map(newDeck.cards.map(entry => [entry.cardId, entry]));
   
   // Check for added and modified cards
-  newDeck.cards.forEach(newCard => {
-    const oldCard = oldCardMap.get(newCard.id);
-    if (!oldCard) {
+  newDeck.cards.forEach(newEntry => {
+    const oldEntry = oldCardMap.get(newEntry.cardId);
+    const card = allCards.find(c => c.id === newEntry.cardId);
+    const cardName = card?.fullName || 'Unknown Card';
+    
+    if (!oldEntry) {
       changes.push({
         type: 'added',
-        cardName: newCard.name,
-        newQuantity: newCard.quantity
+        cardName,
+        newQuantity: newEntry.quantity
       });
-    } else if (oldCard.quantity !== newCard.quantity) {
+    } else if (oldEntry.quantity !== newEntry.quantity) {
       changes.push({
         type: 'modified',
-        cardName: newCard.name,
-        oldQuantity: oldCard.quantity,
-        newQuantity: newCard.quantity
+        cardName,
+        oldQuantity: oldEntry.quantity,
+        newQuantity: newEntry.quantity
       });
     }
   });
   
   // Check for removed cards
-  oldDeck.cards.forEach(oldCard => {
-    if (!newCardMap.has(oldCard.id)) {
+  oldDeck.cards.forEach(oldEntry => {
+    if (!newCardMap.has(oldEntry.cardId)) {
+      const card = allCards.find(c => c.id === oldEntry.cardId);
+      const cardName = card?.fullName || 'Unknown Card';
       changes.push({
         type: 'removed',
-        cardName: oldCard.name,
-        oldQuantity: oldCard.quantity
+        cardName,
+        oldQuantity: oldEntry.quantity
       });
     }
   });
@@ -204,8 +238,8 @@ export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck) => {
 export const generateDeckHash = (deck: Deck): string => {
   // Create a consistent hash of the deck for comparison
   const sortedCards = [...deck.cards]
-    .sort((a, b) => a.id - b.id)
-    .map(card => `${card.id}:${card.quantity}`)
+    .sort((a, b) => a.cardId - b.cardId)
+    .map(entry => `${entry.cardId}:${entry.quantity}`)
     .join(',');
   
   // Simple hash function (not cryptographic, just for comparison)

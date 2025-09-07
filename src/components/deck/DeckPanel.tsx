@@ -4,6 +4,7 @@ import { Deck } from '../../types';
 import DeckStatistics from './DeckStatistics';
 import DeckCardList from './DeckCardList';
 import { DECK_RULES } from '../../constants';
+import { allCards } from '../../data/allCards';
 
 interface DeckPanelProps {
   deck: Deck;
@@ -111,7 +112,10 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
 
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   const averageCost = deck.cards.length > 0 
-    ? (deck.cards.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards).toFixed(1)
+    ? (deck.cards.reduce((sum, entry) => {
+        const card = allCards.find(c => c.id === entry.cardId);
+        return sum + ((card?.cost || 0) * entry.quantity);
+      }, 0) / totalCards).toFixed(1)
     : '0';
 
   const handleTooltipShow = (x: number, y: number, content: string) => {

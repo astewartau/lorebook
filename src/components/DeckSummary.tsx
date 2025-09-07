@@ -6,6 +6,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
 import { DECK_RULES } from '../constants';
+import CardImage from './CardImage';
+import { allCards } from '../data/allCards';
+import { LorcanaCard } from '../types';
 
 interface DeckSummaryProps {
   onBack: () => void;
@@ -84,25 +87,30 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     );
   }
 
-  const totalCards = currentDeck.cards.reduce((sum, card) => sum + card.quantity, 0);
-  const averageCost = currentDeck.cards.length > 0 
-    ? (currentDeck.cards.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards).toFixed(1)
+  // Look up actual card data and combine with quantities
+  const cardsWithData: (LorcanaCard & { quantity: number })[] = currentDeck.cards
+    .map(entry => {
+      const card = allCards.find(c => c.id === entry.cardId);
+      if (!card) {
+        console.error(`Card ${entry.cardId} not found in allCards`);
+        return null;
+      }
+      return { ...card, quantity: entry.quantity };
+    })
+    .filter(card => card !== null) as (LorcanaCard & { quantity: number })[];
+
+  const totalCards = cardsWithData.reduce((sum, card) => sum + card.quantity, 0);
+  const averageCost = cardsWithData.length > 0 
+    ? (cardsWithData.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards).toFixed(1)
     : '0';
 
-  // Group cards by unique card (combining all copies) and sort by cost
-  const uniqueCards = currentDeck.cards
-    .map(card => ({
-      ...card,
-      // We'll use the card data as is since it already has quantity
-    }))
-    .sort((a, b) => {
-      // Primary sort: by ink cost (ascending)
-      if (a.cost !== b.cost) {
-        return a.cost - b.cost;
-      }
-      // Secondary sort: by name (alphabetical) for cards with same cost
-      return a.name.localeCompare(b.name);
-    });
+  // Sort by cost
+  const uniqueCards = cardsWithData.sort((a, b) => {
+    if (a.cost !== b.cost) {
+      return a.cost - b.cost;
+    }
+    return a.name.localeCompare(b.name);
+  });
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -306,18 +314,23 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                       }}
                     >
                       {Array.from({ length: card.quantity }, (_, index) => (
-                        <img
+                        <div
                           key={index}
-                          src={card.images.full}
-                          alt={card.fullName}
-                          className="absolute top-0 left-0 w-full h-auto rounded-sm shadow-md border-2 border-lorcana-gold"
+                          className="absolute top-0 left-0 w-full h-full"
                           style={{
                             transform: `translateY(${index * -12}px)`, // Vertical-only offset, increased to 12px
                             zIndex: card.quantity - index,
-                            filter: index > 0 ? `brightness(${1 - (index * 0.1)})` : 'brightness(1)',
-                            maxWidth: 'none' // Prevent the image from being constrained
+                            filter: index > 0 ? `brightness(${1 - (index * 0.1)})` : 'brightness(1)'
                           }}
-                        />
+                        >
+                          <CardImage
+                            card={card}
+                            size="thumbnail"
+                            className="w-full h-full rounded-sm shadow-md border-2 border-lorcana-gold"
+                            priority="normal"
+                            rootMargin="200px"
+                          />
+                        </div>
                       ))}
                       
                       {/* Quantity badge at bottom-right */}
