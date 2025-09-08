@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, Search, Globe, Lock, Copy, Trash2, Edit, Eye, User, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Upload, Search, X, AlertCircle, CheckCircle, User, Globe } from 'lucide-react';
 import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { Deck } from '../types';
-import DeckBox3D from './DeckBox3D';
+import DeckCard from './DeckCard';
+import PublishedDeckCard from './PublishedDeckCard';
 import DeleteDeckModal from './DeleteDeckModal';
-import { DECK_RULES } from '../constants';
+import AvatarEditor from './AvatarEditor';
 
 interface MyDecksProps {
   onBuildDeck: (deckId?: string) => void;
@@ -21,18 +22,17 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
   const { 
     decks, 
     publicDecks, 
-    createDeck,
     createDeckAndStartEditing,
     deleteDeck, 
     duplicateDeck, 
     getDeckSummary, 
     exportDeck, 
     importDeck, 
-    setCurrentDeck,
     startEditingDeck,
     publishDeck,
     unpublishDeck,
-    loadPublicDecks
+    loadPublicDecks,
+    updateDeck
   } = useDeck();
   
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
@@ -46,6 +46,11 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
     deckName: '' 
   });
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [avatarEditor, setAvatarEditor] = useState<{ isOpen: boolean; deckId: string; currentAvatar?: { cardId: number; cropData: { x: number; y: number; scale: number } } }>({ 
+    isOpen: false, 
+    deckId: '',
+    currentAvatar: undefined
+  });
 
   // Show notification with auto-dismiss
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -113,7 +118,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
     try {
       // Create deck with default name and start editing immediately
       const defaultName = `New Deck ${decks.length + 1}`;
-      const newDeck = await createDeckAndStartEditing(defaultName);
+      await createDeckAndStartEditing(defaultName);
       navigate('/cards');
     } catch (error) {
       console.error('Error creating deck:', error);
@@ -222,6 +227,37 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
     }
   };
 
+  const handleEditAvatar = (deckId: string) => {
+    const deck = decks.find(d => d.id === deckId);
+    setAvatarEditor({ 
+      isOpen: true, 
+      deckId, 
+      currentAvatar: deck?.avatar 
+    });
+  };
+
+  const handleSaveAvatar = async (avatarData: { cardId: number; cropData: { x: number; y: number; scale: number } }) => {
+    try {
+      const deck = decks.find(d => d.id === avatarEditor.deckId);
+      if (deck) {
+        const updatedDeck = { 
+          ...deck, 
+          avatar: avatarData 
+        };
+        await updateDeck(updatedDeck);
+        showNotification('success', 'Deck avatar updated successfully!');
+      }
+      setAvatarEditor({ isOpen: false, deckId: '', currentAvatar: undefined });
+    } catch (error) {
+      console.error('Error updating deck avatar:', error);
+      showNotification('error', 'Failed to update deck avatar');
+    }
+  };
+
+  const handleCloseAvatarEditor = () => {
+    setAvatarEditor({ isOpen: false, deckId: '', currentAvatar: undefined });
+  };
+
   // If not signed in, show only Published Decks tab
   if (!user) {
     return (
@@ -294,57 +330,16 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
               <p className="text-lorcana-navy">No published decks found.</p>
             </div>
           ) : (
-            publicDecks.map(deck => {
-              const cardCount = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
-              return (
-                <div key={deck.id} className="card-lorcana p-6">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-bold text-lorcana-ink">{deck.name}</h3>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <p className="text-xs text-lorcana-navy">by</p>
-                      {deck.userId ? (
-                        <button
-                          onClick={() => handleViewProfile(deck.userId!)}
-                          className="flex items-center space-x-1 text-xs text-lorcana-gold hover:text-lorcana-navy hover:underline transition-colors"
-                        >
-                          <User size={12} />
-                          <span>{deckProfiles[deck.userId!] || deck.authorEmail || 'Unknown'}</span>
-                        </button>
-                      ) : (
-                        <span className="text-xs text-lorcana-navy">{deck.authorEmail || 'Unknown'}</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {deck.description && (
-                    <p className="text-sm text-lorcana-navy mb-3">{deck.description}</p>
-                  )}
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      cardCount === DECK_RULES.MAX_CARDS 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {cardCount}/{DECK_RULES.MAX_CARDS} cards
-                    </span>
-                    <span className="text-xs text-lorcana-navy">
-                      Updated {new Date(deck.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => onViewDeck(deck.id)}
-                      className="btn-lorcana-gold-sm flex-1 flex items-center justify-center gap-1"
-                    >
-                      <Eye size={14} />
-                      View Deck
-                    </button>
-                  </div>
-                </div>
-              );
-            })
+            publicDecks.map(deck => (
+              <PublishedDeckCard
+                key={deck.id}
+                deck={deck}
+                authorName={deckProfiles[deck.userId!] || deck.authorEmail || 'Unknown'}
+                onView={() => onViewDeck(deck.id)}
+                onViewProfile={handleViewProfile}
+                canDuplicate={false} // Not authenticated, can't duplicate
+              />
+            ))
           )}
           </div>
         </div>
@@ -381,52 +376,59 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
       )}
 
       
-      {/* Sub-tabs and Action Buttons */}
+      {/* Sub-tabs */}
       <div className="bg-lorcana-cream border-b border-lorcana-gold/20">
         <div className="container mx-auto px-2 sm:px-4">
-          <div className="flex justify-between items-center">
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setActiveTab('my')}
-                className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
-                  activeTab === 'my'
-                    ? 'border-lorcana-gold text-lorcana-navy font-medium'
-                    : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
-                }`}
-              >
-                <span>My Decks ({decks.length})</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('public')}
-                className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
-                  activeTab === 'public'
-                    ? 'border-lorcana-gold text-lorcana-navy font-medium'
-                    : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
-                }`}
-              >
-                <span>Published Decks</span>
-              </button>
-            </div>
-            
-            {activeTab === 'my' && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCreateDeck}
-                  className="btn-lorcana-gold-sm flex items-center space-x-2"
-                >
-                  <Plus size={16} />
-                  <span>Build New Deck</span>
-                </button>
-                
-                <button
-                  onClick={handleImportDeck}
-                  className="btn-lorcana-navy-outline-sm flex items-center space-x-2"
-                >
-                  <Upload size={16} />
-                  <span>Import</span>
-                </button>
-              </div>
-            )}
+          {/* Mobile: Full width equal buttons */}
+          <div className="grid grid-cols-2 gap-1 sm:hidden">
+            <button
+              onClick={() => setActiveTab('my')}
+              className={`flex items-center justify-center px-2 py-3 border-b-2 transition-colors ${
+                activeTab === 'my'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <User size={16} />
+              <span className="ml-2 truncate">My Decks ({decks.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('public')}
+              className={`flex items-center justify-center px-2 py-3 border-b-2 transition-colors ${
+                activeTab === 'public'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <Globe size={16} />
+              <span className="ml-2 truncate">Published Decks</span>
+            </button>
+          </div>
+
+          {/* Desktop: Left-aligned buttons */}
+          <div className="hidden sm:flex space-x-1">
+            <button
+              onClick={() => setActiveTab('my')}
+              className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
+                activeTab === 'my'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <User size={16} />
+              <span className="ml-2">My Decks ({decks.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('public')}
+              className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
+                activeTab === 'public'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <Globe size={16} />
+              <span className="ml-2">Published Decks</span>
+            </button>
           </div>
         </div>
       </div>
@@ -448,7 +450,36 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         </div>
       )}
 
-
+      {/* My Decks Header with Actions */}
+      {activeTab === 'my' && (
+        <div className="flex justify-between items-center pb-4 border-b border-lorcana-gold/20">
+          <div className="flex gap-6 text-sm text-lorcana-ink">
+            <div className="flex items-center gap-2">
+              <User size={16} />
+              <span>{decks.length} deck{decks.length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreateDeck}
+              className="btn-lorcana-gold-sm flex items-center space-x-2"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Build New Deck</span>
+              <span className="sm:hidden">Build</span>
+            </button>
+            
+            <button
+              onClick={handleImportDeck}
+              className="btn-lorcana-navy-outline-sm flex items-center space-x-2"
+            >
+              <Upload size={16} />
+              <span>Import</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Deck Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -469,47 +500,22 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
               if (!summary) return null;
               
               return (
-                <div key={deck.id} className="card-lorcana p-6 relative group">
-                  <DeckBox3D 
-                    deck={deck} 
-                    summary={summary}
-                    onView={() => onViewDeck(deck.id)}
-                    onEdit={() => {
-                      startEditingDeck(deck.id);
-                      navigate('/cards');
-                    }}
-                    onDuplicate={() => handleDuplicateDeck(deck.id)}
-                    onDelete={() => handleDeleteDeck(deck.id)}
-                    onExport={() => handleExportDeck(deck.id)}
-                    onPublish={() => handlePublishDeck(deck.id)}
-                    onUnpublish={() => handleUnpublishDeck(deck.id)}
-                  />
-                  
-                  <div className="mt-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="text-lg font-bold text-lorcana-ink">{deck.name}</h3>
-                        {deck.isPublic && (
-                          <span className="inline-flex items-center gap-1 text-xs text-green-600 mt-1">
-                            <Globe size={12} />
-                            Published
-                          </span>
-                        )}
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        summary?.isValid 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {summary?.cardCount || 0}/{DECK_RULES.MAX_CARDS}
-                      </span>
-                    </div>
-                    
-                    {deck.description && (
-                      <p className="text-sm text-lorcana-navy mb-3">{deck.description}</p>
-                    )}
-                  </div>
-                </div>
+                <DeckCard
+                  key={deck.id}
+                  deck={deck} 
+                  summary={summary}
+                  onView={() => onViewDeck(deck.id)}
+                  onEdit={() => {
+                    startEditingDeck(deck.id);
+                    navigate('/cards');
+                  }}
+                  onDuplicate={() => handleDuplicateDeck(deck.id)}
+                  onDelete={() => handleDeleteDeck(deck.id)}
+                  onExport={() => handleExportDeck(deck.id)}
+                  onPublish={() => handlePublishDeck(deck.id)}
+                  onUnpublish={() => handleUnpublishDeck(deck.id)}
+                  onEditAvatar={() => handleEditAvatar(deck.id)}
+                />
               );
             })
           )
@@ -519,67 +525,17 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
               <p className="text-lorcana-navy">No published decks found.</p>
             </div>
           ) : (
-            publicDecks.map(deck => {
-              const cardCount = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
-              return (
-                <div key={deck.id} className="card-lorcana p-6">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-bold text-lorcana-ink">{deck.name}</h3>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <p className="text-xs text-lorcana-navy">by</p>
-                      {deck.userId ? (
-                        <button
-                          onClick={() => handleViewProfile(deck.userId!)}
-                          className="flex items-center space-x-1 text-xs text-lorcana-gold hover:text-lorcana-navy hover:underline transition-colors"
-                        >
-                          <User size={12} />
-                          <span>{deckProfiles[deck.userId!] || deck.authorEmail || 'Unknown'}</span>
-                        </button>
-                      ) : (
-                        <span className="text-xs text-lorcana-navy">{deck.authorEmail || 'Unknown'}</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {deck.description && (
-                    <p className="text-sm text-lorcana-navy mb-3">{deck.description}</p>
-                  )}
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      cardCount === DECK_RULES.MAX_CARDS 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {cardCount}/{DECK_RULES.MAX_CARDS} cards
-                    </span>
-                    <span className="text-xs text-lorcana-navy">
-                      Updated {new Date(deck.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => onViewDeck(deck.id)}
-                      className="btn-lorcana-gold-sm flex-1 flex items-center justify-center gap-1"
-                    >
-                      <Eye size={14} />
-                      View Deck
-                    </button>
-                    
-                    {user && deck.userId !== user.id && (
-                      <button
-                        onClick={() => handleDuplicateDeck(deck.id)}
-                        className="btn-lorcana-navy-outline-sm flex items-center gap-1"
-                        title="Copy to My Decks"
-                      >
-                        <Copy size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })
+            publicDecks.map(deck => (
+              <PublishedDeckCard
+                key={deck.id}
+                deck={deck}
+                authorName={deckProfiles[deck.userId!] || deck.authorEmail || 'Unknown'}
+                onView={() => onViewDeck(deck.id)}
+                onDuplicate={() => handleDuplicateDeck(deck.id)}
+                onViewProfile={handleViewProfile}
+                canDuplicate={user && deck.userId !== user.id}
+              />
+            ))
           )
         )}
       </div>
@@ -592,8 +548,16 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         deckName={deleteModal.deckName}
         loading={deleteLoading}
       />
+      
+      {/* Avatar Editor Modal */}
+      <AvatarEditor
+        isOpen={avatarEditor.isOpen}
+        onClose={handleCloseAvatarEditor}
+        onSave={handleSaveAvatar}
+        currentAvatar={avatarEditor.currentAvatar}
+      />
+      </div>
     </div>
-  </div>
   );
 };
 

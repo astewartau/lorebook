@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Users, Crown, Loader2 } from 'lucide-react';
+import { Package, Book, Users, Crown, Loader2, Upload, Trash2, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCollection } from '../contexts/CollectionContext';
 import Collection from './Collection';
 import AuthRequired from './AuthRequired';
 import CollectionGroupModal from './CollectionGroupModal';
 import { groupService, CollectionGroup, GroupMember } from '../services/groupService';
+import DreambornImport from './DreambornImport';
+import { useModal } from '../hooks';
 
 const Collections: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'sets' | 'custom' | 'family'>('sets');
+  const { totalCards, uniqueCards, clearCollection } = useCollection();
+  const [activeTab, setActiveTab] = useState<'sets' | 'binders' | 'family'>('sets');
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupRefreshKey, setGroupRefreshKey] = useState(0);
+  const importModal = useModal();
+  const deleteConfirmModal = useModal();
   
+  const handleDeleteAll = async () => {
+    await clearCollection();
+    deleteConfirmModal.close();
+  };
 
   // Show auth required if not signed in
   if (!user) {
@@ -36,39 +46,77 @@ const Collections: React.FC = () => {
       {/* Sub-tabs for Collections */}
       <div className="bg-lorcana-cream border-b border-lorcana-gold/20">
         <div className="container mx-auto px-2 sm:px-4">
-          <div className="flex space-x-1">
+          {/* Mobile: Full width equal buttons */}
+          <div className="grid grid-cols-3 gap-1 sm:hidden">
             <button
               onClick={() => setActiveTab('sets')}
-              className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+              className={`flex items-center justify-center px-2 py-3 border-b-2 transition-colors ${
                 activeTab === 'sets'
                   ? 'border-lorcana-gold text-lorcana-navy font-medium'
                   : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
               }`}
             >
               <Package size={16} />
-              <span>Sets</span>
+              <span className="ml-2 truncate">Sets</span>
             </button>
             <button
-              onClick={() => setActiveTab('custom')}
-              className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
-                activeTab === 'custom'
+              onClick={() => setActiveTab('binders')}
+              className={`flex items-center justify-center px-2 py-3 border-b-2 transition-colors ${
+                activeTab === 'binders'
                   ? 'border-lorcana-gold text-lorcana-navy font-medium'
                   : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
               }`}
             >
-              <Plus size={16} />
-              <span>Custom</span>
+              <Book size={16} />
+              <span className="ml-2 truncate">Binders</span>
             </button>
             <button
               onClick={() => setActiveTab('family')}
-              className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+              className={`flex items-center justify-center px-2 py-3 border-b-2 transition-colors ${
                 activeTab === 'family'
                   ? 'border-lorcana-gold text-lorcana-navy font-medium'
                   : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
               }`}
             >
               <Users size={16} />
-              <span>Family</span>
+              <span className="ml-2 truncate">Family</span>
+            </button>
+          </div>
+
+          {/* Desktop: Left-aligned buttons */}
+          <div className="hidden sm:flex space-x-1">
+            <button
+              onClick={() => setActiveTab('sets')}
+              className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
+                activeTab === 'sets'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <Package size={16} />
+              <span className="ml-2">Sets</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('binders')}
+              className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
+                activeTab === 'binders'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <Book size={16} />
+              <span className="ml-2">Binders</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('family')}
+              className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
+                activeTab === 'family'
+                  ? 'border-lorcana-gold text-lorcana-navy font-medium'
+                  : 'border-transparent text-lorcana-purple hover:text-lorcana-navy'
+              }`}
+            >
+              <Users size={16} />
+              <span className="ml-2">Family</span>
             </button>
           </div>
         </div>
@@ -76,8 +124,15 @@ const Collections: React.FC = () => {
 
       {/* Tab Content */}
       <div className="container mx-auto px-2 sm:px-4 py-6 space-y-6">
-        {activeTab === 'sets' && <Collection />}
-        {activeTab === 'custom' && <CustomCollections />}
+        {activeTab === 'sets' && (
+          <Collection 
+            totalCards={totalCards}
+            uniqueCards={uniqueCards}
+            onImportClick={() => importModal.open()}
+            onDeleteAllClick={() => deleteConfirmModal.open()}
+          />
+        )}
+        {activeTab === 'binders' && <CustomCollections />}
         {activeTab === 'family' && <FamilyCollections key={groupRefreshKey} onManageGroup={() => setShowGroupModal(true)} />}
       </div>
 
@@ -87,6 +142,46 @@ const Collections: React.FC = () => {
         onClose={() => setShowGroupModal(false)}
         onGroupChanged={() => setGroupRefreshKey(prev => prev + 1)}
       />
+      
+      {/* Import Modal */}
+      {importModal.isOpen && (
+        <DreambornImport onClose={importModal.close} />
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white border-2 border-lorcana-gold rounded-sm p-6 max-w-md w-full mx-4 shadow-2xl art-deco-corner">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="bg-red-100 border border-red-300 p-3 rounded-sm">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-lorcana-ink">Delete All Cards</h3>
+                <p className="text-sm text-lorcana-navy">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-lorcana-ink mb-6">
+              Are you sure you want to delete all {totalCards} cards from your collection? 
+              This will permanently remove all cards and cannot be recovered.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={deleteConfirmModal.close}
+                className="btn-lorcana-outline"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                className="px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 transition-colors border-2 border-red-700"
+              >
+                Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -154,8 +249,6 @@ const FamilyCollections: React.FC<FamilyCollectionsProps> = ({ onManageGroup, on
     }
   };
 
-  const completionPercentage = groupStats.uniqueCards > 0 ? 
-    Math.round((groupStats.uniqueCards / 300) * 100) : 0; // Assuming ~300 total unique cards
 
   if (isLoading) {
     return (
@@ -221,7 +314,7 @@ const FamilyCollections: React.FC<FamilyCollectionsProps> = ({ onManageGroup, on
         </div>
         
         {/* Collection Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-3 gap-4 mt-6">
           <div className="bg-white/10 backdrop-blur rounded-sm p-3 text-center">
             <div className="text-2xl font-bold text-lorcana-gold">{groupStats.totalCards}</div>
             <div className="text-xs text-lorcana-cream">Total Cards</div>
@@ -229,10 +322,6 @@ const FamilyCollections: React.FC<FamilyCollectionsProps> = ({ onManageGroup, on
           <div className="bg-white/10 backdrop-blur rounded-sm p-3 text-center">
             <div className="text-2xl font-bold text-lorcana-gold">{groupStats.uniqueCards}</div>
             <div className="text-xs text-lorcana-cream">Unique Cards</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur rounded-sm p-3 text-center">
-            <div className="text-2xl font-bold text-lorcana-gold">{completionPercentage}%</div>
-            <div className="text-xs text-lorcana-cream">Completion</div>
           </div>
           <div className="bg-white/10 backdrop-blur rounded-sm p-3 text-center">
             <div className="text-2xl font-bold text-lorcana-gold">{groupMembers.length}</div>

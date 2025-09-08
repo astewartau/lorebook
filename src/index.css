@@ -89,6 +89,26 @@
     @apply active:scale-95;
   }
 
+  .btn-lorcana-gold-sm {
+    @apply px-3 py-1.5 bg-lorcana-gold text-lorcana-ink font-medium rounded-sm transition-all duration-200;
+    @apply hover:bg-opacity-90 hover:shadow-lg;
+    @apply active:scale-95;
+    @apply text-sm;
+  }
+
+  .btn-lorcana-navy-outline-sm {
+    @apply px-3 py-1.5 border-2 border-lorcana-navy text-lorcana-navy bg-transparent font-medium rounded-sm transition-all duration-200;
+    @apply hover:bg-lorcana-navy hover:text-white;
+    @apply text-sm;
+  }
+
+  .btn-lorcana-navy-sm {
+    @apply px-3 py-1.5 bg-lorcana-purple-light text-white font-medium rounded-sm transition-all duration-200;
+    @apply hover:bg-lorcana-purple hover:shadow-lg;
+    @apply active:scale-95;
+    @apply text-sm;
+  }
+
   .card-lorcana {
     @apply bg-white border-2 border-lorcana-gold rounded-sm shadow-md;
     @apply hover:shadow-xl hover:border-lorcana-navy;
@@ -144,6 +164,57 @@
     bottom: 0;
     width: 3px;
     background: var(--lorcana-gold);
+  }
+
+  /* Toggle Switch */
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 24px;
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  input:checked + .toggle-slider {
+    background-color: var(--lorcana-gold);
+  }
+
+  input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+  }
+
+  .toggle-slider:hover {
+    box-shadow: 0 0 0 2px rgba(211, 186, 132, 0.3);
   }
 }
 

@@ -133,6 +133,14 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     }
   };
 
+  const getCardImageUrl = (cardId: number) => {
+    // Find the actual card to get the image URL
+    const card = allCards.find(c => c.id === cardId);
+    if (!card) return '';
+    
+    return card.images.full;
+  };
+
   // Get ink colors for display (now includes individual colors from dual-ink cards)
   const inkColors = Object.entries(summary.inkDistribution)
     .filter(([, count]) => count > 0)
@@ -198,6 +206,29 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
 
           <div className="card-lorcana p-6 art-deco-corner">
             <div className="flex items-start justify-between">
+              {/* Avatar area */}
+              <div className="flex-shrink-0 mr-6">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-lorcana-gold shadow-lg">
+                  {currentDeck.avatar ? (
+                    <div
+                      className="w-full h-full"
+                      style={{
+                        backgroundImage: `url(${getCardImageUrl(currentDeck.avatar.cardId)})`,
+                        backgroundSize: `${100 * currentDeck.avatar.cropData.scale}%`,
+                        backgroundPosition: `${currentDeck.avatar.cropData.x}% ${currentDeck.avatar.cropData.y}%`,
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src="/imgs/lorebook-icon-profile.png"
+                      alt="Default Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+              </div>
+              
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-lorcana-ink mb-2">{currentDeck.name}</h1>
                 
@@ -223,12 +254,8 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">Cards:</span>
                     <span className={`font-semibold ${totalCards === DECK_RULES.MAX_CARDS ? 'text-green-600' : totalCards > DECK_RULES.MAX_CARDS ? 'text-red-600' : 'text-lorcana-navy'}`}>
-                      {totalCards}/{DECK_RULES.MAX_CARDS}
+                      {totalCards}
                     </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">Avg Cost:</span>
-                    <span className="font-semibold">{averageCost}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">Valid:</span>

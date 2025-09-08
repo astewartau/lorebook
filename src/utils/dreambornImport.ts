@@ -54,6 +54,11 @@ const parseCSVLine = (line: string, separator: string): string[] => {
   // Add the last field
   values.push(current.trim());
   
+  // Handle trailing commas - if line ends with separator, add empty field
+  if (line.endsWith(separator) && !inQuotes) {
+    values.push('');
+  }
+  
   return values;
 };
 
@@ -133,38 +138,50 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
     const line = lines[i].trim();
     if (!line) continue;
     
-    // Proper CSV parsing that handles quoted fields
-    const values = parseCSVLine(line, separator);
-    totalProcessed++;
-    
-    if (totalProcessed <= 5) {
-      console.log(`Row ${i + 1} values:`, values);
-    }
-    
-    // Build row object using header mapping
-    const row: any = {};
-    Object.entries(headerMap).forEach(([fieldName, columnIndex]) => {
-      row[fieldName] = values[columnIndex] || '';
-    });
-
-    // Parse quantities with better error handling
-    const normalQtyStr = (row.Normal || '0').toString().trim();
-    const foilQtyStr = (row.Foil || '0').toString().trim();
-    
-    const normalQty = parseInt(normalQtyStr) || 0;
-    const foilQty = parseInt(foilQtyStr) || 0;
-    
-    if (totalProcessed <= 5) {
-      console.log(`Row ${i + 1} quantities - Normal: '${normalQtyStr}' -> ${normalQty}, Foil: '${foilQtyStr}' -> ${foilQty}`);
-    }
-    
-    if (normalQty > 0 || foilQty > 0) {
-      cardsWithQuantity++;
-      rows.push(row as DreambornCSVRow);
+    try {
+      // Proper CSV parsing that handles quoted fields
+      const values = parseCSVLine(line, separator);
+      totalProcessed++;
       
-      if (cardsWithQuantity <= 5) {
-        console.log(`Found card with quantity: ${row.Name}, Normal: ${normalQty}, Foil: ${foilQty}`);
+      if (totalProcessed <= 5 || i === 128 || i === 129) { // Log problem rows specifically
+        console.log(`Row ${i + 1} (line ${i}) values (${values.length} fields):`, values);
       }
+      
+      // Validate expected number of fields
+      if (values.length < Math.max(...Object.values(headerMap)) + 1) {
+        console.warn(`Row ${i + 1} has ${values.length} fields but expected at least ${Math.max(...Object.values(headerMap)) + 1} based on headers`);
+      }
+    
+      // Build row object using header mapping
+      const row: any = {};
+      Object.entries(headerMap).forEach(([fieldName, columnIndex]) => {
+        row[fieldName] = values[columnIndex] || '';
+      });
+
+      // Parse quantities with better error handling
+      const normalQtyStr = (row.Normal || '0').toString().trim();
+      const foilQtyStr = (row.Foil || '0').toString().trim();
+      
+      const normalQty = parseInt(normalQtyStr) || 0;
+      const foilQty = parseInt(foilQtyStr) || 0;
+      
+      if (totalProcessed <= 5 || i === 128 || i === 129) {
+        console.log(`Row ${i + 1} quantities - Normal: '${normalQtyStr}' -> ${normalQty}, Foil: '${foilQtyStr}' -> ${foilQty}`);
+        console.log(`Row ${i + 1} parsed:`, row);
+      }
+      
+      if (normalQty > 0 || foilQty > 0) {
+        cardsWithQuantity++;
+        rows.push(row as DreambornCSVRow);
+        
+        if (cardsWithQuantity <= 5 || cardsWithQuantity === 129) {
+          console.log(`Found card with quantity: ${row.Name}, Normal: ${normalQty}, Foil: ${foilQty}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing row ${i + 1}:`, error);
+      console.error(`Row content: "${line}"`);
+      throw new Error(`Failed to process row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   

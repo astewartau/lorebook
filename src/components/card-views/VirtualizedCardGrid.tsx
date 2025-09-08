@@ -16,7 +16,7 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   onCardClick,
   height // Not used anymore
 }) => {
-  const { containerRef, columns } = useDynamicGrid();
+  const { containerRef, columns, gridStyle } = useDynamicGrid();
   const [scrollTop, setScrollTop] = useState(0);
   const [containerTop, setContainerTop] = useState(0);
   
@@ -24,9 +24,10 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   const cardAspectRatio = 2.5 / 3.5;
   const controlsHeight = 40;
   const verticalSpacing = 8;
-  const gapSize = 16;
+  // Extract gap size from the grid style
+  const gapSize = parseInt(gridStyle.gap.replace('px', ''));
   
-  // Calculate card width based on container
+  // Calculate actual card width after CSS Grid auto-fit sizing
   const cardWidth = useMemo(() => {
     if (!containerRef.current) return 180;
     const containerWidth = containerRef.current.clientWidth;

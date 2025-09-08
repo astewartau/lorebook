@@ -186,15 +186,6 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
       <div className="p-4 border-b-2 border-lorcana-gold flex-shrink-0">
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
-            {onStopEditing && (
-              <button
-                onClick={onStopEditing}
-                className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-sm transition-colors flex items-center justify-center"
-                title="Stop editing deck"
-              >
-                <X size={14} />
-              </button>
-            )}
             {/* Editable deck name */}
             <div className="flex items-center gap-2 flex-1">
               {isEditingName ? (
@@ -384,15 +375,25 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
         )}
       </div>
 
-      {/* View Deck Button - Fixed at bottom */}
+      {/* Action Buttons - Fixed at bottom */}
       {onViewDeck && deck && (
         <div className="border-t-2 border-lorcana-gold p-4 mt-auto flex-shrink-0">
-          <button
-            onClick={() => onViewDeck?.(deck.id)}
-            className="btn-lorcana-navy w-full justify-center space-x-2 font-medium"
-          >
-            <span>View Deck</span>
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onViewDeck?.(deck.id)}
+              className="btn-lorcana-navy flex-1 justify-center space-x-2 font-medium"
+            >
+              <span>View Deck</span>
+            </button>
+            {onStopEditing && (
+              <button
+                onClick={onStopEditing}
+                className="btn-lorcana flex-1 justify-center space-x-2 font-medium"
+              >
+                <span>Save & Close</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Upload, Trash2, X, AlertTriangle, Share2 } from 'lucide-react';
+import { X, AlertTriangle, Share2, Package, Upload, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useModal } from '../hooks';
 import { supabase, TABLES } from '../lib/supabase';
 import { allCards, sets } from '../data/allCards';
-import DreambornImport from './DreambornImport';
 import { EmptyCollectionState } from './EmptyCollectionState';
 import { SetSummaryCard } from './SetSummaryCard';
 
@@ -21,17 +20,22 @@ interface SetSummary {
   rarityBreakdown: Record<string, { owned: number; playable: number; total: number }>;
 }
 
-const Collection: React.FC = () => {
+interface CollectionProps {
+  totalCards: number;
+  uniqueCards: number;
+  onImportClick: () => void;
+  onDeleteAllClick: () => void;
+}
+
+const Collection: React.FC<CollectionProps> = ({ 
+  totalCards, 
+  uniqueCards, 
+  onImportClick, 
+  onDeleteAllClick 
+}) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const {
-    totalCards,
-    uniqueCards,
-    clearCollection
-  } = useCollection();
   const { getCardQuantity } = useCollection();
-  const importModal = useModal();
-  const deleteConfirmModal = useModal();
   const publishModal = useModal<{code: string, name: string}>();
   const [publishedBinders, setPublishedBinders] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +68,9 @@ const Collection: React.FC = () => {
 
   // Calculate set summaries
   const setSummaries = useMemo((): SetSummary[] => {
-    return sets.map(set => {
+    return sets
+      .filter(set => set.number <= 9) // Hide unreleased sets (10, 11)
+      .map(set => {
       // Get all cards in this set - each card is individual now
       const setCards = allCards.filter(card => card.setCode === set.code);
       const totalCardsInSet = setCards.length;
@@ -113,13 +119,8 @@ const Collection: React.FC = () => {
         totalOwned: totalOwnedQuantity,
         rarityBreakdown
       };
-    }).sort((a, b) => a.number - b.number); // Sort by set number
+    }).sort((a, b) => b.number - a.number); // Sort by set number (newest first)
   }, [getCardQuantity]);
-
-  const handleDeleteAll = async () => {
-    await clearCollection();
-    deleteConfirmModal.close();
-  };
 
   const handlePublishClick = (setCode: string, setName: string) => {
     if (!user) {
@@ -224,37 +225,39 @@ const Collection: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Collection Stats and Actions */}
-      <div className="bg-white border-2 border-lorcana-gold rounded-sm shadow-lg p-6 art-deco-corner">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-          <div className="flex gap-6 text-sm text-lorcana-ink">
-            <div className="flex items-center gap-2">
-              <Package size={16} />
-              <span>{totalCards} total cards</span>
-            </div>
-            <div>
-              <span>{uniqueCards} unique cards</span>
-            </div>
+    <div>
+      {/* Collection Stats and Actions Header */}
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-lorcana-gold/20">
+        <div className="flex gap-6 text-sm text-lorcana-ink">
+          <div className="flex items-center gap-2">
+            <Package size={16} />
+            <span>{totalCards} total cards</span>
           </div>
-          <div className="flex space-x-2 mt-4 md:mt-0">
+          <div>
+            <span>{uniqueCards} unique cards</span>
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={onImportClick}
+            className="btn-lorcana-gold-sm flex items-center space-x-2"
+          >
+            <Upload size={14} />
+            <span className="hidden sm:inline">Import Dreamborn</span>
+            <span className="sm:hidden">Import</span>
+          </button>
+          
+          {totalCards > 0 && (
             <button
-              onClick={() => importModal.open()}
-              className="btn-lorcana flex items-center space-x-2"
+              onClick={onDeleteAllClick}
+              className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 transition-colors text-sm"
             >
-              <Upload size={16} />
-              <span>Import Dreamborn Collection</span>
+              <Trash2 size={14} />
+              <span className="hidden sm:inline">Delete All</span>
+              <span className="sm:hidden">Clear</span>
             </button>
-            {totalCards > 0 && (
-              <button
-                onClick={() => deleteConfirmModal.open()}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 transition-colors border-2 border-red-700"
-              >
-                <Trash2 size={16} />
-                <span>Delete All</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -278,45 +281,6 @@ const Collection: React.FC = () => {
         </div>
       )}
 
-      {/* Import Modal */}
-      {importModal.isOpen && (
-        <DreambornImport onClose={importModal.close} />
-      )}
-      
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white border-2 border-lorcana-gold rounded-sm p-6 max-w-md w-full mx-4 shadow-2xl art-deco-corner">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-red-100 border border-red-300 p-3 rounded-sm">
-                <Trash2 size={24} className="text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-lorcana-ink">Delete All Cards</h3>
-                <p className="text-sm text-lorcana-navy">This action cannot be undone</p>
-              </div>
-            </div>
-            <p className="text-lorcana-ink mb-6">
-              Are you sure you want to delete all {totalCards} cards from your collection? 
-              This will permanently remove all cards and cannot be recovered.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={deleteConfirmModal.close}
-                className="btn-lorcana-outline"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAll}
-                className="px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 transition-colors border-2 border-red-700"
-              >
-                Delete All
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Publish Confirmation Modal */}
       {publishModal.isOpen && publishModal.data && (

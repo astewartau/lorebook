@@ -36,6 +36,14 @@ export interface UserDeck {
   name: string
   description?: string
   cards: any[] // JSON array of deck cards
+  avatar?: {
+    cardId: number
+    cropData: {
+      x: number
+      y: number
+      scale: number
+    }
+  }
   is_public: boolean
   created_at: string
   updated_at: string

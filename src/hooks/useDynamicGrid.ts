@@ -14,39 +14,17 @@ export const useDynamicGrid = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Calculate number of columns based on available width
+  // Standard CSS Grid approach: calculate columns based on auto-fit minmax
+  const gap = 16; // Standard gap size
+  
   const columns = useMemo(() => {
-    if (containerWidth === 0) return 2; // Default fallback
-
-    // Use responsive minimum card widths for better mobile experience
-    let effectiveMinWidth = minCardWidth;
+    if (containerWidth === 0) return 1; // Default fallback
     
-    // On mobile screens, use smaller minimum width to ensure 2 columns
-    if (containerWidth <= 480) {
-      // For mobile, ensure we can fit 2 columns comfortably
-      // Available space after gaps: containerWidth - gapSize
-      // Per column: (containerWidth - gapSize) / 2
-      const mobileMaxWidth = (containerWidth - gapSize) / 2;
-      effectiveMinWidth = Math.min(140, mobileMaxWidth); // Never smaller than 140px
-    } else if (containerWidth <= 768) {
-      // For tablets, use slightly smaller minimum
-      effectiveMinWidth = Math.min(160, minCardWidth);
-    }
+    // Calculate how many cards fit with minimum width
+    return Math.max(1, Math.floor((containerWidth + gap) / (minCardWidth + gap)));
+  }, [containerWidth]);
 
-    // Account for gaps: if we have n columns, we have (n-1) gaps
-    // So: availableWidth = n * cardWidth + (n-1) * gapSize
-    // Solving for n: n = (availableWidth + gapSize) / (cardWidth + gapSize)
-    const calculatedColumns = Math.floor((containerWidth + gapSize) / (effectiveMinWidth + gapSize));
-
-    // Ensure we always have at least 1 column and respect maximum
-    // On mobile, ensure at least 2 columns if space allows
-    let minColumns = 1;
-    if (containerWidth <= 480 && containerWidth >= 300) {
-      minColumns = 2; // Force 2 columns on mobile if we have reasonable space
-    }
-    
-    return Math.max(minColumns, Math.min(calculatedColumns, maxColumns));
-  }, [containerWidth, minCardWidth, gapSize, maxColumns]);
+  const responsiveGapSize = gap;
 
   // Set up ResizeObserver to track container width changes
   useEffect(() => {
@@ -76,16 +54,7 @@ export const useDynamicGrid = ({
     };
   }, []);
 
-  // Calculate effective minimum width for grid template
-  const effectiveMinWidth = useMemo(() => {
-    if (containerWidth <= 480) {
-      const mobileMaxWidth = (containerWidth - gapSize) / 2;
-      return Math.min(140, mobileMaxWidth);
-    } else if (containerWidth <= 768) {
-      return Math.min(160, minCardWidth);
-    }
-    return minCardWidth;
-  }, [containerWidth, minCardWidth, gapSize]);
+  // No need for complex calculations - CSS Grid handles it all
 
   // Return the ref, calculated columns, and grid styles
   return {
@@ -93,8 +62,8 @@ export const useDynamicGrid = ({
     columns,
     gridStyle: {
       display: 'grid' as const,
-      gridTemplateColumns: `repeat(${columns}, minmax(${Math.max(effectiveMinWidth, 120)}px, 1fr))`,
-      gap: `${gapSize}px`
+      gridTemplateColumns: `repeat(auto-fit, minmax(${minCardWidth}px, 1fr))`,
+      gap: `${gap}px`
     }
   };
 };

@@ -82,6 +82,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
             cardId: c.id || c.cardId,
             quantity: c.quantity
           })),
+          avatar: d.avatar,
           createdAt: new Date(d.created_at),
           updatedAt: new Date(d.updated_at),
           isPublic: d.is_public,
@@ -126,6 +127,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
             cardId: c.id || c.cardId,
             quantity: c.quantity
           })),
+          avatar: d.avatar,
           createdAt: new Date(d.created_at),
           updatedAt: new Date(d.updated_at),
           isPublic: d.is_public,
@@ -165,6 +167,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
           name: newDeck.name,
           description: newDeck.description,
           cards: newDeck.cards,
+          avatar: newDeck.avatar,
           is_public: false
         });
 
@@ -207,6 +210,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
           name: newDeck.name,
           description: newDeck.description,
           cards: newDeck.cards,
+          avatar: newDeck.avatar,
           is_public: false
         });
 
@@ -235,6 +239,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
           name: deck.name,
           description: deck.description,
           cards: deck.cards,
+          avatar: deck.avatar,
           is_public: deck.isPublic || false,
           updated_at: new Date().toISOString()
         })

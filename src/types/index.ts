@@ -57,6 +57,14 @@ export interface Deck {
   isPublic?: boolean;
   userId?: string;
   authorEmail?: string;
+  avatar?: {
+    cardId: number;
+    cropData: {
+      x: number;
+      y: number;
+      scale: number;
+    };
+  };
 }
 
 export interface DeckSummary {

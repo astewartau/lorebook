@@ -50,7 +50,7 @@ const CardResults: React.FC<CardResultsProps> = ({
         ) : viewMode === 'grid' ? (
           <div className="flex justify-between items-center mb-4">
             <div className="text-lorcana-ink font-medium">
-              Showing {totalCards} cards (virtual scrolling)
+              Showing {totalCards} cards
             </div>
           </div>
         ) : (
