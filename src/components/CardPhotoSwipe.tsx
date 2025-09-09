@@ -26,6 +26,12 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
       gallery: '#' + galleryID,
       children: 'a',
       pswpModule: () => import('photoswipe'),
+      // Enable click-outside-to-close functionality
+      bgOpacity: 0.8,
+      closeOnVerticalDrag: true,
+      clickToCloseNonZoomable: true, // Close on click when image is not zoomable
+      tapAction: 'close', // Close on tap/click
+      doubleTapAction: false, // Disable double tap zoom to avoid conflicts
     });
     
     lightbox.init();
