@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import PhotoSwipeLightbox from 'photoswipe/dist/photoswipe-lightbox.esm.js';
-import 'photoswipe/dist/photoswipe.css';
+import PhotoSwipeLightbox from 'photoswipe/lightbox';
+import 'photoswipe/style.css';
 import { LorcanaCard } from '../types';
 
 interface CardPhotoSwipeProps {
@@ -25,7 +25,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
     let lightbox = new PhotoSwipeLightbox({
       gallery: '#' + galleryID,
       children: 'a',
-      pswpModule: () => import('photoswipe/dist/photoswipe.esm.js'),
+      pswpModule: () => import('photoswipe'),
       // Enable click-outside-to-close functionality
       bgOpacity: 0.8,
       closeOnVerticalDrag: true,
