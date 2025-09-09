@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { LorcanaCard } from '../../types';
 import InteractiveCard from '../InteractiveCard';
 import { useDynamicGrid } from '../../hooks';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface VirtualizedCardGridProps {
   cards: LorcanaCard[];
@@ -14,34 +15,33 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   cards,
   onQuantityChange,
   onCardClick,
-  height // Not used anymore
+  height // Not used anymore  
 }) => {
-  const { containerRef, columns, gridStyle } = useDynamicGrid();
+  const { containerRef, columns, gapSize, fixedCardWidth, containerStyle } = useDynamicGrid({});
+  const { user } = useAuth(); // Check if user is logged in
   const [scrollTop, setScrollTop] = useState(0);
   const [containerTop, setContainerTop] = useState(0);
   
-  // Card dimensions
-  const cardAspectRatio = 2.5 / 3.5;
-  const controlsHeight = 40;
-  const verticalSpacing = 8;
-  // Extract gap size from the grid style
-  const gapSize = parseInt(gridStyle.gap.replace('px', ''));
+  // Simple configuration using actual measurements
+  const CARD_ASPECT_RATIO = 1468 / 2048; // Real aspect ratio from original image
+  const CONTROLS_HEIGHT = user ? 28 : 0; // Only when logged in
+  const SPACE_BETWEEN = 0; // No extra space needed
   
-  // Calculate actual card width after CSS Grid auto-fit sizing
-  const cardWidth = useMemo(() => {
-    if (!containerRef.current) return 180;
-    const containerWidth = containerRef.current.clientWidth;
-    return (containerWidth - (gapSize * (columns - 1))) / columns;
-  }, [columns, containerRef, gapSize]);
+  // Trust the hook completely - no conflicting calculations
+  const { actualColumns, actualCardWidth, actualCardHeight } = useMemo(() => {
+    const cardWidth = fixedCardWidth;
+    const cardHeight = cardWidth / CARD_ASPECT_RATIO + CONTROLS_HEIGHT + SPACE_BETWEEN;
+    
+    return { 
+      actualColumns: columns,  // Use the hook's column calculation
+      actualCardWidth: cardWidth, 
+      actualCardHeight: cardHeight 
+    };
+  }, [columns, fixedCardWidth, CARD_ASPECT_RATIO, CONTROLS_HEIGHT, SPACE_BETWEEN]);
   
-  const cardHeight = useMemo(() => {
-    const imageHeight = cardWidth / cardAspectRatio;
-    // Add all vertical spacing consistently
-    return imageHeight + controlsHeight + verticalSpacing + gapSize;
-  }, [cardWidth, cardAspectRatio, controlsHeight, verticalSpacing, gapSize]);
-  
-  const rowCount = Math.ceil(cards.length / columns);
-  const totalHeight = rowCount * cardHeight;
+  // Simple grid calculations
+  const rowCount = Math.ceil(cards.length / actualColumns);
+  const totalHeight = rowCount * (actualCardHeight + gapSize) - gapSize;
   
   // Track container position for window scrolling
   useEffect(() => {
@@ -72,40 +72,37 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [containerTop]);
   
-  // Virtual scrolling calculations with mobile adjustments
+  // Simple virtual scrolling
   const { visibleCards, visibleStart } = useMemo(() => {
-    const isMobile = window.innerWidth < 768;
     const viewportHeight = window.innerHeight;
+    const bufferRows = 3;
+    const rowHeight = actualCardHeight + gapSize;
     
-    // Calculate visible range with larger buffers for fast scrolling
-    // Desktop: 3 extra rows above + 3 below = ~18-24 extra cards loaded
-    // Mobile: 5 extra rows above + 5 below = ~10-20 extra cards loaded (fewer columns)
-    const bufferRows = isMobile ? 5 : 3;
-    const startRow = Math.max(0, Math.floor(scrollTop / cardHeight) - bufferRows);
-    const endRow = Math.ceil((scrollTop + viewportHeight) / cardHeight) + bufferRows;
+    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - bufferRows);
+    const endRow = Math.ceil((scrollTop + viewportHeight) / rowHeight) + bufferRows;
     
-    const start = startRow * columns;
-    const end = Math.min(endRow * columns, cards.length);
+    const start = startRow * actualColumns;
+    const end = Math.min(endRow * actualColumns, cards.length);
     
     return {
       visibleCards: cards.slice(start, end),
       visibleStart: start
     };
-  }, [scrollTop, cardHeight, columns, cards]);
+  }, [scrollTop, actualCardHeight, gapSize, actualColumns, cards]);
   
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={containerRef} style={containerStyle}>
       {/* Total height spacer - this makes the page scrollable */}
       <div style={{ height: totalHeight, position: 'relative' }}>
         {/* Render each card with absolute positioning */}
         {visibleCards.map((card, index) => {
           const absoluteIndex = visibleStart + index;
-          const row = Math.floor(absoluteIndex / columns);
-          const col = absoluteIndex % columns;
+          const row = Math.floor(absoluteIndex / actualColumns);
+          const col = absoluteIndex % actualColumns;
           
-          // Calculate exact position for each card
-          const left = col * (cardWidth + gapSize);
-          const top = row * cardHeight;
+          // Simple positioning - equal gaps everywhere
+          const left = col * (actualCardWidth + gapSize);
+          const top = row * (actualCardHeight + gapSize);
           
           return (
             <div 
@@ -114,8 +111,8 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
                 position: 'absolute',
                 left: `${left}px`,
                 top: `${top}px`,
-                width: `${cardWidth}px`,
-                height: `${cardHeight - gapSize}px`
+                width: `${actualCardWidth}px`,
+                height: `${actualCardHeight}px`
               }}
             >
               <InteractiveCard

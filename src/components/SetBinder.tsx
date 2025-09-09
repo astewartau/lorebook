@@ -4,7 +4,7 @@ import { ArrowLeft, Book, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from
 import { useCollection } from '../contexts/CollectionContext';
 import { allCards, sets } from '../data/allCards';
 import CardImage from './CardImage';
-import CardPreviewModal from './CardPreviewModal';
+import CardPhotoSwipe from './CardPhotoSwipe';
 import { LorcanaCard } from '../types';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
 
@@ -1222,10 +1222,12 @@ const SetBinder: React.FC = () => {
       <div className="sm:h-20 h-24"></div>
 
       {/* Card Preview Modal */}
-      <CardPreviewModal
-        card={selectedCard}
+      <CardPhotoSwipe
+        cards={selectedCard ? [selectedCard] : []}
+        currentCardIndex={0}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        galleryID="set-binder-gallery"
       />
     </div>
   );

@@ -26,6 +26,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
 
   // Check for unread notifications
   useEffect(() => {
@@ -46,6 +47,9 @@ const AuthSection: React.FC<AuthSectionProps> = ({
   }, [user]);
 
   // Close dropdowns when clicking outside
+  // Commented out - this conflicts with portal implementation
+  // The ProfileDropdown component handles its own outside clicks via backdrop
+  /*
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -59,6 +63,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  */
 
   const handleMarkAllNotificationsRead = () => {
     setHasUnreadNotifications(false);
@@ -86,6 +91,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
       return (
         <div className="relative" ref={dropdownRef}>
           <button
+            ref={profileButtonRef}
             onClick={() => {
               setShowProfileDropdown(!showProfileDropdown);
               setShowNotifications(false);
@@ -112,6 +118,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
             userDisplayName={userProfile?.displayName}
             userEmail={user.email}
             hasUnreadNotifications={hasUnreadNotifications}
+            anchorEl={profileButtonRef.current}
           />
 
           <NotificationDropdown
@@ -127,6 +134,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
       <div className="flex items-center space-x-3">
         <div className="relative" ref={dropdownRef}>
           <button
+            ref={profileButtonRef}
             onClick={() => {
               setShowProfileDropdown(!showProfileDropdown);
               setShowNotifications(false);
@@ -158,6 +166,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
             userDisplayName={userProfile?.displayName}
             userEmail={user.email}
             hasUnreadNotifications={hasUnreadNotifications}
+            anchorEl={profileButtonRef.current}
           />
 
           <NotificationDropdown

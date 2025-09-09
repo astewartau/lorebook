@@ -26,12 +26,14 @@ const InteractiveCard: React.FC<CardProps> = ({
   const [transform, setTransform] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = React.useRef<HTMLDivElement>(null);
+  const lastUpdateTime = React.useRef<number>(0);
   
   // Get current quantities for this specific card ID
   const quantities = getCardQuantity(card.id);
   
   // Get deck quantity for this card
   const deckQuantity = currentDeck?.cards.find(c => c.cardId === card.id)?.quantity || 0;
+  
   
   const handleAddToDeck = () => {
     if (currentDeck) {
@@ -91,8 +93,12 @@ const InteractiveCard: React.FC<CardProps> = ({
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     
-    const cardEl = cardRef.current;
-    const rect = cardEl.getBoundingClientRect();
+    // Throttle to ~30fps (33ms)
+    const now = performance.now();
+    if (now - lastUpdateTime.current < 33) return;
+    lastUpdateTime.current = now;
+    
+    const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;

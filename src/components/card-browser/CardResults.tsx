@@ -4,6 +4,7 @@ import { CardGridView, CardListView, GroupedView } from '../card-views';
 import { LorcanaCard } from '../../types';
 import { sets } from '../../data/allCards';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
+import ZoomControl from '../ui/ZoomControl';
 
 interface CardResultsProps {
   groupBy: string;
@@ -40,45 +41,49 @@ const CardResults: React.FC<CardResultsProps> = ({
 }) => {
   return (
     <div className="w-full">
-      <div className={`space-y-6 ${viewMode === 'grid' && groupBy === 'none' ? 'px-3 sm:px-6 pt-3 sm:pt-6' : 'p-3 sm:p-6'}`}>
+      <div className="space-y-6">
         {groupBy !== 'none' ? (
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-4 px-2 sm:px-4">
             <div className="text-lorcana-ink font-medium">
               Showing {totalCards} cards in {Object.keys(groupedCards).length} groups
             </div>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-4 px-2 sm:px-4">
             <div className="text-lorcana-ink font-medium">
               Showing {totalCards} cards
             </div>
           </div>
         ) : (
-          <PaginationControls
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            totalItems={totalCards}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            onPageChange={pagination.setCurrentPage}
-            onPrevPage={pagination.goToPrevPage}
-            onNextPage={pagination.goToNextPage}
-            showCompact={true}
-            showBottomControls={false}
-          />
+          <div className="px-2 sm:px-4">
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={totalCards}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              onPageChange={pagination.setCurrentPage}
+              onPrevPage={pagination.goToPrevPage}
+              onNextPage={pagination.goToNextPage}
+              showCompact={true}
+              showBottomControls={false}
+            />
+          </div>
         )}
 
         {groupBy !== 'none' ? (
-          <GroupedView
-            groupedCards={groupedCards}
-            viewMode={viewMode}
-            onQuantityChange={handleCardQuantityChange}
-            staleCardIds={staleCardIds}
-            rarityIconMap={RARITY_ICONS}
-            colorIconMap={COLOR_ICONS}
-            sets={sets}
-            onCardClick={handleCardClick}
-          />
+          <div className="px-2 sm:px-4">
+            <GroupedView
+              groupedCards={groupedCards}
+              viewMode={viewMode}
+              onQuantityChange={handleCardQuantityChange}
+              staleCardIds={staleCardIds}
+              rarityIconMap={RARITY_ICONS}
+              colorIconMap={COLOR_ICONS}
+              sets={sets}
+              onCardClick={handleCardClick}
+            />
+          </div>
         ) : viewMode === 'grid' ? (
           <CardGridView
             cards={sortedCards}
@@ -86,28 +91,32 @@ const CardResults: React.FC<CardResultsProps> = ({
             onCardClick={handleCardClick}
           />
         ) : (
-          <CardListView
-            cards={paginatedCards}
-            onQuantityChange={handleCardQuantityChange}
-            staleCardIds={staleCardIds}
-            rarityIconMap={RARITY_ICONS}
-            colorIconMap={COLOR_ICONS}
-            sets={sets}
-            onCardClick={handleCardClick}
-          />
+          <div className="px-2 sm:px-4">
+            <CardListView
+              cards={paginatedCards}
+              onQuantityChange={handleCardQuantityChange}
+              staleCardIds={staleCardIds}
+              rarityIconMap={RARITY_ICONS}
+              colorIconMap={COLOR_ICONS}
+              sets={sets}
+              onCardClick={handleCardClick}
+            />
+          </div>
         )}
 
         {groupBy === 'none' && viewMode !== 'grid' && (
-          <PaginationControls
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            totalItems={totalCards}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            onPageChange={pagination.setCurrentPage}
-            onPrevPage={pagination.goToPrevPage}
-            onNextPage={pagination.goToNextPage}
-          />
+          <div className="px-2 sm:px-4">
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={totalCards}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              onPageChange={pagination.setCurrentPage}
+              onPrevPage={pagination.goToPrevPage}
+              onNextPage={pagination.goToNextPage}
+            />
+          </div>
         )}
       </div>
     </div>

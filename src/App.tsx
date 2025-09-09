@@ -152,7 +152,7 @@ function AppContent() {
               </div>
               
               {/* Auth section - top right */}
-              <div className="absolute top-4 right-6">
+              <div className="absolute top-4 right-6 z-50">
                 <AuthSection
                   onLoginClick={() => loginModal.open()}
                   onProfileClick={() => profileModal.open()}

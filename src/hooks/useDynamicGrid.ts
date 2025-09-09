@@ -4,66 +4,149 @@ interface UseDynamicGridOptions {
   minCardWidth?: number;
   gapSize?: number;
   maxColumns?: number;
+  zoomScale?: number; // 0.5 to 2.0, where 1.0 is default
+  fixedColumns?: number; // When set, overrides dynamic column calculation
 }
 
 export const useDynamicGrid = ({
-  minCardWidth = 180,
-  gapSize = 16,
-  maxColumns = 8
+  minCardWidth = 250, // Max card width - will shrink to fit
+  gapSize = 12, // Single gap size - simple config
+  maxColumns = 12,
+  zoomScale = 1.0,
+  fixedColumns
 }: UseDynamicGridOptions = {}) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-
-  // Standard CSS Grid approach: calculate columns based on auto-fit minmax
-  const gap = 16; // Standard gap size
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   
-  const columns = useMemo(() => {
-    if (containerWidth === 0) return 1; // Default fallback
+  // Responsive gap size - smaller on mobile
+  const responsiveGapSize = useMemo(() => {
+    return viewportWidth < 768 ? 8 : gapSize; // 8px on mobile, 12px on desktop
+  }, [viewportWidth, gapSize]);
+  
+  // Calculate scaled card width with mobile adjustments
+  const scaledMinCardWidth = useMemo(() => {
+    let adjustedWidth = minCardWidth;
     
-    // Calculate how many cards fit with minimum width
-    return Math.max(1, Math.floor((containerWidth + gap) / (minCardWidth + gap)));
-  }, [containerWidth]);
+    // Reduce card width on mobile to ensure 2 columns fit comfortably
+    if (viewportWidth < 768) {
+      // Mobile: aim for 2 columns with gaps
+      // Available width ~= viewport - padding, so roughly viewport - 32px
+      // 2 cards + 1 gap = (cardWidth * 2) + gap
+      const availableMobileWidth = viewportWidth - 32; // Account for padding
+      const targetCardWidth = Math.floor((availableMobileWidth - responsiveGapSize) / 2);
+      adjustedWidth = Math.min(minCardWidth, Math.max(140, targetCardWidth)); // Min 140px, max minCardWidth
+    }
+    
+    return Math.round(adjustedWidth * zoomScale);
+  }, [minCardWidth, zoomScale, responsiveGapSize, viewportWidth]);
 
-  const responsiveGapSize = gap;
+  // Simple column calculation - KISS principle
+  const columns = useMemo(() => {
+    if (fixedColumns !== undefined) {
+      return fixedColumns;
+    }
+    
+    if (availableWidth === 0) {
+      if (viewportWidth < 768) return 2;  // Mobile: 2 columns with smaller cards
+      if (viewportWidth < 1024) return 4; // Tablet: 4 columns 
+      return 6; // Desktop: 6 columns
+    }
+    
+    // Simple approach: try fitting cards one by one
+    let cols = 0;
+    while (true) {
+      const widthNeeded = (cols + 1) * scaledMinCardWidth + cols * responsiveGapSize;
+      if (widthNeeded <= availableWidth) {
+        cols++;
+      } else {
+        break;
+      }
+    }
+    
+    return Math.max(1, Math.min(cols, maxColumns));
+  }, [availableWidth, responsiveGapSize, scaledMinCardWidth, maxColumns, fixedColumns]);
 
-  // Set up ResizeObserver to track container width changes
+  // Calculate actual card width based on available space
+  const actualCardWidth = useMemo(() => {
+    if (availableWidth === 0 || columns === 0) {
+      return scaledMinCardWidth;
+    }
+    
+    // Calculate available width for cards (total width minus gaps)
+    const widthForCards = availableWidth - (columns - 1) * responsiveGapSize;
+    const calculatedCardWidth = Math.floor(widthForCards / columns);
+    
+    // Don't exceed the max width (scaledMinCardWidth)
+    return Math.min(calculatedCardWidth, scaledMinCardWidth);
+  }, [availableWidth, columns, responsiveGapSize, scaledMinCardWidth]);
+
+  // Set up ResizeObserver to track parent container width changes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const updateWidth = () => {
-      setContainerWidth(container.clientWidth);
+      // Observe the parent container, not the grid container itself
+      const parentElement = container.parentElement;
+      if (parentElement) {
+        const width = parentElement.clientWidth;
+        const viewport = window.innerWidth;
+        console.log('DEBUG - Parent width:', width, 'Viewport:', viewport, 'Mobile:', viewport < 768);
+        setAvailableWidth(width);
+        setViewportWidth(viewport);
+      }
     };
 
-    // Initial measurement
-    updateWidth();
+    // Multiple attempts to get accurate width on mobile
+    const tryUpdateWidth = () => {
+      updateWidth();
+      // Extra attempt after a small delay for mobile
+      setTimeout(updateWidth, 50);
+      setTimeout(updateWidth, 150);
+    };
 
-    // Set up ResizeObserver for future changes
+    // Initial measurement with retries
+    tryUpdateWidth();
+
+    // Set up ResizeObserver for future changes - observe parent, not self
     const resizeObserver = new ResizeObserver(() => {
       updateWidth();
     });
 
-    resizeObserver.observe(container);
+    const parentElement = container.parentElement;
+    if (parentElement) {
+      resizeObserver.observe(parentElement);
+    }
 
-    // Also listen to window resize as backup
+    // Also listen to window resize and orientation change
     window.addEventListener('resize', updateWidth);
+    window.addEventListener('orientationchange', tryUpdateWidth);
 
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateWidth);
+      window.removeEventListener('orientationchange', tryUpdateWidth);
     };
   }, []);
 
-  // No need for complex calculations - CSS Grid handles it all
+  // Simple container style - no CSS Grid complexity
+  const containerStyle = useMemo(() => {
+    // Calculate total grid width to center the grid
+    const totalGridWidth = columns * actualCardWidth + (columns - 1) * responsiveGapSize;
+    
+    return {
+      position: 'relative' as const,
+      width: `${totalGridWidth}px`,
+      margin: '0 auto'
+    };
+  }, [columns, actualCardWidth, responsiveGapSize]);
 
-  // Return the ref, calculated columns, and grid styles
   return {
     containerRef,
     columns,
-    gridStyle: {
-      display: 'grid' as const,
-      gridTemplateColumns: `repeat(auto-fit, minmax(${minCardWidth}px, 1fr))`,
-      gap: `${gap}px`
-    }
+    gapSize: responsiveGapSize, // Now responsive - smaller on mobile
+    fixedCardWidth: actualCardWidth, // Now responsive based on available space
+    containerStyle
   };
 };

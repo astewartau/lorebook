@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { User, Bell, LogOut, Eye } from 'lucide-react';
 
 interface ProfileDropdownProps {
@@ -11,6 +12,7 @@ interface ProfileDropdownProps {
   userDisplayName?: string;
   userEmail?: string;
   hasUnreadNotifications?: boolean;
+  anchorEl?: HTMLElement | null;
 }
 
 const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
@@ -22,8 +24,21 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   onSignOut,
   userDisplayName,
   userEmail,
-  hasUnreadNotifications = false
+  hasUnreadNotifications = false,
+  anchorEl
 }) => {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (isOpen && anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + 8, // 8px gap
+        left: rect.right - 256 // 256px is dropdown width (w-64)
+      });
+    }
+  }, [isOpen, anchorEl]);
+
   if (!isOpen) return null;
 
   const handleItemClick = (action: () => void) => {
@@ -31,16 +46,26 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     onClose();
   };
 
-  return (
-    <>
+  // Portal content - wrapped in a single container
+  const dropdownContent = (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-50" 
+        className="absolute inset-0" 
+        style={{ pointerEvents: 'auto' }}
         onClick={onClose}
       />
       
-      {/* Dropdown */}
-      <div className="absolute top-full right-0 mt-2 w-64 bg-lorcana-navy border border-lorcana-gold/30 rounded-lg shadow-xl z-50 overflow-hidden">
+      {/* Dropdown - positioned absolutely within the container */}
+      <div 
+        className="absolute w-64 bg-lorcana-navy border border-lorcana-gold/30 rounded-lg shadow-xl overflow-hidden"
+        style={{
+          top: `${position.top}px`,
+          left: `${position.left}px`,
+          pointerEvents: 'auto'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* User Info Header */}
         <div className="p-4 border-b border-lorcana-gold/20 bg-lorcana-purple/10">
           <div className="flex items-center gap-3">
@@ -103,8 +128,11 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
+
+  // Render via portal
+  return ReactDOM.createPortal(dropdownContent, document.body);
 };
 
 export default ProfileDropdown;

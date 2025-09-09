@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { useCardBrowser, useModal } from '../hooks';
+import { useCardBrowser } from '../hooks';
 import QuickFilters from './QuickFilters';
 import { RARITY_ICONS, COLOR_ICONS } from '../constants/icons';
-import CardPreviewModal from './CardPreviewModal';
+import CardPhotoSwipe from './CardPhotoSwipe';
 import { LorcanaCard } from '../types';
 import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
@@ -11,7 +11,8 @@ import CardResults from './card-browser/CardResults';
 
 
 const CardBrowser: React.FC = () => {
-  const cardPreviewModal = useModal<LorcanaCard>();
+  const [isPhotoSwipeOpen, setIsPhotoSwipeOpen] = useState(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   const {
     // State
@@ -47,39 +48,13 @@ const CardBrowser: React.FC = () => {
   } = useCardBrowser();
 
   const handleCardClick = (card: LorcanaCard) => {
-    cardPreviewModal.open(card);
+    const cardIndex = sortedCards.findIndex(c => c.id === card.id);
+    setCurrentCardIndex(cardIndex >= 0 ? cardIndex : 0);
+    setIsPhotoSwipeOpen(true);
   };
 
-  // Navigation functions for card modal
-  const getCurrentCardIndex = () => {
-    if (!cardPreviewModal.data) return -1;
-    return sortedCards.findIndex(c => c.id === cardPreviewModal.data!.id);
-  };
-
-  const handlePreviousCard = () => {
-    const currentIndex = getCurrentCardIndex();
-    if (currentIndex > 0) {
-      const previousCard = sortedCards[currentIndex - 1];
-      cardPreviewModal.open(previousCard);
-    }
-  };
-
-  const handleNextCard = () => {
-    const currentIndex = getCurrentCardIndex();
-    if (currentIndex < sortedCards.length - 1) {
-      const nextCard = sortedCards[currentIndex + 1];
-      cardPreviewModal.open(nextCard);
-    }
-  };
-
-  const canGoToPrevious = () => {
-    const currentIndex = getCurrentCardIndex();
-    return currentIndex > 0;
-  };
-
-  const canGoToNext = () => {
-    const currentIndex = getCurrentCardIndex();
-    return currentIndex >= 0 && currentIndex < sortedCards.length - 1;
+  const handlePhotoSwipeClose = () => {
+    setIsPhotoSwipeOpen(false);
   };
 
   // Close sidebar when clicking outside on mobile
@@ -120,7 +95,7 @@ const CardBrowser: React.FC = () => {
         
         {/* Quick Filters - hidden on mobile */}
         <div className="hidden md:block">
-          <div className="container mx-auto px-2 sm:px-4">
+          <div className="w-full px-2 sm:px-4">
             <QuickFilters
               filters={filters}
               setFilters={setFilters}
@@ -132,7 +107,7 @@ const CardBrowser: React.FC = () => {
       </div>
       
       <div>
-        <div className="container mx-auto px-2 sm:px-4 space-y-0">
+        <div className="w-full space-y-0">
 
         {/* Filters Sidebar */}
         <CardFilters
@@ -189,15 +164,13 @@ const CardBrowser: React.FC = () => {
         </div>
       </div>
 
-      {/* Card Preview Modal */}
-      <CardPreviewModal
-        card={cardPreviewModal.data}
-        isOpen={cardPreviewModal.isOpen}
-        onClose={cardPreviewModal.close}
-        onPrevious={handlePreviousCard}
-        onNext={handleNextCard}
-        canGoToPrevious={canGoToPrevious()}
-        canGoToNext={canGoToNext()}
+      {/* Card Preview with PhotoSwipe */}
+      <CardPhotoSwipe
+        cards={sortedCards}
+        currentCardIndex={currentCardIndex}
+        isOpen={isPhotoSwipeOpen}
+        onClose={handlePhotoSwipeClose}
+        galleryID="card-browser-gallery"
       />
     </div>
   );

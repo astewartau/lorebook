@@ -41,7 +41,7 @@ const CardSearch: React.FC<CardSearchProps> = ({
 }) => {
   return (
     <div>
-      <div className="container mx-auto px-2 sm:px-4">
+      <div className="w-full px-2 sm:px-4">
         <div className="bg-white border-2 border-lorcana-gold border-t-0 rounded-b-sm shadow-lg p-3 sm:p-6">
           {/* Mobile Layout */}
           <div className="md:hidden">
