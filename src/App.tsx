@@ -14,10 +14,11 @@ import AuthCallback from './components/AuthCallback';
 import { CollectionProvider } from './contexts/CollectionContext';
 import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { ProfileProvider } from './contexts/ProfileContext';
+import { ProfileProvider, useProfile } from './contexts/ProfileContext';
 import ProfileEditModal from './components/ProfileEditModal';
 import LegalNoticeModal from './components/LegalNoticeModal';
 import DataAttributionModal from './components/DataAttributionModal';
+import AvatarEditor from './components/AvatarEditor';
 import { useModal } from './hooks';
 import { useScrollManager } from './hooks/useScrollManager';
 import AuthSection from './components/layout/AuthSection';
@@ -33,7 +34,9 @@ function AppContent() {
   const profileModal = useModal();
   const legalModal = useModal();
   const dataAttributionModal = useModal();
+  const avatarModal = useModal();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { userProfile, createOrUpdateProfile } = useProfile();
   const { isEditingDeck, currentDeck, stopEditingDeck, removeCardFromDeck, updateCardQuantity, updateDeck, validateDeck, deleteDeck } = useDeck();
 
 
@@ -116,6 +119,7 @@ function AppContent() {
                   isMobile
                   onLoginClick={() => loginModal.open()}
                   onProfileClick={() => profileModal.open()}
+                  onAvatarClick={() => avatarModal.open()}
                 />
               </div>
             </header>
@@ -157,6 +161,7 @@ function AppContent() {
                 <AuthSection
                   onLoginClick={() => loginModal.open()}
                   onProfileClick={() => profileModal.open()}
+                  onAvatarClick={() => avatarModal.open()}
                 />
               </div>
             </header>
@@ -274,6 +279,29 @@ function AppContent() {
           <DataAttributionModal
             isOpen={dataAttributionModal.isOpen}
             onClose={dataAttributionModal.close}
+          />
+
+          {/* User Avatar Editor Modal */}
+          <AvatarEditor
+            isOpen={avatarModal.isOpen}
+            onClose={avatarModal.close}
+            onSave={async (avatarData) => {
+              if (!userProfile) return;
+              try {
+                await createOrUpdateProfile({
+                  ...userProfile,
+                  avatarCardId: avatarData.cardId,
+                  avatarCropData: avatarData.cropData
+                });
+                avatarModal.close();
+              } catch (error) {
+                console.error('Error updating user avatar:', error);
+              }
+            }}
+            currentAvatar={userProfile?.avatarCardId && userProfile?.avatarCropData ? {
+              cardId: userProfile.avatarCardId,
+              cropData: userProfile.avatarCropData
+            } : undefined}
           />
         </div>
   );

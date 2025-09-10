@@ -73,6 +73,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         location: data.location,
         bio: data.bio,
         avatarUrl: data.avatar_url,
+        avatarCardId: data.avatar_card_id,
+        avatarCropData: data.avatar_crop_data,
         isPublic: data.is_public,
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at)
@@ -117,6 +119,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         location: profileData.location || null,
         bio: profileData.bio || null,
         avatar_url: profileData.avatarUrl || null,
+        avatar_card_id: profileData.avatarCardId || null,
+        avatar_crop_data: profileData.avatarCropData || null,
         is_public: profileData.isPublic !== undefined ? profileData.isPublic : true,
         updated_at: new Date().toISOString()
       };
@@ -153,6 +157,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         location: result.data.location,
         bio: result.data.bio,
         avatarUrl: result.data.avatar_url,
+        avatarCardId: result.data.avatar_card_id,
+        avatarCropData: result.data.avatar_crop_data,
         isPublic: result.data.is_public,
         createdAt: new Date(result.data.created_at),
         updatedAt: new Date(result.data.updated_at)
@@ -190,6 +196,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         location: p.location,
         bio: p.bio,
         avatarUrl: p.avatar_url,
+        avatarCardId: p.avatar_card_id,
+        avatarCropData: p.avatar_crop_data,
         isPublic: p.is_public,
         createdAt: new Date(p.created_at),
         updatedAt: new Date(p.updated_at)
@@ -230,6 +238,8 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         location: p.location,
         bio: p.bio,
         avatarUrl: p.avatar_url,
+        avatarCardId: p.avatar_card_id,
+        avatarCropData: p.avatar_crop_data,
         isPublic: p.is_public,
         createdAt: new Date(p.created_at),
         updatedAt: new Date(p.updated_at)

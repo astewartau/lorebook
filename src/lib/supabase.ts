@@ -79,6 +79,8 @@ export interface UserProfile {
   location?: string
   bio?: string
   avatar_url?: string
+  avatar_card_id?: number
+  avatar_crop_data?: { x: number; y: number; scale: number }
   is_public: boolean
   created_at: string
   updated_at: string

@@ -1,22 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, ChevronDown } from 'lucide-react';
+import { User, ChevronDown, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfile } from '../../contexts/ProfileContext';
 import ProfileDropdown from '../ProfileDropdown';
 import NotificationDropdown from '../NotificationDropdown';
+import UserAvatarButton from '../UserAvatarButton';
 import { groupService } from '../../services/groupService';
 
 interface AuthSectionProps {
   isMobile?: boolean;
   onLoginClick: () => void;
   onProfileClick: () => void;
+  onAvatarClick?: () => void;
 }
 
 const AuthSection: React.FC<AuthSectionProps> = ({
   isMobile = false,
   onLoginClick,
-  onProfileClick
+  onProfileClick,
+  onAvatarClick
 }) => {
   const { user, signOut, loading } = useAuth();
   const { userProfile } = useProfile();
@@ -26,7 +29,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const profileButtonRef = useRef<HTMLDivElement>(null);
 
   // Check for unread notifications
   useEffect(() => {
@@ -90,20 +93,24 @@ const AuthSection: React.FC<AuthSectionProps> = ({
     if (isMobile) {
       return (
         <div className="relative" ref={dropdownRef}>
-          <button
-            ref={profileButtonRef}
-            onClick={() => {
-              setShowProfileDropdown(!showProfileDropdown);
-              setShowNotifications(false);
-            }}
-            className="relative p-2 text-lorcana-cream hover:text-lorcana-gold transition-colors"
-            title={userProfile ? userProfile.displayName : user.email}
-          >
-            <User size={20} />
-            {hasUnreadNotifications && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-lorcana-navy"></div>
-            )}
-          </button>
+          <div ref={profileButtonRef} className="w-8 h-8 rounded-full border-2 border-lorcana-gold">
+            <UserAvatarButton
+              userProfile={userProfile}
+              size="sm"
+              onAvatarClick={onAvatarClick}
+              onProfileClick={() => {
+                setShowProfileDropdown(!showProfileDropdown);
+                setShowNotifications(false);
+              }}
+              showEditHint={false}
+              showProfileArea={false}
+            />
+          </div>
+          
+          {/* Notification indicator */}
+          {hasUnreadNotifications && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-lorcana-navy"></div>
+          )}
 
           <ProfileDropdown
             isOpen={showProfileDropdown}
@@ -115,8 +122,10 @@ const AuthSection: React.FC<AuthSectionProps> = ({
               setShowNotifications(true);
             }}
             onSignOut={signOut}
+            onAvatarClick={onAvatarClick}
             userDisplayName={userProfile?.displayName}
             userEmail={user.email}
+            userProfile={userProfile}
             hasUnreadNotifications={hasUnreadNotifications}
             anchorEl={profileButtonRef.current}
           />
@@ -133,25 +142,24 @@ const AuthSection: React.FC<AuthSectionProps> = ({
     return (
       <div className="flex items-center space-x-3">
         <div className="relative" ref={dropdownRef}>
-          <button
-            ref={profileButtonRef}
-            onClick={() => {
-              setShowProfileDropdown(!showProfileDropdown);
-              setShowNotifications(false);
-            }}
-            className="relative flex items-center space-x-2 text-lorcana-cream hover:text-lorcana-gold transition-colors"
-          >
-            <div className="relative">
-              <User size={18} />
-              {hasUnreadNotifications && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-lorcana-navy"></div>
-              )}
-            </div>
-            <span className="text-sm truncate max-w-32" title={userProfile ? `@${userProfile.displayName}` : user.email}>
-              {userProfile ? userProfile.displayName : user.email}
-            </span>
-            <ChevronDown size={14} className={`transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
-          </button>
+          <div ref={profileButtonRef}>
+            <UserAvatarButton
+              userProfile={userProfile}
+              size="sm"
+              onAvatarClick={onAvatarClick}
+              onProfileClick={() => {
+                setShowProfileDropdown(!showProfileDropdown);
+                setShowNotifications(false);
+              }}
+              showEditHint={false}
+              showProfileArea={true}
+            />
+          </div>
+          
+          {/* Notification indicator */}
+          {hasUnreadNotifications && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-lorcana-navy"></div>
+          )}
 
           <ProfileDropdown
             isOpen={showProfileDropdown}
@@ -163,8 +171,10 @@ const AuthSection: React.FC<AuthSectionProps> = ({
               setShowNotifications(true);
             }}
             onSignOut={signOut}
+            onAvatarClick={onAvatarClick}
             userDisplayName={userProfile?.displayName}
             userEmail={user.email}
+            userProfile={userProfile}
             hasUnreadNotifications={hasUnreadNotifications}
             anchorEl={profileButtonRef.current}
           />

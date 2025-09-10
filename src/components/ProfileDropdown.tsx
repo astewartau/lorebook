@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { User, Bell, LogOut, Eye } from 'lucide-react';
+import { UserProfile } from '../types';
+import UserAvatarButton from './UserAvatarButton';
 
 interface ProfileDropdownProps {
   isOpen: boolean;
@@ -9,8 +11,10 @@ interface ProfileDropdownProps {
   onProfileClick: () => void;
   onNotificationsClick: () => void;
   onSignOut: () => void;
+  onAvatarClick?: () => void;
   userDisplayName?: string;
   userEmail?: string;
+  userProfile?: UserProfile | null;
   hasUnreadNotifications?: boolean;
   anchorEl?: HTMLElement | null;
 }
@@ -22,8 +26,10 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   onProfileClick,
   onNotificationsClick,
   onSignOut,
+  onAvatarClick,
   userDisplayName,
   userEmail,
+  userProfile,
   hasUnreadNotifications = false,
   anchorEl
 }) => {
@@ -69,8 +75,19 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
         {/* User Info Header */}
         <div className="p-4 border-b border-lorcana-gold/20 bg-lorcana-purple/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-lorcana-gold/20 rounded-full flex items-center justify-center">
-              <User size={20} className="text-lorcana-gold" />
+            <div className="w-10 h-10 rounded-full border-2 border-lorcana-gold overflow-hidden">
+              <UserAvatarButton
+                userProfile={userProfile || null}
+                size="md"
+                showEditHint={false}
+                showProfileArea={false}
+                onAvatarClick={() => {
+                  if (onAvatarClick) {
+                    onAvatarClick();
+                    onClose();
+                  }
+                }}
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-lorcana-cream truncate">

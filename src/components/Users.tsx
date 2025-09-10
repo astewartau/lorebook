@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Calendar } from 'lucide-react';
 import { useProfile } from '../contexts/ProfileContext';
+import UserAvatarButton from './UserAvatarButton';
 
 interface UsersProps {
   onViewProfile: (userId: string) => void;
@@ -74,18 +75,13 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
                     
                     <div className="flex items-center space-x-3">
                       {/* Avatar */}
-                      <div className="w-12 h-12 bg-lorcana-gold rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                        {profile.avatarUrl ? (
-                          <img 
-                            src={profile.avatarUrl} 
-                            alt={profile.displayName}
-                            className="w-full h-full rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-lg font-bold text-lorcana-navy">
-                            {profile.displayName.charAt(0).toUpperCase()}
-                          </span>
-                        )}
+                      <div className="w-12 h-12 rounded-md border-2 border-white shadow-md overflow-hidden">
+                        <UserAvatarButton
+                          userProfile={profile}
+                          size="md"
+                          showEditHint={false}
+                          showProfileArea={false}
+                        />
                       </div>
                       
                       <div className="flex-1">

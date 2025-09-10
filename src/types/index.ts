@@ -86,6 +86,8 @@ export interface UserProfile {
   location?: string;
   bio?: string;
   avatarUrl?: string;
+  avatarCardId?: number;
+  avatarCropData?: { x: number; y: number; scale: number };
   isPublic: boolean;
   createdAt: Date;
   updatedAt: Date;

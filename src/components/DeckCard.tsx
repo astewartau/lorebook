@@ -2,6 +2,7 @@ import React from 'react';
 import { Edit, Eye, Copy, Trash2, Upload, Camera } from 'lucide-react';
 import { Deck } from '../types';
 import { COLOR_ICONS } from '../constants/icons';
+import AvatarImage from './AvatarImage';
 
 interface DeckCardProps {
   deck: Deck;
@@ -45,14 +46,6 @@ const DeckCard: React.FC<DeckCardProps> = ({
     }
   };
 
-  const getCardImageUrl = (cardId: number) => {
-    // Find the actual card to get the image URL
-    const allCards = require('../data/allCards').allCards;
-    const card = allCards.find((c: any) => c.id === cardId);
-    if (!card) return '';
-    
-    return card.images.full;
-  };
 
   const inkColors = Object.entries(summary.inkDistribution)
     .filter(([, count]) => count > 0)
@@ -68,23 +61,15 @@ const DeckCard: React.FC<DeckCardProps> = ({
           <div className="flex-shrink-0 mr-3">
             <div className="relative">
               {deck.avatar ? (
-                <div 
-                  className="w-16 h-16 rounded-full overflow-hidden border-2 border-lorcana-gold cursor-pointer group-hover:border-lorcana-navy transition-colors"
+                <AvatarImage
+                  cardId={deck.avatar.cardId}
+                  cropData={deck.avatar.cropData}
+                  className="w-16 h-16 rounded-full border-2 border-lorcana-gold cursor-pointer group-hover:border-lorcana-navy transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditAvatar?.(deck.id);
                   }}
-                >
-                  <div
-                    className="w-full h-full"
-                    style={{
-                      backgroundImage: `url(${getCardImageUrl(deck.avatar.cardId)})`,
-                      backgroundSize: `${100 * deck.avatar.cropData.scale}%`,
-                      backgroundPosition: `${deck.avatar.cropData.x}% ${deck.avatar.cropData.y}%`,
-                      backgroundRepeat: 'no-repeat'
-                    }}
-                  />
-                </div>
+                />
               ) : (
                 <button
                   onClick={(e) => {

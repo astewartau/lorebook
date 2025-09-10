@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDeck } from '../contexts/DeckContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { COLOR_ICONS } from '../constants/icons';
+import UserAvatarButton from './UserAvatarButton';
 import ProfileEditModal from './ProfileEditModal';
 import { DECK_RULES } from '../constants';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
@@ -132,21 +133,13 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
           <div className="relative">
             {/* Avatar - Overlapping cover photo */}
             <div className="absolute -top-16 left-4">
-              <div className="w-32 h-32 bg-white rounded-full p-1 shadow-xl">
-                <div className="w-full h-full bg-lorcana-gold rounded-full flex items-center justify-center">
-                  {profile.avatarUrl ? (
-                    <img 
-                      src={profile.avatarUrl} 
-                      alt={profile.displayName}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-3xl font-bold text-lorcana-navy">
-                      {profile.displayName.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <UserAvatarButton
+                userProfile={profile}
+                size="lg"
+                showEditHint={false}
+                showProfileArea={false}
+                className="w-32 h-32 border-4 border-white shadow-xl"
+              />
             </div>
 
             {/* Profile Info and Actions */}

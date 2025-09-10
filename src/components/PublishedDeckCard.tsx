@@ -4,6 +4,7 @@ import { Deck } from '../types';
 import { COLOR_ICONS } from '../constants/icons';
 import { allCards } from '../data/allCards';
 import { useCollection } from '../contexts/CollectionContext';
+import AvatarImage from './AvatarImage';
 
 interface PublishedDeckCardProps {
   deck: Deck;
@@ -75,13 +76,6 @@ const PublishedDeckCard: React.FC<PublishedDeckCardProps> = ({
 
   const collectionCoverage = calculateCollectionCoverage();
 
-  const getCardImageUrl = (cardId: number) => {
-    // Find the actual card to get the image URL
-    const card = allCards.find(c => c.id === cardId);
-    if (!card) return '';
-    
-    return card.images.full;
-  };
 
   return (
     <div className="card-lorcana art-deco-corner group">
@@ -92,17 +86,11 @@ const PublishedDeckCard: React.FC<PublishedDeckCardProps> = ({
           <div className="flex-shrink-0 mr-3">
             <div className="relative">
               {deck.avatar ? (
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-lorcana-gold">
-                  <div
-                    className="w-full h-full"
-                    style={{
-                      backgroundImage: `url(${getCardImageUrl(deck.avatar.cardId)})`,
-                      backgroundSize: `${100 * deck.avatar.cropData.scale}%`,
-                      backgroundPosition: `${deck.avatar.cropData.x}% ${deck.avatar.cropData.y}%`,
-                      backgroundRepeat: 'no-repeat'
-                    }}
-                  />
-                </div>
+                <AvatarImage
+                  cardId={deck.avatar.cardId}
+                  cropData={deck.avatar.cropData}
+                  className="w-16 h-16 rounded-full border-2 border-lorcana-gold"
+                />
               ) : (
                 <div className="w-16 h-16 rounded-full border-2 border-lorcana-gold overflow-hidden">
                   <img
