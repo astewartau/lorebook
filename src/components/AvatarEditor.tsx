@@ -40,6 +40,20 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
     }
   }, [currentAvatar, isOpen]);
 
+  // Prevent scrolling when dragging
+  useEffect(() => {
+    if (isDragging) {
+      const preventScroll = (e: TouchEvent) => {
+        e.preventDefault();
+      };
+      
+      document.addEventListener('touchmove', preventScroll, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', preventScroll);
+      };
+    }
+  }, [isDragging]);
+
   // Filter cards based on search
   const filteredCards = searchTerm.length > 2 
     ? allCards.filter(card => 
@@ -56,6 +70,14 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    e.stopPropagation(); // Prevent event bubbling
+    setIsDragging(true);
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX, y: touch.clientY });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -91,7 +113,45 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
     setDragStart({ x: e.clientX, y: e.clientY });
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    e.preventDefault(); // Prevent scrolling
+    e.stopPropagation(); // Prevent event bubbling
+    
+    const touch = e.touches[0];
+    // Calculate the touch movement delta
+    const deltaX = touch.clientX - dragStart.x;
+    const deltaY = touch.clientY - dragStart.y;
+    
+    // Same mathematical calculation as mouse
+    const containerSize = 128; // 128px (w-32)
+    const movementPerPixel = 100 / (cropData.scale * containerSize);
+    
+    // Convert pixel movement to percentage movement (inverted for natural feel)
+    const moveX = -deltaX * movementPerPixel;
+    const moveY = -deltaY * movementPerPixel;
+    
+    setCropData(prev => {
+      const newX = Math.max(0, Math.min(100, prev.x + moveX));
+      const newY = Math.max(0, Math.min(100, prev.y + moveY));
+      return {
+        ...prev,
+        x: newX,
+        y: newY
+      };
+    });
+    
+    // Update drag start position for next movement
+    setDragStart({ x: touch.clientX, y: touch.clientY });
+  };
+
   const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
   };
 
@@ -212,11 +272,15 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
                     <div className="flex justify-center mb-4">
                       <div 
                         className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-lorcana-gold cursor-move"
+                        style={{ touchAction: 'none' }}
                         ref={imageRef}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         onMouseLeave={handleMouseUp}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
                       >
                         <div
                           className="absolute inset-0"

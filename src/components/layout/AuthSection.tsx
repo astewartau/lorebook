@@ -93,7 +93,7 @@ const AuthSection: React.FC<AuthSectionProps> = ({
     if (isMobile) {
       return (
         <div className="relative" ref={dropdownRef}>
-          <div ref={profileButtonRef} className="w-8 h-8 rounded-full border-2 border-lorcana-gold">
+          <div ref={profileButtonRef} className="w-8 h-8 rounded-full border-2 border-lorcana-gold overflow-hidden">
             <UserAvatarButton
               userProfile={userProfile}
               size="sm"
