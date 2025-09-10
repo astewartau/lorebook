@@ -27,6 +27,7 @@ export const getDefaultFilters = (): FilterOptions => {
     collectionFilter: 'all',
     cardCountOperator: null,
     cardCountValue: 1,
+    fadeOthers: false,
   };
 };
 

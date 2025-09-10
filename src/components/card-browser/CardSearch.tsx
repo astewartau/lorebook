@@ -80,8 +80,8 @@ const CardSearch: React.FC<CardSearchProps> = ({
 
           {/* Desktop Layout */}
           <div className="hidden md:block">
-            <div className="flex flex-wrap items-stretch gap-2">
-              <div className="flex-1 min-w-[300px] max-w-[500px] flex">
+            <div className="flex flex-wrap items-stretch gap-2 justify-center lg:justify-center xl:justify-center">
+              <div className="w-[400px] flex">
                 <div className="w-full h-[42px]">
                   <GitHubStyleSearch
                     value={searchTerm}

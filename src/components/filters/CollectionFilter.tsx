@@ -6,7 +6,8 @@ interface CollectionFilterProps {
   collectionFilter: 'all' | 'owned' | 'not-owned';
   cardCountOperator: 'eq' | 'gte' | 'lte' | null;
   cardCountValue: number;
-  onChange: (collectionFilter: 'all' | 'owned' | 'not-owned', cardCountOperator: 'eq' | 'gte' | 'lte' | null, cardCountValue: number) => void;
+  fadeOthers: boolean;
+  onChange: (collectionFilter: 'all' | 'owned' | 'not-owned', cardCountOperator: 'eq' | 'gte' | 'lte' | null, cardCountValue: number, fadeOthers: boolean) => void;
   defaultCollapsed?: boolean;
 }
 
@@ -14,6 +15,7 @@ const CollectionFilter: React.FC<CollectionFilterProps> = ({
   collectionFilter,
   cardCountOperator,
   cardCountValue,
+  fadeOthers,
   onChange,
   defaultCollapsed = false
 }) => {
@@ -21,7 +23,7 @@ const CollectionFilter: React.FC<CollectionFilterProps> = ({
   const hasFilter = collectionFilter !== 'all' || cardCountOperator !== null;
 
   const handleClear = () => {
-    onChange('all', null, 1);
+    onChange('all', null, 1, false);
   };
 
   return (
@@ -62,7 +64,7 @@ const CollectionFilter: React.FC<CollectionFilterProps> = ({
               <label className="block text-xs font-medium text-lorcana-ink mb-2">Collection Filter</label>
               <CustomDropdown
                 value={collectionFilter}
-                onChange={(value) => onChange(value as 'all' | 'owned' | 'not-owned', cardCountOperator, cardCountValue)}
+                onChange={(value) => onChange(value as 'all' | 'owned' | 'not-owned', cardCountOperator, cardCountValue, fadeOthers)}
                 options={[
                   { value: 'all', label: 'Ignore collection' },
                   { value: 'owned', label: 'In collection' },
@@ -79,7 +81,8 @@ const CollectionFilter: React.FC<CollectionFilterProps> = ({
                   onChange={(e) => onChange(
                     collectionFilter,
                     e.target.value === '' ? null : e.target.value as 'eq' | 'gte' | 'lte',
-                    cardCountValue
+                    cardCountValue,
+                    fadeOthers
                   )}
                   className="text-xs px-2 py-1 border-2 border-lorcana-gold rounded-sm focus:ring-1 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream"
                 >
@@ -93,12 +96,25 @@ const CollectionFilter: React.FC<CollectionFilterProps> = ({
                   min="0"
                   max="20"
                   value={cardCountValue}
-                  onChange={(e) => onChange(collectionFilter, cardCountOperator, parseInt(e.target.value) || 0)}
+                  onChange={(e) => onChange(collectionFilter, cardCountOperator, parseInt(e.target.value) || 0, fadeOthers)}
                   disabled={cardCountOperator === null}
                   className="w-16 text-xs px-2 py-1 border-2 border-lorcana-gold rounded-sm focus:ring-1 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream disabled:bg-gray-100 disabled:text-gray-400"
                 />
                 <span className="text-xs text-lorcana-navy">copies</span>
               </div>
+            </div>
+            
+            <div className="border-t border-lorcana-gold/30 pt-3">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={fadeOthers}
+                  onChange={(e) => onChange(collectionFilter, cardCountOperator, cardCountValue, e.target.checked)}
+                  className="w-4 h-4 text-lorcana-gold bg-lorcana-cream border-2 border-lorcana-gold rounded focus:ring-lorcana-gold focus:ring-1"
+                />
+                <span className="text-sm text-lorcana-ink">Fade others</span>
+              </label>
+              <p className="text-xs text-lorcana-navy mt-1 ml-6">Show non-matching cards in greyscale</p>
             </div>
           </div>
         </div>

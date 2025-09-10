@@ -8,11 +8,13 @@ import { LorcanaCard } from '../types';
 import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
+import { allCards } from '../data/allCards';
 
 
 const CardBrowser: React.FC = () => {
   const [isPhotoSwipeOpen, setIsPhotoSwipeOpen] = useState(false);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [renderedCards, setRenderedCards] = useState<LorcanaCard[]>([]);
 
   const {
     // State
@@ -48,7 +50,9 @@ const CardBrowser: React.FC = () => {
   } = useCardBrowser();
 
   const handleCardClick = (card: LorcanaCard) => {
-    const cardIndex = sortedCards.findIndex(c => c.id === card.id);
+    // Use renderedCards when fadeOthers is enabled, otherwise use sortedCards
+    const cardsForPhotoSwipe = filters.fadeOthers && renderedCards.length > 0 ? renderedCards : sortedCards;
+    const cardIndex = cardsForPhotoSwipe.findIndex(c => c.id === card.id);
     setCurrentCardIndex(cardIndex >= 0 ? cardIndex : 0);
     setIsPhotoSwipeOpen(true);
   };
@@ -131,6 +135,10 @@ const CardBrowser: React.FC = () => {
           handleCardQuantityChange={handleCardQuantityChange}
           staleCardIds={staleCardIds}
           handleCardClick={handleCardClick}
+          allCards={allCards}
+          filters={filters}
+          sortBy={sortBy}
+          onRenderedCardsChange={setRenderedCards}
         />
 
         {/* Filter notification bubble */}
@@ -166,7 +174,7 @@ const CardBrowser: React.FC = () => {
 
       {/* Card Preview with PhotoSwipe */}
       <CardPhotoSwipe
-        cards={sortedCards}
+        cards={filters.fadeOthers && renderedCards.length > 0 ? renderedCards : sortedCards}
         currentCardIndex={currentCardIndex}
         isOpen={isPhotoSwipeOpen}
         onClose={handlePhotoSwipeClose}

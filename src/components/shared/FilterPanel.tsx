@@ -188,8 +188,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             collectionFilter={filters.collectionFilter}
             cardCountOperator={filters.cardCountOperator}
             cardCountValue={filters.cardCountValue}
-            onChange={(collectionFilter, cardCountOperator, cardCountValue) => 
-              setFilters({...filters, collectionFilter, cardCountOperator, cardCountValue})
+            fadeOthers={filters.fadeOthers}
+            onChange={(collectionFilter, cardCountOperator, cardCountValue, fadeOthers) => 
+              setFilters({...filters, collectionFilter, cardCountOperator, cardCountValue, fadeOthers})
             }
             defaultCollapsed={true}
           />

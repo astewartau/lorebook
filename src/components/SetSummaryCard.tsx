@@ -32,12 +32,32 @@ export const SetSummaryCard: React.FC<SetSummaryCardProps> = ({
   onUnpublish,
   getProgressBarColor
 }) => {
+  // Generate logo path - format: set01-logo.png, set02-logo.png, etc.
+  // Don't show logos for Illumineer's Quest sets (codes starting with 'Q')
+  const shouldShowLogo = !setData.code.startsWith('Q');
+  const logoPath = shouldShowLogo ? `/imgs/set${setData.number.toString().padStart(2, '0')}-logo.png` : '';
+  
   return (
     <div className="card-lorcana p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
       {/* Set Header */}
       <div className="mb-4">
-        <h3 className="text-lg font-bold text-lorcana-ink mb-1">{setData.name}</h3>
-        <p className="text-sm text-lorcana-navy">Set {setData.number} • {setData.code}</p>
+        <div className="flex items-center gap-4">
+          {shouldShowLogo && (
+            <img 
+              src={logoPath}
+              alt={`${setData.name} logo`}
+              className="w-24 h-12 object-contain flex-shrink-0"
+              onError={(e) => {
+                // Hide the image if it doesn't exist (for promo sets, etc.)
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-lorcana-ink mb-1">{setData.name}</h3>
+            <p className="text-sm text-lorcana-navy">Set {setData.number} • {setData.code}</p>
+          </div>
+        </div>
       </div>
 
       {/* Progress Overview */}

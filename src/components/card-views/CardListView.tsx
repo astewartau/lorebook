@@ -87,7 +87,7 @@ const CardListView: React.FC<CardListViewProps> = ({
   );
 
   return (
-    <div className="columns-1 xl:columns-2 gap-0">
+    <div className="columns-1 lg:columns-2 xl:columns-3 2xl:columns-4 gap-0">
       {cards.map((card) => {
         const quantities = getCardQuantity(card.id);
         const setInfo = sets.find(s => s.code === card.setCode);
@@ -95,7 +95,7 @@ const CardListView: React.FC<CardListViewProps> = ({
         return (
           <div 
             key={card.id} 
-            className={`bg-lorcana-navy p-2 rounded-sm hover:shadow-xl transition-all duration-300 ease-out border-2 border-lorcana-gold hover:scale-[1.02] hover:-translate-y-0.5 cursor-pointer transform-gpu break-inside-avoid ${
+            className={`bg-lorcana-navy p-2 rounded-sm hover:shadow-xl transition-shadow duration-300 ease-out border-2 border-lorcana-gold cursor-pointer break-inside-avoid mb-2 ${
               staleCardIds.has(card.id) ? 'bg-orange-200 border-orange-400' : ''
             }`}
             onClick={() => onCardClick?.(card)}

@@ -117,6 +117,7 @@ export interface FilterOptions {
   collectionFilter: 'all' | 'owned' | 'not-owned';
   cardCountOperator: 'eq' | 'gte' | 'lte' | null;
   cardCountValue: number;
+  fadeOthers: boolean;
 }
 
 export interface SortOption {

@@ -1,7 +1,7 @@
 import React from 'react';
 import PaginationControls from '../shared/PaginationControls';
 import { CardGridView, CardListView, GroupedView } from '../card-views';
-import { LorcanaCard } from '../../types';
+import { LorcanaCard, FilterOptions, SortOption } from '../../types';
 import { sets } from '../../data/allCards';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
 import ZoomControl from '../ui/ZoomControl';
@@ -25,6 +25,10 @@ interface CardResultsProps {
   handleCardQuantityChange: (card: LorcanaCard, normalChange: number, foilChange: number) => void;
   staleCardIds: Set<number>;
   handleCardClick: (card: LorcanaCard) => void;
+  allCards?: LorcanaCard[];
+  filters?: FilterOptions;
+  sortBy?: SortOption;
+  onRenderedCardsChange?: (cards: LorcanaCard[]) => void;
 }
 
 const CardResults: React.FC<CardResultsProps> = ({
@@ -38,6 +42,10 @@ const CardResults: React.FC<CardResultsProps> = ({
   handleCardQuantityChange,
   staleCardIds,
   handleCardClick,
+  allCards,
+  filters,
+  sortBy,
+  onRenderedCardsChange,
 }) => {
   return (
     <div className="w-full">
@@ -89,6 +97,10 @@ const CardResults: React.FC<CardResultsProps> = ({
             cards={sortedCards}
             onQuantityChange={handleCardQuantityChange}
             onCardClick={handleCardClick}
+            allCards={allCards}
+            filters={filters}
+            sortBy={sortBy}
+            onRenderedCardsChange={onRenderedCardsChange}
           />
         ) : (
           <div className="px-2 sm:px-4">

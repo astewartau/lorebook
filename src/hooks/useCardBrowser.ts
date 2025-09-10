@@ -40,10 +40,44 @@ export const useCardBrowser = () => {
   // ================================
   // No more getVariantQuantities - we work with individual cards directly
 
+  // Track window size for responsive pagination
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // ================================
   // 5. COMPUTED VALUES & EFFECTS
   // ================================
-  const cardsPerPage = PAGINATION.CARDS_PER_PAGE;
+  // Dynamic pagination based on viewport and view mode
+  const cardsPerPage = useMemo(() => {
+    if (viewMode === 'list') {
+      // List view can show more items based on screen size
+      const { width, height } = windowSize;
+      
+      // Estimate based on screen capacity
+      if (width >= 1920 && height >= 1080) {
+        return 300; // 2xl screens with 4 columns
+      } else if (width >= 1536) {
+        return 200; // xl screens with 3 columns
+      } else if (width >= 1280) {
+        return 150; // lg screens with 2 columns
+      }
+    }
+    return PAGINATION.CARDS_PER_PAGE; // Default 100
+  }, [viewMode, windowSize]);
 
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
     const filtered = filterCards(allCards, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);

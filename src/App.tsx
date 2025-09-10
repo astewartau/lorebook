@@ -10,6 +10,7 @@ import UsersComponent from './components/Users';
 import UserProfileComponent from './components/UserProfile';
 import LoginModal from './components/LoginModal';
 import ResetPassword from './components/ResetPassword';
+import AuthCallback from './components/AuthCallback';
 import { CollectionProvider } from './contexts/CollectionContext';
 import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -219,6 +220,7 @@ function AppContent() {
                   <Route path="/community" element={<UsersComponent onViewProfile={(userId: string) => navigate(`/community/${userId}`)} />} />
                   <Route path="/community/:userId" element={<UserProfileComponent onBack={() => navigate('/community')} />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                 </Routes>
             </main>
           </div>
