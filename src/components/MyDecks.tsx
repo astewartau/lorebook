@@ -9,6 +9,7 @@ import DeckCard from './DeckCard';
 import PublishedDeckCard from './PublishedDeckCard';
 import DeleteDeckModal from './DeleteDeckModal';
 import AvatarEditor from './AvatarEditor';
+import DeckImportModal from './DeckImportModal';
 
 interface MyDecksProps {
   onBuildDeck: (deckId?: string) => void;
@@ -51,6 +52,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
     deckId: '',
     currentAvatar: undefined
   });
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Show notification with auto-dismiss
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -195,26 +197,18 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
   };
 
   const handleImportDeck = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const content = event.target?.result as string;
-        const success = await importDeck(content);
-        if (success) {
-          showNotification('success', 'Deck imported successfully!');
-        } else {
-          showNotification('error', 'Failed to import deck. Please check the file format.');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+    setImportModalOpen(true);
+  };
+
+  const handleImportDeckData = async (deckData: string): Promise<boolean> => {
+    const success = await importDeck(deckData);
+    if (success) {
+      showNotification('success', 'Deck imported successfully!');
+      setImportModalOpen(false);
+    } else {
+      showNotification('error', 'Failed to import deck. Please check the file format.');
+    }
+    return success;
   };
 
   const handleViewProfile = async (userId: string) => {
@@ -555,6 +549,13 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
         onClose={handleCloseAvatarEditor}
         onSave={handleSaveAvatar}
         currentAvatar={avatarEditor.currentAvatar}
+      />
+      
+      {/* Import Deck Modal */}
+      <DeckImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportDeckData}
       />
       </div>
     </div>

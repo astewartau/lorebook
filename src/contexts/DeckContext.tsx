@@ -452,14 +452,41 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
       const parsed = JSON.parse(deckData);
       if (!parsed.name || !parsed.cards) return false;
 
-      const newId = await createDeck(parsed.name, parsed.description);
-      const newDeck = decks.find(d => d.id === newId);
+      if (!user) throw new Error('Authentication required');
       
-      if (newDeck && parsed.cards) {
-        // Map imported cards to actual card data
-        newDeck.cards = parsed.cards;
-        await updateDeck(newDeck);
+      // Create the deck with cards included from the start
+      const newDeck: Deck = {
+        id: uuidv4(),
+        name: parsed.name,
+        description: parsed.description,
+        cards: parsed.cards, // Already in correct format from parser
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isPublic: false,
+        userId: user.id,
+        authorEmail: user.email
+      };
+
+      // Save to database
+      const { error } = await supabase
+        .from(TABLES.USER_DECKS)
+        .insert({
+          id: newDeck.id,
+          user_id: user.id,
+          name: newDeck.name,
+          description: newDeck.description,
+          cards: newDeck.cards,
+          avatar: newDeck.avatar,
+          is_public: false
+        });
+
+      if (error) {
+        console.error('Error importing deck:', error);
+        return false;
       }
+
+      // Add to local state
+      setDecks(prev => [...prev, newDeck]);
       
       return true;
     } catch (error) {
