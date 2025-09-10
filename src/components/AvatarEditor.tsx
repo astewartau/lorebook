@@ -8,6 +8,7 @@ interface AvatarEditorProps {
   onClose: () => void;
   onSave: (avatarData: { cardId: number; cropData: CropData }) => void;
   currentAvatar?: { cardId: number; cropData: CropData };
+  title?: string;
 }
 
 interface CropData {
@@ -20,7 +21,8 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
   isOpen,
   onClose,
   onSave,
-  currentAvatar
+  currentAvatar,
+  title = "Choose Avatar"
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
@@ -191,7 +193,7 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-lorcana-navy text-lorcana-gold border-b-2 border-lorcana-gold">
           <div>
-            <h2 className="text-xl font-bold text-lorcana-cream">Choose Deck Avatar</h2>
+            <h2 className="text-xl font-bold text-lorcana-cream">{title}</h2>
             <p className="text-sm text-lorcana-cream/80">Search for a card and select the perfect crop</p>
           </div>
           <button

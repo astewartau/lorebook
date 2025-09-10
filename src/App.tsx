@@ -285,6 +285,7 @@ function AppContent() {
           <AvatarEditor
             isOpen={avatarModal.isOpen}
             onClose={avatarModal.close}
+            title="Choose Profile Avatar"
             onSave={async (avatarData) => {
               if (!userProfile) return;
               try {
