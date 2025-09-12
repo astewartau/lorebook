@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FilterOptions, SortOption, LorcanaCard } from '../types';
-import { allCards } from '../data/allCards';
 import { useCollection } from '../contexts/CollectionContext';
 import { usePagination } from './usePagination';
 import { useDebounce } from './useDebounce';
@@ -9,7 +8,7 @@ import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils
 import { getDefaultFilters, parseURLState } from '../utils/filterDefaults';
 import { PAGINATION } from '../constants';
 
-export const useCardBrowser = () => {
+export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
   // ================================
   // 1. EXTERNAL DEPENDENCIES
   // ================================
@@ -80,7 +79,7 @@ export const useCardBrowser = () => {
   }, [viewMode, windowSize]);
 
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
-    const filtered = filterCards(allCards, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);
+    const filtered = filterCards(cardData, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);
     const sorted = sortCards(filtered, sortBy);
     const grouped = groupCards(sorted, groupBy);
     const activeCount = countActiveFilters(filters);

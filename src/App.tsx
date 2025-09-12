@@ -15,6 +15,7 @@ import { CollectionProvider } from './contexts/CollectionContext';
 import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProfileProvider, useProfile } from './contexts/ProfileContext';
+import { CardDataProvider } from './contexts/CardDataContext';
 import ProfileEditModal from './components/ProfileEditModal';
 import LegalNoticeModal from './components/LegalNoticeModal';
 import DataAttributionModal from './components/DataAttributionModal';
@@ -312,13 +313,15 @@ function App() {
   return (
     <AuthProvider>
       <ProfileProvider>
-        <CollectionProvider>
-          <DeckProvider>
-            <Router>
-              <AppContent />
-            </Router>
-          </DeckProvider>
-        </CollectionProvider>
+        <CardDataProvider>
+          <CollectionProvider>
+            <DeckProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </DeckProvider>
+          </CollectionProvider>
+        </CardDataProvider>
       </ProfileProvider>
     </AuthProvider>
   );

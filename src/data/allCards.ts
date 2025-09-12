@@ -3,6 +3,7 @@ import cardDatabase from './allCards.json';
 
 const db = cardDatabase as CardDatabase;
 
+// Export static data as fallback - components should prefer useCardData hook
 export const allCards: LorcanaCard[] = db.cards;
 
 export const sets = Object.entries(db.sets).map(([key, set]) => ({

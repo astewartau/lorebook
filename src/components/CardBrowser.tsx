@@ -8,13 +8,14 @@ import { LorcanaCard } from '../types';
 import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
-import { allCards } from '../data/allCards';
+import { useCardData } from '../contexts/CardDataContext';
 
 
 const CardBrowser: React.FC = () => {
   const [isPhotoSwipeOpen, setIsPhotoSwipeOpen] = useState(false);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [renderedCards, setRenderedCards] = useState<LorcanaCard[]>([]);
+  const { allCards, isLoading, error, refreshCardData } = useCardData();
 
   const {
     // State
@@ -47,7 +48,7 @@ const CardBrowser: React.FC = () => {
     paginatedCards,
     pagination,
     sortedCards
-  } = useCardBrowser();
+  } = useCardBrowser(allCards);
 
   const handleCardClick = (card: LorcanaCard) => {
     // Use renderedCards when fadeOthers is enabled, otherwise use sortedCards
@@ -74,8 +75,40 @@ const CardBrowser: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [showFilters]);
 
+  // Show loading state on initial load
+  if (isLoading && allCards.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-lorcana-gold mb-4"></div>
+          <p className="text-lorcana-ink">Loading card data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
+      {/* Show error banner if there's an error but we have fallback data */}
+      {error && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <p className="text-sm text-yellow-800">
+                Using cached card data. 
+                <span className="ml-2 text-yellow-600">{error}</span>
+              </p>
+            </div>
+            <button
+              onClick={refreshCardData}
+              className="ml-4 text-sm text-yellow-800 underline hover:text-yellow-900"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Search container - sticky */}
       <div className="sticky top-0 z-30">
         {/* Search section */}
