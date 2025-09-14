@@ -17,6 +17,19 @@
 }
 
 @layer components {
+  /* Optimized grayscale filter for missing cards */
+  .grayscale {
+    filter: grayscale(1);
+    /* Force GPU acceleration for better performance */
+    transform: translateZ(0);
+    will-change: filter;
+    /* Optimize rendering */
+    backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+    -webkit-transform: translateZ(0);
+  }
+
   .art-deco-border {
     position: relative;
     border: 2px solid var(--lorcana-gold);

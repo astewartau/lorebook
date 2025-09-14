@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, X, Edit3, Check, X as XIcon } from 'lucide-react';
+import { Trash2, X, Edit3, Check, X as XIcon, ExternalLink } from 'lucide-react';
 import { Deck } from '../../types';
 import DeckStatistics from './DeckStatistics';
 import DeckCardList from './DeckCardList';
 import { DECK_RULES } from '../../constants';
 import { allCards } from '../../data/allCards';
+import { exportToInktable, validateInktableExport } from '../../utils/inktableExport';
 
 interface DeckPanelProps {
   deck: Deck;
@@ -148,6 +149,17 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
     setShowDeleteConfirmation(false);
   };
 
+  const handleExportToInktable = () => {
+    const validation = validateInktableExport(deck, allCards);
+    if (!validation.valid) {
+      console.error('Deck validation failed:', validation.errors);
+      alert(`Cannot export deck: ${validation.errors.join(', ')}`);
+      return;
+    }
+    
+    exportToInktable(deck, allCards);
+  };
+
   return (
     <>
       {/* Custom Tooltip */}
@@ -169,14 +181,14 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
         <div
           className="fixed z-50 pointer-events-none"
           style={{
-            left: imagePreview.x + 10,
-            top: imagePreview.y - 200,
+            left: imagePreview.x - 320, // Position to the left of cursor with some margin
+            top: imagePreview.y - 150, // Center vertically around cursor
           }}
         >
           <img
             src={imagePreview.imageUrl}
             alt="Card preview"
-            className="w-48 h-auto rounded-lg shadow-2xl border-2 border-white"
+            className="w-64 h-auto rounded-lg shadow-2xl border-2 border-white" // Increased from w-48 to w-64
           />
         </div>
       )}
@@ -366,11 +378,12 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
 
         {/* Cards Tab */}
         {activeTab === 'cards' && (
-          <DeckCardList 
+          <DeckCardList
             deck={deck}
             onRemoveCard={onRemoveCard}
             onUpdateQuantity={onUpdateQuantity}
             onImagePreview={handleImagePreview}
+            groupBy="cost"
           />
         )}
       </div>
@@ -378,21 +391,33 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
       {/* Action Buttons - Fixed at bottom */}
       {onViewDeck && deck && (
         <div className="border-t-2 border-lorcana-gold p-4 mt-auto flex-shrink-0">
-          <div className="flex space-x-2">
+          <div className="flex flex-col space-y-2">
+            {/* Inktable Export Button */}
             <button
-              onClick={() => onViewDeck?.(deck.id)}
-              className="btn-lorcana-navy flex-1 justify-center space-x-2 font-medium"
+              onClick={handleExportToInktable}
+              className="btn-lorcana flex justify-center items-center space-x-2 font-medium"
+              title="Play deck on Inktable"
             >
-              <span>View Deck</span>
+              <ExternalLink size={16} />
+              <span>Play on Inktable</span>
             </button>
-            {onStopEditing && (
+            
+            <div className="flex space-x-2">
               <button
-                onClick={onStopEditing}
-                className="btn-lorcana flex-1 justify-center space-x-2 font-medium"
+                onClick={() => onViewDeck?.(deck.id)}
+                className="btn-lorcana-navy flex-1 justify-center space-x-2 font-medium"
               >
-                <span>Save & Close</span>
+                <span>View Deck</span>
               </button>
-            )}
+              {onStopEditing && (
+                <button
+                  onClick={onStopEditing}
+                  className="btn-lorcana flex-1 justify-center space-x-2 font-medium"
+                >
+                  <span>Save & Close</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

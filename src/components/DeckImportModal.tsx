@@ -42,6 +42,55 @@ const DeckImportModal: React.FC<DeckImportModalProps> = ({ isOpen, onClose, onIm
       .trim();
   };
 
+  // Helper function to select the best card version
+  // Priority: Regular rarities > Latest set > Avoid promo/enchanted/epic/iconic
+  const selectBestCard = (candidates: typeof allCards): typeof candidates[0] | null => {
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+
+    // Define rarity priority (lower number = higher priority)
+    const rarityPriority = {
+      'Common': 1,
+      'Uncommon': 2,
+      'Rare': 3,
+      'Super Rare': 4,
+      'Legendary': 5,
+      'Enchanted': 100, // Avoid
+      'Epic': 101, // Avoid
+      'Iconic': 102, // Avoid
+      'Promo': 103 // Avoid
+    };
+
+    // Sort candidates by priority
+    const sorted = candidates.sort((a, b) => {
+      // First priority: Regular rarities over special ones
+      const rarityA = rarityPriority[a.rarity as keyof typeof rarityPriority] || 50;
+      const rarityB = rarityPriority[b.rarity as keyof typeof rarityPriority] || 50;
+
+      if (rarityA !== rarityB) {
+        return rarityA - rarityB;
+      }
+
+      // Second priority: Latest set (higher set number = more recent)
+      const setA = parseInt(a.setCode) || 0;
+      const setB = parseInt(b.setCode) || 0;
+
+      if (setA !== setB) {
+        return setB - setA; // Descending order for latest set
+      }
+
+      // Third priority: Lower card number within same set
+      if (a.number !== b.number) {
+        return a.number - b.number;
+      }
+
+      // Final tiebreaker: ID
+      return a.id - b.id;
+    });
+
+    return sorted[0];
+  };
+
   const parseTextFormat = (text: string): { deck: ParsedDeck | null; warnings: string[] } => {
     const warnings: string[] = [];
     try {
@@ -59,26 +108,24 @@ const DeckImportModal: React.FC<DeckImportModalProps> = ({ isOpen, onClose, onIm
         const quantity = parseInt(match[1]);
         const cardName = match[2].trim();
         
-        // Find the card by full name (exact match first, then normalized)
-        let card = allCards.find(c => c.fullName === cardName);
-        
-        if (!card) {
-          // Try case-insensitive match
-          card = allCards.find(c => 
-            c.fullName.toLowerCase() === cardName.toLowerCase() ||
-            c.name.toLowerCase() === cardName.toLowerCase()
-          );
-        }
-        
-        if (!card) {
-          // Try normalized match (removes apostrophes and special chars)
-          const normalizedInput = normalizeCardName(cardName);
-          card = allCards.find(c => {
-            const normalizedFull = normalizeCardName(c.fullName);
-            const normalizedName = normalizeCardName(c.name);
-            return normalizedFull === normalizedInput || normalizedName === normalizedInput;
-          });
-        }
+        // Find all candidate cards by name matching
+        const normalizedInput = normalizeCardName(cardName);
+        const candidates = allCards.filter(c => {
+          // Exact match (highest priority)
+          if (c.fullName === cardName || c.name === cardName) return true;
+
+          // Case-insensitive match
+          if (c.fullName.toLowerCase() === cardName.toLowerCase() ||
+              c.name.toLowerCase() === cardName.toLowerCase()) return true;
+
+          // Normalized match (removes apostrophes and special chars)
+          const normalizedFull = normalizeCardName(c.fullName);
+          const normalizedName = normalizeCardName(c.name);
+          return normalizedFull === normalizedInput || normalizedName === normalizedInput;
+        });
+
+        // Select the best card from candidates
+        const card = selectBestCard(candidates);
         
         if (card) {
           cards.push({ cardId: card.id, quantity });
@@ -126,26 +173,24 @@ const DeckImportModal: React.FC<DeckImportModalProps> = ({ isOpen, onClose, onIm
       
       // Convert to our format
       cardCounts.forEach((quantity, cardName) => {
-        // Try exact match first
-        let card = allCards.find(c => c.fullName === cardName);
-        
-        if (!card) {
-          // Try case-insensitive
-          card = allCards.find(c => 
-            c.fullName.toLowerCase() === cardName.toLowerCase() ||
-            c.name.toLowerCase() === cardName.toLowerCase()
-          );
-        }
-        
-        if (!card) {
-          // Try normalized match (for cards with apostrophes removed in TTS)
-          const normalizedInput = normalizeCardName(cardName);
-          card = allCards.find(c => {
-            const normalizedFull = normalizeCardName(c.fullName);
-            const normalizedName = normalizeCardName(c.name);
-            return normalizedFull === normalizedInput || normalizedName === normalizedInput;
-          });
-        }
+        // Find all candidate cards by name matching
+        const normalizedInput = normalizeCardName(cardName);
+        const candidates = allCards.filter(c => {
+          // Exact match (highest priority)
+          if (c.fullName === cardName || c.name === cardName) return true;
+
+          // Case-insensitive match
+          if (c.fullName.toLowerCase() === cardName.toLowerCase() ||
+              c.name.toLowerCase() === cardName.toLowerCase()) return true;
+
+          // Normalized match (removes apostrophes and special chars)
+          const normalizedFull = normalizeCardName(c.fullName);
+          const normalizedName = normalizeCardName(c.name);
+          return normalizedFull === normalizedInput || normalizedName === normalizedInput;
+        });
+
+        // Select the best card from candidates
+        const card = selectBestCard(candidates);
         
         if (card) {
           cards.push({ cardId: card.id, quantity });

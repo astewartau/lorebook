@@ -287,19 +287,49 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
   };
 
   const duplicateDeck = async (deckId: string): Promise<string> => {
+    if (!user) throw new Error('Authentication required');
+
     const deckToDuplicate = decks.find(d => d.id === deckId);
     if (!deckToDuplicate) throw new Error('Deck not found');
-    
+
     const newName = `${deckToDuplicate.name} (Copy)`;
-    const newId = await createDeck(newName, deckToDuplicate.description);
-    
-    const newDeck = decks.find(d => d.id === newId);
-    if (newDeck) {
-      newDeck.cards = [...deckToDuplicate.cards];
-      await updateDeck(newDeck);
+    const newDeck: Deck = {
+      id: uuidv4(),
+      name: newName,
+      description: deckToDuplicate.description,
+      cards: [...deckToDuplicate.cards], // Copy all cards
+      avatar: deckToDuplicate.avatar ? { ...deckToDuplicate.avatar } : undefined, // Copy avatar if it exists
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isPublic: false,
+      userId: user.id,
+      authorEmail: user.email
+    };
+
+    try {
+      const { error } = await supabase
+        .from(TABLES.USER_DECKS)
+        .insert({
+          id: newDeck.id,
+          user_id: user.id,
+          name: newDeck.name,
+          description: newDeck.description,
+          cards: newDeck.cards,
+          avatar: newDeck.avatar,
+          is_public: false
+        });
+
+      if (error) {
+        console.error('Error duplicating deck:', error);
+        throw error;
+      }
+
+      setDecks(prev => [...prev, newDeck]);
+      return newDeck.id;
+    } catch (error) {
+      console.error('Error duplicating deck:', error);
+      throw error;
     }
-    
-    return newId;
   };
 
   const publishDeck = async (deckId: string): Promise<void> => {
@@ -341,19 +371,33 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     if (!targetDeck) return false;
 
     const existingEntry = targetDeck.cards.find(c => c.cardId === card.id);
-    
+
     // Get the max copies allowed for this card
     const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
-    
-    if (existingEntry) {
-      if (existingEntry.quantity >= maxCopies) return false;
-      existingEntry.quantity++;
-    } else {
-      targetDeck.cards.push({ cardId: card.id, quantity: 1 });
+
+    if (existingEntry && existingEntry.quantity >= maxCopies) {
+      return false;
     }
 
-    targetDeck.updatedAt = new Date();
-    updateDeck(targetDeck);
+    // Create a new deck object with updated cards
+    const updatedDeck: Deck = {
+      ...targetDeck,
+      cards: existingEntry
+        ? targetDeck.cards.map(c =>
+            c.cardId === card.id ? { ...c, quantity: c.quantity + 1 } : c
+          )
+        : [...targetDeck.cards, { cardId: card.id, quantity: 1 }],
+      updatedAt: new Date()
+    };
+
+    // Update local state immediately for responsive UI
+    if (targetDeck === currentDeck) {
+      setCurrentDeck(updatedDeck);
+    }
+    setDecks(prev => prev.map(d => d.id === updatedDeck.id ? updatedDeck : d));
+
+    // Then update the database
+    updateDeck(updatedDeck);
     return true;
   };
 
@@ -361,9 +405,21 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     const targetDeck = deckId ? decks.find(d => d.id === deckId) : currentDeck;
     if (!targetDeck) return;
 
-    targetDeck.cards = targetDeck.cards.filter(c => c.cardId !== cardId);
-    targetDeck.updatedAt = new Date();
-    updateDeck(targetDeck);
+    // Create a new deck object with the card removed
+    const updatedDeck: Deck = {
+      ...targetDeck,
+      cards: targetDeck.cards.filter(c => c.cardId !== cardId),
+      updatedAt: new Date()
+    };
+
+    // Update local state immediately for responsive UI
+    if (targetDeck === currentDeck) {
+      setCurrentDeck(updatedDeck);
+    }
+    setDecks(prev => prev.map(d => d.id === updatedDeck.id ? updatedDeck : d));
+
+    // Then update the database
+    updateDeck(updatedDeck);
   };
 
   const updateCardQuantity = (cardId: number, quantity: number, deckId?: string): void => {
@@ -376,13 +432,27 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     // Look up the card to check for special rules
     const card = allCards.find(c => c.id === cardId);
     const maxCopies = (card?.name === 'Dalmatian Puppy' && card?.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
-    
+
     if (quantity <= 0) {
       removeCardFromDeck(cardId, deckId);
     } else if (quantity <= maxCopies) {
-      entry.quantity = quantity;
-      targetDeck.updatedAt = new Date();
-      updateDeck(targetDeck);
+      // Create a new deck object with updated card quantity
+      const updatedDeck: Deck = {
+        ...targetDeck,
+        cards: targetDeck.cards.map(c =>
+          c.cardId === cardId ? { ...c, quantity } : c
+        ),
+        updatedAt: new Date()
+      };
+
+      // Update local state immediately for responsive UI
+      if (targetDeck === currentDeck) {
+        setCurrentDeck(updatedDeck);
+      }
+      setDecks(prev => prev.map(d => d.id === updatedDeck.id ? updatedDeck : d));
+
+      // Then update the database
+      updateDeck(updatedDeck);
     }
   };
 

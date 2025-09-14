@@ -1,69 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import { Deck, LorcanaCard } from '../../types';
 import { COLOR_ICONS } from '../../constants/icons';
 import { DECK_RULES } from '../../constants';
 import { allCards } from '../../data/allCards';
+import { useCollection } from '../../contexts/CollectionContext';
 
 interface DeckCardListProps {
   deck: Deck;
   onRemoveCard: (cardId: number) => void;
   onUpdateQuantity: (cardId: number, quantity: number) => void;
   onImagePreview: (show: boolean, x?: number, y?: number, imageUrl?: string) => void;
+  groupBy?: 'cost' | 'type' | 'color' | 'set';
 }
 
-const DeckCardList: React.FC<DeckCardListProps> = ({ 
-  deck, 
-  onRemoveCard, 
-  onUpdateQuantity, 
-  onImagePreview 
+const DeckCardList: React.FC<DeckCardListProps> = ({
+  deck,
+  onRemoveCard,
+  onUpdateQuantity,
+  onImagePreview,
+  groupBy = 'cost'
 }) => {
-  const [groupBy, setGroupBy] = useState<'cost' | 'type' | 'color'>('cost');
+  const { getCardQuantity } = useCollection();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const totalCards = deck.cards.reduce((sum, entry) => sum + entry.quantity, 0);
 
-  // Look up card data and combine with quantities
-  type CardWithQuantity = LorcanaCard & { quantity: number };
-  const cardsWithData: CardWithQuantity[] = deck.cards
-    .map(entry => {
-      const card = allCards.find(c => c.id === entry.cardId);
-      if (!card) return null;
-      return { ...card, quantity: entry.quantity };
-    })
-    .filter(card => card !== null) as CardWithQuantity[];
+  // Look up card data and combine with quantities and collection info
+  type CardWithQuantity = LorcanaCard & {
+    quantity: number;
+    owned: number;
+    missing: number;
+  };
+
+  const cardsWithData: CardWithQuantity[] = useMemo(() => {
+    return deck.cards
+      .map(entry => {
+        const card = allCards.find(c => c.id === entry.cardId);
+        if (!card) return null;
+        const ownedQuantity = getCardQuantity(entry.cardId);
+        return {
+          ...card,
+          quantity: entry.quantity,
+          owned: Math.min(ownedQuantity.total, entry.quantity),
+          missing: Math.max(0, entry.quantity - ownedQuantity.total)
+        };
+      })
+      .filter(card => card !== null) as CardWithQuantity[];
+  }, [deck.cards, getCardQuantity]);
+
+  // Sort cards by set and number (always)
+  const sortedCards = useMemo(() => {
+    return [...cardsWithData].sort((a, b) => {
+      if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode);
+      if (a.number !== b.number) return a.number - b.number;
+      return a.name.localeCompare(b.name);
+    });
+  }, [cardsWithData]);
 
   // Group cards
-  const groupedCards = cardsWithData.reduce((acc, card) => {
-    let groupKey: string;
-    switch (groupBy) {
-      case 'cost':
-        groupKey = `${card.cost} Cost`;
-        break;
-      case 'type':
-        groupKey = card.type;
-        break;
-      case 'color':
-        groupKey = card.color || 'None';
-        break;
-      default:
-        groupKey = 'Other';
-    }
-    
-    if (!acc[groupKey]) acc[groupKey] = [];
-    acc[groupKey].push(card);
-    return acc;
-  }, {} as Record<string, CardWithQuantity[]>);
+  const groupedCards = useMemo(() => {
+    return sortedCards.reduce((acc, card) => {
+      let groupKey: string;
+      switch (groupBy) {
+        case 'cost':
+          groupKey = `${card.cost} Cost`;
+          break;
+        case 'type':
+          groupKey = card.type;
+          break;
+        case 'color':
+          groupKey = card.color || 'None';
+          break;
+        case 'set':
+          groupKey = card.setCode || 'Unknown Set';
+          break;
+        default:
+          groupKey = 'Other';
+      }
+
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(card);
+      return acc;
+    }, {} as Record<string, CardWithQuantity[]>);
+  }, [sortedCards, groupBy]);
 
   // Sort groups
-  const sortedGroups = Object.entries(groupedCards).sort(([a], [b]) => {
-    if (groupBy === 'cost') {
-      const costA = parseInt(a.split(' ')[0]);
-      const costB = parseInt(b.split(' ')[0]);
-      return costA - costB;
-    }
-    return a.localeCompare(b);
-  });
+  const sortedGroups = useMemo(() => {
+    return Object.entries(groupedCards).sort(([a], [b]) => {
+      if (groupBy === 'cost') {
+        const costA = parseInt(a.split(' ')[0]);
+        const costB = parseInt(b.split(' ')[0]);
+        return costA - costB;
+      }
+      if (groupBy === 'set') {
+        return a.localeCompare(b);
+      }
+      return a.localeCompare(b);
+    });
+  }, [groupedCards, groupBy]);
 
   const toggleGroup = (groupName: string) => {
     setCollapsed(prev => ({
@@ -74,18 +109,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Group By Selector */}
-      <div className="p-4 border-b-2 border-lorcana-gold">
-        <select
-          value={groupBy}
-          onChange={(e) => setGroupBy(e.target.value as 'cost' | 'type' | 'color')}
-          className="w-full text-sm border-2 border-lorcana-gold rounded-sm px-3 py-2 focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream"
-        >
-          <option value="cost">Group by Cost</option>
-          <option value="type">Group by Type</option>
-          <option value="color">Group by Color</option>
-        </select>
-      </div>
+      {/* No controls in sidebar - grouping controlled by parent */}
 
       {/* Cards List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
@@ -122,10 +146,16 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                   
                   {!isCollapsed && (
                     <div className="ml-4 space-y-1">
-                      {cards
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((card) => (
-                          <div key={card.id} className="flex items-center space-x-2 p-2 hover:bg-lorcana-cream rounded-sm">
+                      {cards.map((card) => {
+                        const isFullyOwned = card.owned >= card.quantity;
+                        const opacity = !isFullyOwned ? 0.5 : 1;
+
+                        return (
+                          <div
+                            key={card.id}
+                            className="flex items-center space-x-2 p-2 hover:bg-lorcana-cream rounded-sm"
+                            style={{ opacity }}
+                          >
                             {/* Card Thumbnail */}
                             <div className="w-8 h-10 flex-shrink-0">
                               <img
@@ -134,7 +164,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                                 className="w-full h-full object-cover rounded-sm cursor-pointer hover:opacity-80 transition-opacity"
                                 onMouseEnter={(e) => {
                                   const rect = e.currentTarget.getBoundingClientRect();
-                                  onImagePreview(true, rect.right, rect.top, card.images.full);
+                                  onImagePreview(true, rect.left, rect.top, card.images.full);
                                 }}
                                 onMouseLeave={() => onImagePreview(false)}
                               />
@@ -142,8 +172,15 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                             
                             {/* Card Info */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-lorcana-ink truncate">
-                                {card.name}
+                              <div className="flex items-center space-x-2">
+                                <div className="text-sm font-medium text-lorcana-ink truncate">
+                                  {card.name}
+                                </div>
+                                {card.missing > 0 && (
+                                  <span className="text-xs px-1 py-0.5 bg-red-100 text-red-700 rounded-sm font-medium">
+                                    {card.owned}/{card.quantity}
+                                  </span>
+                                )}
                               </div>
                               {card.version && (
                                 <div className="text-xs text-lorcana-purple truncate">
@@ -153,13 +190,16 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                               <div className="flex items-center space-x-2 mt-1">
                                 <span className="text-xs font-bold text-lorcana-navy bg-lorcana-gold px-1 rounded-sm">{card.cost}</span>
                                 {card.color && COLOR_ICONS[card.color] && (
-                                  <img 
-                                    src={COLOR_ICONS[card.color]} 
-                                    alt={card.color} 
+                                  <img
+                                    src={COLOR_ICONS[card.color]}
+                                    alt={card.color}
                                     className="w-3 h-3"
                                   />
                                 )}
                                 <span className="text-xs text-lorcana-purple">{card.type}</span>
+                                <span className="text-xs text-lorcana-purple">
+                                  {card.setCode} #{card.number}
+                                </span>
                               </div>
                             </div>
                             
@@ -186,7 +226,8 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                               </button>
                             </div>
                           </div>
-                        ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

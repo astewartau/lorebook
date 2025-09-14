@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit3, User } from 'lucide-react';
+import { ArrowLeft, Edit3, User, ExternalLink, Copy, Check, Package, BarChart3 } from 'lucide-react';
 import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useCollection } from '../contexts/CollectionContext';
 import { COLOR_ICONS } from '../constants/icons';
 import { DECK_RULES } from '../constants';
 import CardImage from './CardImage';
+import DeckStatistics from './deck/DeckStatistics';
+import CardPhotoSwipe from './CardPhotoSwipe';
 import { allCards } from '../data/allCards';
 import { LorcanaCard } from '../types';
+import { exportToInktable, copyInktableUrl, validateInktableExport } from '../utils/inktableExport';
 
 interface DeckSummaryProps {
   onBack: () => void;
@@ -20,8 +24,16 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { loadUserProfile } = useProfile();
+  const { getCardQuantity } = useCollection();
   const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks } = useDeck();
   const [authorDisplayName, setAuthorDisplayName] = useState<string>('');
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [sortBy, setSortBy] = useState<'cost' | 'type' | 'color' | 'set'>('set');
+  const [tooltip, setTooltip] = useState<{ show: boolean; x: number; y: number; content: string }>({
+    show: false, x: 0, y: 0, content: ''
+  });
+  const [isPhotoSwipeOpen, setIsPhotoSwipeOpen] = useState(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
   
   // Load author profile when deck changes
   useEffect(() => {
@@ -54,6 +66,131 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     }
   }, [deckId, decks, publicDecks, setCurrentDeck]);
 
+  // Look up actual card data and combine with quantities and collection info
+  type CardWithQuantity = LorcanaCard & {
+    quantity: number;
+    owned: number;
+    missing: number;
+  };
+
+  const cardsWithData: CardWithQuantity[] = useMemo(() => {
+    if (!currentDeck) return [];
+    return currentDeck.cards
+      .map(entry => {
+        const card = allCards.find(c => c.id === entry.cardId);
+        if (!card) {
+          console.error(`Card ${entry.cardId} not found in allCards`);
+          return null;
+        }
+        const ownedQuantity = getCardQuantity(entry.cardId);
+        return {
+          ...card,
+          quantity: entry.quantity,
+          owned: Math.min(ownedQuantity.total, entry.quantity),
+          missing: Math.max(0, entry.quantity - ownedQuantity.total)
+        };
+      })
+      .filter(card => card !== null) as CardWithQuantity[];
+  }, [currentDeck, getCardQuantity]);
+
+  // Sort cards based on selected criteria
+  const sortedCards = useMemo(() => {
+    return [...cardsWithData].sort((a, b) => {
+      switch (sortBy) {
+        case 'cost':
+          if (a.cost !== b.cost) return a.cost - b.cost;
+          return a.name.localeCompare(b.name);
+        case 'type':
+          if (a.type !== b.type) return a.type.localeCompare(b.type);
+          return a.name.localeCompare(b.name);
+        case 'color':
+          const colorA = a.color || 'None';
+          const colorB = b.color || 'None';
+          if (colorA !== colorB) return colorA.localeCompare(colorB);
+          return a.name.localeCompare(b.name);
+        case 'set':
+          if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode);
+          if (a.number !== b.number) return a.number - b.number;
+          return a.name.localeCompare(b.name);
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+  }, [cardsWithData, sortBy]);
+
+  // Group cards for display (when not using set ordering)
+  const groupedCards = useMemo(() => {
+    if (sortBy === 'set') {
+      // For set ordering, don't group - just return all cards in one group
+      return { 'All Cards': sortedCards };
+    }
+
+    return sortedCards.reduce((acc, card) => {
+      let groupKey: string;
+      switch (sortBy) {
+        case 'cost':
+          groupKey = `${card.cost} Cost`;
+          break;
+        case 'type':
+          groupKey = card.type;
+          break;
+        case 'color':
+          groupKey = card.color || 'None';
+          break;
+        default:
+          groupKey = 'All Cards';
+      }
+
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(card);
+      return acc;
+    }, {} as Record<string, CardWithQuantity[]>);
+  }, [sortedCards, sortBy]);
+
+  // Sort groups
+  const sortedGroups = useMemo(() => {
+    return Object.entries(groupedCards).sort(([a], [b]) => {
+      if (sortBy === 'cost') {
+        const costA = parseInt(a.split(' ')[0]);
+        const costB = parseInt(b.split(' ')[0]);
+        return costA - costB;
+      }
+      return a.localeCompare(b);
+    });
+  }, [groupedCards, sortBy]);
+
+  const handleCardClick = (card: LorcanaCard) => {
+    // Create a flattened array of unique cards in the current display order
+    const uniqueDisplayedCards: LorcanaCard[] = [];
+    sortedGroups.forEach(([, cards]) => {
+      cards.forEach(card => {
+        // Add each unique card only once
+        uniqueDisplayedCards.push(card);
+      });
+    });
+
+    const cardIndex = uniqueDisplayedCards.findIndex(c => c.id === card.id);
+    setCurrentCardIndex(cardIndex >= 0 ? cardIndex : 0);
+    setIsPhotoSwipeOpen(true);
+  };
+
+  const handlePhotoSwipeClose = () => {
+    setIsPhotoSwipeOpen(false);
+  };
+
+  // Create flattened array of unique cards for PhotoSwipe
+  const uniqueDisplayedCards = useMemo(() => {
+    const cards: LorcanaCard[] = [];
+    sortedGroups.forEach(([, groupCards]) => {
+      groupCards.forEach(card => {
+        // Add each unique card only once
+        cards.push(card);
+      });
+    });
+    return cards;
+  }, [sortedGroups]);
+
+  // Now handle early returns after all hooks
   if (!currentDeck) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -87,30 +224,10 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     );
   }
 
-  // Look up actual card data and combine with quantities
-  const cardsWithData: (LorcanaCard & { quantity: number })[] = currentDeck.cards
-    .map(entry => {
-      const card = allCards.find(c => c.id === entry.cardId);
-      if (!card) {
-        console.error(`Card ${entry.cardId} not found in allCards`);
-        return null;
-      }
-      return { ...card, quantity: entry.quantity };
-    })
-    .filter(card => card !== null) as (LorcanaCard & { quantity: number })[];
-
   const totalCards = cardsWithData.reduce((sum, card) => sum + card.quantity, 0);
-  const averageCost = cardsWithData.length > 0 
+  const averageCost = cardsWithData.length > 0
     ? (cardsWithData.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards).toFixed(1)
     : '0';
-
-  // Sort by cost
-  const uniqueCards = cardsWithData.sort((a, b) => {
-    if (a.cost !== b.cost) {
-      return a.cost - b.cost;
-    }
-    return a.name.localeCompare(b.name);
-  });
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -130,6 +247,42 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     const profile = await loadUserProfile(userId);
     if (profile && profile.isPublic) {
       navigate(`/community/${userId}`);
+    }
+  };
+
+  const handleExportToInktable = () => {
+    if (!currentDeck) return;
+    
+    const validation = validateInktableExport(currentDeck, allCards);
+    if (!validation.valid) {
+      console.error('Deck validation failed:', validation.errors);
+      alert(`Cannot export deck: ${validation.errors.join(', ')}`);
+      return;
+    }
+    
+    // Use a proper display name, fallback to deck name
+    const displayName = authorDisplayName || user?.email || currentDeck.name;
+    exportToInktable(currentDeck, allCards, displayName);
+  };
+
+  const handleCopyInktableUrl = async () => {
+    if (!currentDeck) return;
+    
+    const validation = validateInktableExport(currentDeck, allCards);
+    if (!validation.valid) {
+      console.error('Deck validation failed:', validation.errors);
+      alert(`Cannot export deck: ${validation.errors.join(', ')}`);
+      return;
+    }
+    
+    // Use a proper display name, fallback to deck name
+    const displayName = authorDisplayName || user?.email || currentDeck.name;
+    const success = await copyInktableUrl(currentDeck, allCards, displayName);
+    if (success) {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } else {
+      alert('Failed to copy link to clipboard');
     }
   };
 
@@ -190,18 +343,51 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
               <ArrowLeft size={20} />
               <span>Back to {user ? 'My Decks' : 'Published Decks'}</span>
             </button>
-            {user && currentDeck.userId === user.id && (
-              <button
-                onClick={() => {
-                  startEditingDeck(currentDeck.id);
-                  navigate('/cards');
-                }}
-              className="btn-lorcana-navy flex items-center space-x-2"
-            >
-                <Edit3 size={16} />
-                <span>Edit Deck</span>
-              </button>
-            )}
+            <div className="flex items-center space-x-3">
+              {/* Inktable Export Buttons */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleExportToInktable}
+                  className="btn-lorcana flex items-center space-x-2"
+                  title="Open deck in Inktable"
+                >
+                  <ExternalLink size={16} />
+                  <span>Play on Inktable</span>
+                </button>
+                <button
+                  onClick={handleCopyInktableUrl}
+                  className={`btn-lorcana-navy flex items-center space-x-2 transition-colors ${
+                    copySuccess ? 'bg-green-600 hover:bg-green-700' : ''
+                  }`}
+                  title="Copy Inktable link to clipboard"
+                >
+                  {copySuccess ? (
+                    <>
+                      <Check size={16} />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={16} />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {user && currentDeck.userId === user.id && (
+                <button
+                  onClick={() => {
+                    startEditingDeck(currentDeck.id);
+                    navigate('/cards');
+                  }}
+                className="btn-lorcana-navy flex items-center space-x-2"
+              >
+                  <Edit3 size={16} />
+                  <span>Edit Deck</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="card-lorcana p-6 art-deco-corner">
@@ -296,8 +482,25 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
           </div>
         </div>
 
-        {/* Cards Grid */}
-        {uniqueCards.length === 0 ? (
+        {/* Sorting Controls */}
+        <div className="card-lorcana p-4 mb-6 art-deco-corner">
+          <div className="flex items-center space-x-2">
+            <Package size={16} className="text-lorcana-purple" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="text-sm border-2 border-lorcana-gold rounded-sm px-3 py-2 focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream"
+            >
+              <option value="cost">Group by Cost</option>
+              <option value="type">Group by Type</option>
+              <option value="color">Group by Color</option>
+              <option value="set">Order by Set</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Main Content - Side by Side Layout */}
+        {sortedCards.length === 0 ? (
           <div className="card-lorcana p-12 text-center art-deco-corner">
             <h3 className="text-xl font-semibold text-lorcana-ink mb-2">Empty Deck</h3>
             <p className="text-lorcana-navy mb-6">This deck doesn't have any cards yet.</p>
@@ -314,61 +517,135 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
             )}
           </div>
         ) : (
-          <div className="card-lorcana p-6 art-deco-corner">
-            <h2 className="text-xl font-semibold text-lorcana-ink mb-4">Deck Contents</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2">
-              {uniqueCards.map((card) => {
-                // Calculate exact space needed for vertical-only stacking
-                const stackOffsetUp = (card.quantity - 1) * 12; // Increased from 8px to 12px
-                
-                return (
-                  <div 
-                    key={card.id} 
-                    className="relative"
-                    style={{ 
-                      // Reserve space for the vertical stacking effect only
-                      paddingTop: `${stackOffsetUp}px`,
-                      marginBottom: `${stackOffsetUp}px`
-                    }}
-                  >
-                    {/* Container that defines the actual space needed */}
-                    <div 
-                      className="relative"
-                      style={{
-                        width: '100%',
-                        paddingBottom: '140%', // Typical card aspect ratio
-                        position: 'relative'
-                      }}
-                    >
-                      {Array.from({ length: card.quantity }, (_, index) => (
-                        <div
-                          key={index}
-                          className="absolute top-0 left-0 w-full h-full"
-                          style={{
-                            transform: `translateY(${index * -12}px)`, // Vertical-only offset, increased to 12px
-                            zIndex: card.quantity - index,
-                            filter: index > 0 ? `brightness(${1 - (index * 0.1)})` : 'brightness(1)'
-                          }}
-                        >
-                          <CardImage
-                            card={card}
-                            className="w-full h-full rounded-sm shadow-md border-2 border-lorcana-gold"
-                          />
-                        </div>
-                      ))}
-                      
-                      {/* Quantity badge at bottom-right */}
-                      <div className="absolute bottom-2 right-2 w-8 h-8 bg-lorcana-navy text-lorcana-gold rounded-sm flex items-center justify-center text-sm font-bold shadow-lg z-50 border-2 border-lorcana-gold">
-                        {card.quantity}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* Deck Contents - Takes up 2/3 of space on large screens */}
+            <div className="xl:col-span-2">
+              <div className="card-lorcana p-6 art-deco-corner">
+                <h2 className="text-xl font-semibold text-lorcana-ink mb-4">Deck Contents</h2>
+                <div className="space-y-4">
+                  {sortedGroups.map(([groupName, cards]) => (
+                    <div key={groupName}>
+                      {/* Only show group header if it's not "All Cards" (i.e., when we're actually grouping) */}
+                      {groupName !== 'All Cards' && (
+                        <h3 className="text-lg font-medium text-lorcana-navy mb-3 border-b border-lorcana-gold pb-1">
+                          {groupName} ({cards.reduce((sum, card) => sum + card.quantity, 0)} cards)
+                        </h3>
+                      )}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 2xl:grid-cols-5 gap-2">
+                        {cards.map((card) => {
+                          // Calculate exact space needed for vertical-only stacking
+                          const stackOffsetUp = (card.quantity - 1) * 12;
+                          const ownedCopies = card.owned;
+                          const missingCopies = card.missing;
+
+                          return (
+                            <div
+                              key={card.id}
+                              className="relative"
+                              style={{
+                                // Reserve space for the vertical stacking effect only
+                                paddingTop: `${stackOffsetUp}px`,
+                                marginBottom: `${stackOffsetUp}px`
+                              }}
+                            >
+                              {/* Container that defines the actual space needed */}
+                              <div
+                                className="relative"
+                                style={{
+                                  width: '100%',
+                                  paddingBottom: '140%', // Typical card aspect ratio
+                                  position: 'relative'
+                                }}
+                              >
+                                {Array.from({ length: card.quantity }, (_, index) => {
+                                  // Show missing copies in greyscale (the first 'missing' number of copies)
+                                  const isMissing = index < missingCopies;
+
+                                  return (
+                                    <div
+                                      key={index}
+                                      className={`absolute top-0 left-0 w-full h-full ${isMissing ? 'grayscale' : ''}`}
+                                      style={{
+                                        transform: `translateY(${index * -12}px) translateZ(0)`, // translateZ(0) forces GPU layer
+                                        zIndex: card.quantity - index,
+                                        filter: index > 0 ? `brightness(${1 - (index * 0.1)})` : undefined,
+                                      }}
+                                    >
+                                      <div
+                                        className="cursor-pointer w-full h-full"
+                                        onClick={() => handleCardClick(card)}
+                                      >
+                                        <CardImage
+                                          card={card}
+                                          className="w-full h-full rounded-sm shadow-md border-2 border-lorcana-gold"
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Quantity badge at bottom-right */}
+                                <div className="absolute bottom-2 right-2 w-8 h-8 bg-lorcana-navy text-lorcana-gold rounded-sm flex items-center justify-center text-sm font-bold shadow-lg z-50 border-2 border-lorcana-gold">
+                                  {card.quantity}
+                                </div>
+
+                                {/* Ownership indicator */}
+                                {missingCopies > 0 && (
+                                  <div className="absolute top-2 left-2 px-2 py-1 bg-red-600 text-white rounded-sm text-xs font-bold shadow-lg z-50 border border-white">
+                                    {ownedCopies}/{card.quantity}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Statistics Sidebar - Takes up 1/3 of space on large screens */}
+            <div className="xl:col-span-1">
+              <div className="card-lorcana p-4 art-deco-corner">
+                <div className="flex items-center space-x-2 mb-4">
+                  <BarChart3 size={20} className="text-lorcana-purple" />
+                  <h2 className="text-lg font-semibold text-lorcana-ink">Statistics</h2>
+                </div>
+                <DeckStatistics
+                  deck={currentDeck}
+                  onTooltipShow={(x, y, content) => setTooltip({ show: true, x, y, content })}
+                  onTooltipHide={() => setTooltip({ show: false, x: 0, y: 0, content: '' })}
+                />
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Tooltip */}
+      {tooltip.show && (
+        <div
+          className="fixed z-50 bg-lorcana-navy text-lorcana-gold text-sm px-3 py-2 rounded-sm shadow-lg border border-lorcana-gold pointer-events-none"
+          style={{
+            left: `${tooltip.x}px`,
+            top: `${tooltip.y - 40}px`, // Position above cursor
+            transform: 'translateX(-50%)'
+          }}
+        >
+          {tooltip.content}
+        </div>
+      )}
+
+      {/* Card Photo Slider */}
+      <CardPhotoSwipe
+        cards={uniqueDisplayedCards}
+        currentCardIndex={currentCardIndex}
+        isOpen={isPhotoSwipeOpen}
+        onClose={handlePhotoSwipeClose}
+        galleryID="deck-summary-gallery"
+      />
     </div>
   );
 };

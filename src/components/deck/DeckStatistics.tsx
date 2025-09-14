@@ -111,7 +111,7 @@ const DeckStatistics: React.FC<DeckStatisticsProps> = ({
       {/* Cost Distribution */}
       <div className="mb-6">
         <div className="flex items-end space-x-1 h-24">
-          {Array.from({ length: 8 }, (_, i) => i).map(cost => {
+          {Array.from({ length: 7 }, (_, i) => i + 1).map(cost => {
             const actualCost = cost === 7 ? '7+' : cost.toString();
             
             // Get color distribution for this cost
