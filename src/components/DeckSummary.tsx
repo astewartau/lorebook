@@ -75,6 +75,19 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
 
   const cardsWithData: CardWithQuantity[] = useMemo(() => {
     if (!currentDeck) return [];
+
+    // Helper function to get total owned quantity for a card by fullName across all variants
+    const getCardQuantityByFullName = (fullName: string): number => {
+      // Find all cards with the same fullName (different variants, sets, promos, etc.)
+      const cardVariants = allCards.filter(c => c.fullName === fullName);
+
+      // Sum up owned quantities across all variants
+      return cardVariants.reduce((total, variant) => {
+        const owned = getCardQuantity(variant.id);
+        return total + owned.total;
+      }, 0);
+    };
+
     return currentDeck.cards
       .map(entry => {
         const card = allCards.find(c => c.id === entry.cardId);
@@ -82,12 +95,13 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
           console.error(`Card ${entry.cardId} not found in allCards`);
           return null;
         }
-        const ownedQuantity = getCardQuantity(entry.cardId);
+        // Use fullName-based matching instead of exact ID matching
+        const totalOwnedAcrossVariants = getCardQuantityByFullName(card.fullName);
         return {
           ...card,
           quantity: entry.quantity,
-          owned: Math.min(ownedQuantity.total, entry.quantity),
-          missing: Math.max(0, entry.quantity - ownedQuantity.total)
+          owned: Math.min(totalOwnedAcrossVariants, entry.quantity),
+          missing: Math.max(0, entry.quantity - totalOwnedAcrossVariants)
         };
       })
       .filter(card => card !== null) as CardWithQuantity[];

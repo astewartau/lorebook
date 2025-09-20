@@ -2,15 +2,13 @@ import { allCards } from '../data/allCards';
 import { LorcanaCard } from '../types';
 
 export interface DreambornCSVRow {
-  Normal: string;
-  Foil: string;
-  Name: string;
-  Set: string;
+  'Set Number': string;
   'Card Number': string;
+  Variant: string;
+  Count: string;
+  Name: string;
   Color: string;
   Rarity: string;
-  Price: string;
-  'Foil Price': string;
 }
 
 export interface ImportedCard {
@@ -101,30 +99,26 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   const headerMap: Record<string, number> = {};
   headers.forEach((header, index) => {
     const cleanHeader = header.toLowerCase().trim();
-    if (cleanHeader.includes('normal') || cleanHeader === 'normal') {
-      headerMap['Normal'] = index;
-    } else if (cleanHeader.includes('foil') && !cleanHeader.includes('price')) {
-      headerMap['Foil'] = index;
-    } else if (cleanHeader.includes('name') && !cleanHeader.includes('set')) {
-      headerMap['Name'] = index;
-    } else if (cleanHeader.includes('set')) {
-      headerMap['Set'] = index;
+    if (cleanHeader.includes('set') && cleanHeader.includes('number')) {
+      headerMap['Set Number'] = index;
     } else if (cleanHeader.includes('card') && cleanHeader.includes('number')) {
       headerMap['Card Number'] = index;
+    } else if (cleanHeader.includes('variant')) {
+      headerMap['Variant'] = index;
+    } else if (cleanHeader.includes('count')) {
+      headerMap['Count'] = index;
+    } else if (cleanHeader.includes('name') && !cleanHeader.includes('set')) {
+      headerMap['Name'] = index;
     } else if (cleanHeader.includes('color')) {
       headerMap['Color'] = index;
     } else if (cleanHeader.includes('rarity')) {
       headerMap['Rarity'] = index;
-    } else if (cleanHeader.includes('price') && !cleanHeader.includes('foil')) {
-      headerMap['Price'] = index;
-    } else if (cleanHeader.includes('foil') && cleanHeader.includes('price')) {
-      headerMap['Foil Price'] = index;
     }
   });
   
   console.log('Header mapping:', headerMap);
   
-  const requiredFields = ['Normal', 'Foil', 'Name'];
+  const requiredFields = ['Set Number', 'Card Number', 'Variant', 'Count', 'Name'];
   const missingFields = requiredFields.filter(field => headerMap[field] === undefined);
   if (missingFields.length > 0) {
     throw new Error(`Missing required columns: ${missingFields.join(', ')}. Found headers: ${headers.join(', ')}`);
@@ -158,24 +152,23 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
         row[fieldName] = values[columnIndex] || '';
       });
 
-      // Parse quantities with better error handling
-      const normalQtyStr = (row.Normal || '0').toString().trim();
-      const foilQtyStr = (row.Foil || '0').toString().trim();
-      
-      const normalQty = parseInt(normalQtyStr) || 0;
-      const foilQty = parseInt(foilQtyStr) || 0;
-      
+      // Parse quantity and variant from the new format
+      const countStr = (row.Count || '0').toString().trim();
+      const variant = (row.Variant || 'normal').toString().trim().toLowerCase();
+
+      const count = parseInt(countStr) || 0;
+
       if (totalProcessed <= 5 || i === 128 || i === 129) {
-        console.log(`Row ${i + 1} quantities - Normal: '${normalQtyStr}' -> ${normalQty}, Foil: '${foilQtyStr}' -> ${foilQty}`);
+        console.log(`Row ${i + 1} - Variant: '${variant}', Count: '${countStr}' -> ${count}`);
         console.log(`Row ${i + 1} parsed:`, row);
       }
-      
-      if (normalQty > 0 || foilQty > 0) {
+
+      if (count > 0) {
         cardsWithQuantity++;
         rows.push(row as DreambornCSVRow);
-        
+
         if (cardsWithQuantity <= 5 || cardsWithQuantity === 129) {
-          console.log(`Found card with quantity: ${row.Name}, Normal: ${normalQty}, Foil: ${foilQty}`);
+          console.log(`Found card with quantity: ${row.Name}, Variant: ${variant}, Count: ${count}`);
         }
       }
     } catch (error) {
@@ -192,7 +185,7 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
 };
 
 export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null => {
-  const { Name: csvName, Set: csvSet, 'Card Number': csvCardNumber, Rarity: csvRarity } = csvRow;
+  const { Name: csvName, 'Set Number': csvSet, 'Card Number': csvCardNumber, Rarity: csvRarity } = csvRow;
   
   // Parse card number
   const cardNumber = parseInt(csvCardNumber?.toString().trim() || '0');
@@ -205,6 +198,19 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null
   const setStr = csvSet.toString().trim();
   
   console.log(`Matching: ${csvName} - CSV Set: ${setStr}, Card Number: ${cardNumber}, Rarity: ${csvRarity}`);
+
+  // Debug: Show first few cards that might match
+  const debugMatches = allCards.filter(card =>
+    card.fullName.toLowerCase().includes(csvName.toLowerCase().substring(0, 10))
+  ).slice(0, 3);
+  if (debugMatches.length > 0) {
+    console.log(`  Debug - Similar cards found:`, debugMatches.map(c => ({
+      name: c.fullName,
+      set: c.setCode,
+      number: c.number,
+      promo: c.promoGrouping
+    })));
+  }
   
   let matches: LorcanaCard[] = [];
   
@@ -236,29 +242,38 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null
   if (matches.length === 0) {
     console.warn(`Could not find match for Set ${setStr} Card ${cardNumber}: ${csvName} (Rarity: ${csvRarity})`);
     
-    // Normalize names for matching (case-insensitive, normalize punctuation)
-    const normalizedCsvName = csvName.trim().toLowerCase()
-      .replace(/['']/g, "'") // Normalize apostrophes
-      .replace(/[-–—]/g, "-"); // Normalize dashes
-    
-    // Fallback to name matching with fuzzy matching
+    // Enhanced name normalization for better matching
+    const normalizeCardName = (name: string): string => {
+      return name.trim()
+        .toLowerCase()
+        .replace(/['']/g, "'") // Normalize apostrophes
+        .replace(/[-–—]/g, "-") // Normalize dashes
+        .replace(/\s+/g, " ") // Normalize whitespace
+        .replace(/[!?.,]/g, ""); // Remove punctuation for fuzzy matching
+    };
+
+    const normalizedCsvName = normalizeCardName(csvName);
+
+    // Fallback to name matching with enhanced fuzzy matching
     const nameMatches = allCards.filter(c => {
-      const normalizedDbName = c.fullName.toLowerCase()
-        .replace(/['']/g, "'")
-        .replace(/[-–—]/g, "-");
-      
-      // Try exact match first (with punctuation)
+      const normalizedDbName = normalizeCardName(c.fullName);
+
+      // Direct normalized match
       if (normalizedDbName === normalizedCsvName) return true;
-      
-      // For cards without punctuation differences, try without punctuation
-      const csvNameNoPunct = normalizedCsvName.replace(/[!?.,]/g, "");
-      const dbNameNoPunct = normalizedDbName.replace(/[!?.,]/g, "");
-      
-      if (dbNameNoPunct === csvNameNoPunct) return true;
-      
-      // Special case for "Wake Up" vs "Wake Up, Alice!"
-      if (csvNameNoPunct === "wake up" && dbNameNoPunct.startsWith("wake up")) return true;
-      
+
+      // Try with original punctuation preserved (just case and whitespace normalization)
+      const csvNameWithPunct = csvName.trim().toLowerCase().replace(/\s+/g, " ");
+      const dbNameWithPunct = c.fullName.trim().toLowerCase().replace(/\s+/g, " ");
+      if (dbNameWithPunct === csvNameWithPunct) return true;
+
+      // Special cases for common variations
+      if (normalizedCsvName === "wake up" && normalizedDbName.startsWith("wake up")) return true;
+
+      // Handle "The" vs "the" differences specifically
+      const csvWithoutArticles = normalizedCsvName.replace(/\b(the|a|an)\b/g, "").replace(/\s+/g, " ").trim();
+      const dbWithoutArticles = normalizedDbName.replace(/\b(the|a|an)\b/g, "").replace(/\s+/g, " ").trim();
+      if (csvWithoutArticles === dbWithoutArticles) return true;
+
       return false;
     });
     
@@ -312,30 +327,31 @@ export const importDreambornCollection = (csvContent: string): ImportResult => {
     console.log('=== STARTING DREAMBORN IMPORT ===');
     const csvRows = parseDreambornCSV(csvContent);
     console.log(`CSV parsing complete. Found ${csvRows.length} rows with quantities.`);
-    
-    const importedCards: ImportedCard[] = [];
+
+    // Group cards by their identity to combine normal and foil variants
+    const cardQuantityMap = new Map<string, { card: LorcanaCard; normalQuantity: number; foilQuantity: number }>();
     const failedCards: { name: string; set: string; cardNumber: string; rarity: string }[] = [];
     let matchedCards = 0;
     let unmatchedCards = 0;
 
     for (let i = 0; i < csvRows.length; i++) {
       const row = csvRows[i];
-      
+
       if (i < 5) {
         console.log(`Processing row ${i + 1}:`, {
           name: row.Name,
-          normal: row.Normal,
-          foil: row.Foil,
+          variant: row.Variant,
+          count: row.Count,
           rarity: row.Rarity
         });
       }
-      
+
       const card = matchCardToDatabase(row);
       if (!card) {
         unmatchedCards++;
         failedCards.push({
           name: row.Name || 'Unknown',
-          set: row.Set || 'Unknown',
+          set: row['Set Number'] || 'Unknown',
           cardNumber: row['Card Number'] || 'Unknown',
           rarity: row.Rarity || 'Unknown'
         });
@@ -345,20 +361,34 @@ export const importDreambornCollection = (csvContent: string): ImportResult => {
         continue;
       }
 
-      matchedCards++;
-      const normalQuantity = parseInt(row.Normal || '0') || 0;
-      const foilQuantity = parseInt(row.Foil || '0') || 0;
+      // Create unique key for this card
+      const cardKey = `${card.id}`;
+      const count = parseInt(row.Count || '0') || 0;
+      const variant = (row.Variant || 'normal').toString().trim().toLowerCase();
 
-      importedCards.push({
-        card,
-        normalQuantity,
-        foilQuantity
-      });
-      
+      if (!cardQuantityMap.has(cardKey)) {
+        cardQuantityMap.set(cardKey, {
+          card,
+          normalQuantity: 0,
+          foilQuantity: 0
+        });
+      }
+
+      const cardEntry = cardQuantityMap.get(cardKey)!;
+      if (variant === 'foil') {
+        cardEntry.foilQuantity += count;
+      } else {
+        cardEntry.normalQuantity += count;
+      }
+
+      matchedCards++;
+
       if (matchedCards <= 5) {
-        console.log(`Matched card: ${row.Name} -> ${card.fullName}, Normal: ${normalQuantity}, Foil: ${foilQuantity}`);
+        console.log(`Matched card: ${row.Name} -> ${card.fullName}, Variant: ${variant}, Count: ${count}`);
       }
     }
+
+    const importedCards: ImportedCard[] = Array.from(cardQuantityMap.values());
     
     console.log(`=== IMPORT SUMMARY ===`);
     console.log(`Total CSV rows with quantities: ${csvRows.length}`);

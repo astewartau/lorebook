@@ -149,10 +149,12 @@ const SetBinder: React.FC = () => {
       }
 
       // Load the appropriate collection data
+      // Note: Adding limit to handle large collections (Supabase default is 1000 rows)
       const { data: collectionData, error: collectionError } = await supabase
         .from(TABLES.USER_COLLECTIONS)
         .select('*')
-        .eq('user_id', targetUserId);
+        .eq('user_id', targetUserId)
+        .limit(10000);
 
       if (collectionError) {
         console.error('Collection data error:', collectionError);

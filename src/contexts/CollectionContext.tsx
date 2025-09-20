@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { CollectionCardEntry } from '../types';
 import { supabase, UserCollection, TABLES } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { allCards } from '../data/allCards';
 
 interface CollectionContextType {
   collection: CollectionCardEntry[];
@@ -12,6 +13,7 @@ interface CollectionContextType {
   totalCards: number;
   uniqueCards: number;
   exportCollection: () => string;
+  exportCollectionCSV: () => string;
   importCollection: (data: string) => boolean;
   importCollectionDirect: (cards: CollectionCardEntry[]) => Promise<boolean>;
   clearCollection: () => Promise<void>;
@@ -79,14 +81,45 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       } else {
       }
       
-      // Load the target user's collection (either own or group owner's)
-      const result = await supabase
-        .from(TABLES.USER_COLLECTIONS)
-        .select('*')
-        .eq('user_id', targetUserId);
-      
-      data = result.data;
-      error = result.error;
+      // Load the target user's collection using pagination to handle Supabase limits
+      console.log(`[CollectionContext] Loading collection for user: ${targetUserId}`);
+
+      let allData: UserCollection[] = [];
+      let hasMore = true;
+      let offset = 0;
+      const PAGE_SIZE = 1000;
+
+      while (hasMore) {
+        console.log(`[CollectionContext] Fetching page at offset ${offset}`);
+
+        const result = await supabase
+          .from(TABLES.USER_COLLECTIONS)
+          .select('*')
+          .eq('user_id', targetUserId)
+          .range(offset, offset + PAGE_SIZE - 1);
+
+        if (result.error) {
+          error = result.error;
+          break;
+        }
+
+        const pageData = result.data || [];
+        allData = allData.concat(pageData);
+
+        console.log(`[CollectionContext] Page result: ${pageData.length} rows`);
+
+        // If we got fewer rows than the page size, we've reached the end
+        hasMore = pageData.length === PAGE_SIZE;
+        offset += PAGE_SIZE;
+      }
+
+      data = allData;
+
+      console.log(`[CollectionContext] Total collection loaded:`, {
+        totalRows: data?.length || 0,
+        hasError: !!error,
+        errorMessage: error?.message
+      });
 
       if (error) {
         setSyncStatus('error');
@@ -99,7 +132,10 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           quantityNormal: item.quantity_normal || 0,
           quantityFoil: item.quantity_foil || 0
         }));
-        
+
+        console.log(`[CollectionContext] Converted ${converted.length} collection entries`);
+        console.log(`[CollectionContext] Unique cards: ${new Set(converted.map(c => c.cardId)).size}`);
+
         setCollection(converted);
         setSyncStatus('idle');
       }
@@ -354,6 +390,68 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     return JSON.stringify(exportData, null, 2);
   };
 
+  const exportCollectionCSV = (): string => {
+
+    // Group collection by unique card identity (name + set + card number)
+    const cardMap = new Map<string, {
+      card: any;
+      normalQuantity: number;
+      foilQuantity: number;
+    }>();
+
+    collection.forEach(entry => {
+      const card = allCards.find((c: any) => c.id === entry.cardId);
+      if (!card) return;
+
+      // Create unique key based on card identity
+      const key = `${card.fullName}|${card.setCode}|${card.number}`;
+
+      if (cardMap.has(key)) {
+        // Add to existing entry
+        const existing = cardMap.get(key)!;
+        existing.normalQuantity += entry.quantityNormal;
+        existing.foilQuantity += entry.quantityFoil;
+      } else {
+        // Create new entry
+        cardMap.set(key, {
+          card,
+          normalQuantity: entry.quantityNormal,
+          foilQuantity: entry.quantityFoil
+        });
+      }
+    });
+
+    // Build CSV content with Dreamborn format headers
+    const headers = 'Normal,Foil,Name,Set,Card Number,Color,Rarity,Price,Foil Price';
+    const rows: string[] = [headers];
+
+    cardMap.forEach(({ card, normalQuantity, foilQuantity }) => {
+      // Only include cards with quantities > 0
+      if (normalQuantity > 0 || foilQuantity > 0) {
+        // Format card number for display
+        let displayCardNumber = card.number.toString();
+        if (card.promoGrouping) {
+          // For promo cards, use the promo grouping as the set and include promo number
+          displayCardNumber = card.promoGrouping.includes('/') ? card.promoGrouping : displayCardNumber;
+        }
+
+        // Escape quotes in card names and wrap in quotes if needed
+        const escapedName = card.fullName.includes(',') || card.fullName.includes('"')
+          ? `"${card.fullName.replace(/"/g, '""')}"`
+          : card.fullName;
+
+        const set = card.promoGrouping || card.setCode;
+        const color = card.color || '';
+        const rarity = card.rarity || '';
+
+        const row = `${normalQuantity},${foilQuantity},${escapedName},${set},${displayCardNumber},${color},${rarity},,`;
+        rows.push(row);
+      }
+    });
+
+    return rows.join('\n');
+  };
+
   const importCollection = (data: string): boolean => {
     try {
       const parsed = JSON.parse(data);
@@ -443,15 +541,33 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         });
       }
 
-      const { error } = await supabase
-        .from(TABLES.USER_COLLECTIONS)
-        .upsert(upserts, { onConflict: 'user_id,card_id' });
+      // Batch the upserts to handle large collections (Supabase has limits on bulk operations)
+      const BATCH_SIZE = 1000;
+      const batches = [];
 
-      if (error) {
-        console.error('Database upsert error:', error);
-        setSyncStatus('error');
-        return false;
+      for (let i = 0; i < upserts.length; i += BATCH_SIZE) {
+        batches.push(upserts.slice(i, i + BATCH_SIZE));
       }
+
+      console.log(`Processing ${upserts.length} cards in ${batches.length} batches of ${BATCH_SIZE}`);
+
+      // Process each batch
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} cards)`);
+
+        const { error } = await supabase
+          .from(TABLES.USER_COLLECTIONS)
+          .upsert(batch, { onConflict: 'user_id,card_id' });
+
+        if (error) {
+          console.error(`Database upsert error in batch ${i + 1}:`, error);
+          setSyncStatus('error');
+          return false;
+        }
+      }
+
+      console.log('All batches processed successfully');
 
       // Update local state
       setCollection(cards);
@@ -523,6 +639,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     totalCards,
     uniqueCards,
     exportCollection,
+    exportCollectionCSV,
     importCollection,
     importCollectionDirect,
     clearCollection,

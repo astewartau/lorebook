@@ -134,7 +134,7 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
           <div className="space-y-4">
             <div className="text-sm text-lorcana-ink">
               <p className="mb-2">Import your collection from a Dreamborn CSV export.</p>
-              <p className="text-xs text-lorcana-navy">Expected format: Normal, Foil, Name, Set, Card Number, Color, Rarity, Price, Foil Price</p>
+              <p className="text-xs text-lorcana-navy">Expected format: Set Number, Card Number, Variant, Count, Name, Color, Rarity</p>
             </div>
 
             {!importResult && (
