@@ -11,6 +11,7 @@ interface DeckCardListProps {
   onRemoveCard: (cardId: number) => void;
   onUpdateQuantity: (cardId: number, quantity: number) => void;
   onImagePreview: (show: boolean, x?: number, y?: number, imageUrl?: string) => void;
+  onCardClick?: (cardId: number) => void;
   groupBy?: 'cost' | 'type' | 'color' | 'set';
 }
 
@@ -19,6 +20,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
   onRemoveCard,
   onUpdateQuantity,
   onImagePreview,
+  onCardClick,
   groupBy = 'cost'
 }) => {
   const { getCardQuantity } = useCollection();
@@ -162,6 +164,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
                                 src={card.images.thumbnail}
                                 alt={card.fullName}
                                 className="w-full h-full object-cover rounded-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => onCardClick?.(card.id)}
                                 onMouseEnter={(e) => {
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   onImagePreview(true, rect.left, rect.top, card.images.full);

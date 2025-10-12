@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { useCardBrowser } from '../hooks';
 import QuickFilters from './QuickFilters';
@@ -9,6 +9,7 @@ import CardSearch from './card-browser/CardSearch';
 import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
 import { useCardData } from '../contexts/CardDataContext';
+import { useDeck } from '../contexts/DeckContext';
 
 
 const CardBrowser: React.FC = () => {
@@ -16,6 +17,40 @@ const CardBrowser: React.FC = () => {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [renderedCards, setRenderedCards] = useState<LorcanaCard[]>([]);
   const { allCards, isLoading, error, refreshCardData } = useCardData();
+  const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
+
+  // Memoize photo swipe handlers to avoid recreating on every render
+  const handlePhotoSwipeAddCard = useMemo(() => {
+    if (!isEditingDeck || !currentDeck) return undefined;
+    return (card: LorcanaCard) => {
+      addCardToDeck(card);
+    };
+  }, [isEditingDeck, currentDeck, addCardToDeck]);
+
+  const handlePhotoSwipeRemoveCard = useMemo(() => {
+    if (!isEditingDeck || !currentDeck) return undefined;
+    return (cardId: number) => {
+      const deckCard = currentDeck.cards.find(c => c.cardId === cardId);
+      if (deckCard) {
+        const newQuantity = deckCard.quantity - 1;
+        if (newQuantity === 0) {
+          removeCardFromDeck(cardId);
+          setIsPhotoSwipeOpen(false); // Close PhotoSwipe when card is removed
+        } else {
+          updateCardQuantity(cardId, newQuantity);
+        }
+      }
+    };
+  }, [isEditingDeck, currentDeck, removeCardFromDeck, updateCardQuantity]);
+
+  const cardQuantitiesMap = useMemo(() => {
+    if (!isEditingDeck || !currentDeck) return undefined;
+    const map = new Map<number, number>();
+    currentDeck.cards.forEach(entry => {
+      map.set(entry.cardId, entry.quantity);
+    });
+    return map;
+  }, [isEditingDeck, currentDeck]);
 
   const {
     // State
@@ -212,6 +247,9 @@ const CardBrowser: React.FC = () => {
         isOpen={isPhotoSwipeOpen}
         onClose={handlePhotoSwipeClose}
         galleryID="card-browser-gallery"
+        cardQuantities={cardQuantitiesMap}
+        onAddCard={handlePhotoSwipeAddCard}
+        onRemoveCard={handlePhotoSwipeRemoveCard}
       />
     </div>
   );

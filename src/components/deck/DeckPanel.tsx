@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, X, Edit3, Check, X as XIcon, ExternalLink } from 'lucide-react';
-import { Deck } from '../../types';
+import { Deck, LorcanaCard } from '../../types';
 import DeckStatistics from './DeckStatistics';
 import DeckCardList from './DeckCardList';
+import CardPhotoSwipe from '../CardPhotoSwipe';
 import { DECK_RULES } from '../../constants';
 import { allCards } from '../../data/allCards';
 import { exportToInktable, validateInktableExport } from '../../utils/inktableExport';
@@ -39,7 +40,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
     y: number;
     imageUrl: string;
   }>({ show: false, x: 0, y: 0, imageUrl: '' });
-  
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(deck.name);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -53,6 +54,10 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
     y: number;
     content: string;
   }>({ show: false, x: 0, y: 0, content: '' });
+
+  // State for photo swipe gallery
+  const [isPhotoSwipeOpen, setIsPhotoSwipeOpen] = useState(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   // Update editedName and editedDescription when deck changes
   useEffect(() => {
@@ -134,6 +139,80 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
       y: y || 0,
       imageUrl: imageUrl || ''
     });
+  };
+
+  // Create flattened array of cards for photo swipe (matching sidebar display order)
+  // This replicates the sorting/grouping logic from DeckCardList (grouped by cost)
+  const deckCardsForPhotoSwipe: LorcanaCard[] = (() => {
+    // Get cards with data
+    const cardsWithData = deck.cards
+      .map(entry => allCards.find(c => c.id === entry.cardId))
+      .filter((card): card is LorcanaCard => card !== undefined);
+
+    // Sort by set/number first
+    const sorted = [...cardsWithData].sort((a, b) => {
+      if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode);
+      if (a.number !== b.number) return a.number - b.number;
+      return a.name.localeCompare(b.name);
+    });
+
+    // Group cards by cost
+    const grouped = sorted.reduce((acc, card) => {
+      const groupKey = `${card.cost} Cost`;
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(card);
+      return acc;
+    }, {} as Record<string, LorcanaCard[]>);
+
+    // Sort groups by cost and flatten
+    const sortedGroups = Object.entries(grouped).sort(([a], [b]) => {
+      const costA = parseInt(a.split(' ')[0]);
+      const costB = parseInt(b.split(' ')[0]);
+      return costA - costB;
+    });
+
+    // Flatten into single array
+    return sortedGroups.flatMap(([, cards]) => cards);
+  })();
+
+  // Create map of card quantities for PhotoSwipe
+  const cardQuantitiesMap = (() => {
+    const map = new Map<number, number>();
+    deck.cards.forEach(entry => {
+      map.set(entry.cardId, entry.quantity);
+    });
+    return map;
+  })();
+
+  const handleCardClick = (cardId: number) => {
+    const cardIndex = deckCardsForPhotoSwipe.findIndex(c => c.id === cardId);
+    setCurrentCardIndex(cardIndex >= 0 ? cardIndex : 0);
+    setIsPhotoSwipeOpen(true);
+  };
+
+  const handlePhotoSwipeClose = () => {
+    setIsPhotoSwipeOpen(false);
+  };
+
+  const handlePhotoSwipeAddCard = (card: LorcanaCard) => {
+    const deckCard = deck.cards.find(c => c.cardId === card.id);
+    const currentQuantity = deckCard?.quantity || 0;
+    onUpdateQuantity(card.id, currentQuantity + 1);
+  };
+
+  const handlePhotoSwipeRemoveCard = (cardId: number) => {
+    const deckCard = deck.cards.find(c => c.cardId === cardId);
+    if (deckCard) {
+      const newQuantity = deckCard.quantity - 1;
+      console.log('Removing card, newQuantity:', newQuantity, 'will close?', newQuantity === 0);
+      onUpdateQuantity(cardId, newQuantity);
+
+      // Close PhotoSwipe if we just removed the last copy
+      if (newQuantity === 0) {
+        console.log('Closing PhotoSwipe');
+        setIsPhotoSwipeOpen(false);
+      }
+    }
   };
 
   const handleDeleteDeck = () => {
@@ -383,6 +462,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
             onRemoveCard={onRemoveCard}
             onUpdateQuantity={onUpdateQuantity}
             onImagePreview={handleImagePreview}
+            onCardClick={handleCardClick}
             groupBy="cost"
           />
         )}
@@ -447,6 +527,18 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* Card Photo Slider */}
+      <CardPhotoSwipe
+        cards={deckCardsForPhotoSwipe}
+        currentCardIndex={currentCardIndex}
+        isOpen={isPhotoSwipeOpen}
+        onClose={handlePhotoSwipeClose}
+        galleryID="deck-panel-gallery"
+        cardQuantities={cardQuantitiesMap}
+        onAddCard={handlePhotoSwipeAddCard}
+        onRemoveCard={handlePhotoSwipeRemoveCard}
+      />
     </div>
     </>
   );

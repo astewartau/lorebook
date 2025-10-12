@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit3, User, ExternalLink, Copy, Check, Package, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Edit3, User, ExternalLink, Copy, Check, Package, BarChart3, Plus, Minus } from 'lucide-react';
 import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
@@ -25,7 +25,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   const { user } = useAuth();
   const { loadUserProfile } = useProfile();
   const { getCardQuantity } = useCollection();
-  const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks } = useDeck();
+  const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
   const [authorDisplayName, setAuthorDisplayName] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [sortBy, setSortBy] = useState<'cost' | 'type' | 'color' | 'set'>('set');
@@ -204,6 +204,16 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     return cards;
   }, [sortedGroups]);
 
+  // Create map of card quantities for PhotoSwipe
+  const cardQuantitiesMap = useMemo(() => {
+    if (!currentDeck) return undefined;
+    const map = new Map<number, number>();
+    currentDeck.cards.forEach(entry => {
+      map.set(entry.cardId, entry.quantity);
+    });
+    return map;
+  }, [currentDeck]);
+
   // Now handle early returns after all hooks
   if (!currentDeck) {
     return (
@@ -304,8 +314,35 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     // Find the actual card to get the image URL
     const card = allCards.find(c => c.id === cardId);
     if (!card) return '';
-    
+
     return card.images.full;
+  };
+
+  // Deck editing handlers
+  const handleAddCardToDeck = (card: LorcanaCard) => {
+    if (!currentDeck) return;
+    const deckCard = currentDeck.cards.find(c => c.cardId === card.id);
+    const currentQuantity = deckCard?.quantity || 0;
+    const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
+    const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
+
+    if (currentQuantity < maxCopies && totalCards < DECK_RULES.MAX_CARDS) {
+      addCardToDeck(card, currentDeck.id);
+    }
+  };
+
+  const handleRemoveCardFromDeck = (cardId: number) => {
+    if (!currentDeck) return;
+    const deckCard = currentDeck.cards.find(c => c.cardId === cardId);
+    if (!deckCard) return;
+
+    const newQuantity = deckCard.quantity - 1;
+    if (newQuantity === 0) {
+      removeCardFromDeck(cardId, currentDeck.id);
+      setIsPhotoSwipeOpen(false); // Close PhotoSwipe when card is removed
+    } else {
+      updateCardQuantity(cardId, newQuantity, currentDeck.id);
+    }
   };
 
   // Get ink colors for display (now includes individual colors from dual-ink cards)
@@ -701,15 +738,17 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                           const stackOffsetUp = (card.quantity - 1) * 12;
                           const ownedCopies = card.owned;
                           const missingCopies = card.missing;
+                          // Use fixed padding for alignment (max 4 copies = 36px)
+                          const maxStackOffset = 36;
 
                           return (
                             <div
                               key={card.id}
                               className="relative"
                               style={{
-                                // Reserve space for the vertical stacking effect only
-                                paddingTop: `${stackOffsetUp}px`,
-                                marginBottom: `${stackOffsetUp}px`
+                                // Reserve consistent space for all cards to align buttons
+                                paddingTop: `${maxStackOffset}px`,
+                                marginBottom: `${maxStackOffset}px`
                               }}
                             >
                               {/* Container that defines the actual space needed */}
@@ -760,6 +799,42 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                                   </div>
                                 )}
                               </div>
+
+                              {/* Deck editing controls - only show if user owns the deck */}
+                              {user && currentDeck.userId === user.id && (
+                                <div className="mt-2 flex justify-center">
+                                  <div className="flex items-center justify-between px-2 py-1 bg-lorcana-cream rounded-sm border-2 border-lorcana-gold">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveCardFromDeck(card.id);
+                                      }}
+                                      disabled={card.quantity <= 0}
+                                      className="w-6 h-6 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+
+                                    <span className="text-sm font-semibold text-lorcana-ink px-3">
+                                      {card.quantity}
+                                    </span>
+
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddCardToDeck(card);
+                                      }}
+                                      disabled={
+                                        card.quantity >= ((card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD) ||
+                                        currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0) >= DECK_RULES.MAX_CARDS
+                                      }
+                                      className="w-6 h-6 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -809,6 +884,9 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         isOpen={isPhotoSwipeOpen}
         onClose={handlePhotoSwipeClose}
         galleryID="deck-summary-gallery"
+        cardQuantities={cardQuantitiesMap}
+        onAddCard={user && currentDeck?.userId === user.id ? handleAddCardToDeck : undefined}
+        onRemoveCard={user && currentDeck?.userId === user.id ? handleRemoveCardFromDeck : undefined}
       />
     </div>
   );
