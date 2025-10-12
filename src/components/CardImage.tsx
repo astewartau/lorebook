@@ -8,6 +8,7 @@ interface CardImageProps {
   enableTilt?: boolean;
   className?: string;
   onClick?: () => void;
+  loading?: 'lazy' | 'eager';
 }
 
 const CardImage: React.FC<CardImageProps> = ({
@@ -15,7 +16,8 @@ const CardImage: React.FC<CardImageProps> = ({
   enableHover = false,
   enableTilt = false,
   className = '',
-  onClick
+  onClick,
+  loading = 'lazy'
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -62,8 +64,8 @@ const CardImage: React.FC<CardImageProps> = ({
     setLightPosition({ x: 50, y: 50 });
   };
   
-  // Use browser native lazy loading
-  const loadingAttr = 'lazy';
+  // Use the loading prop for native lazy loading
+  const loadingAttr = loading;
   
   return (
     <div 

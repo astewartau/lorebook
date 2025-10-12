@@ -12,12 +12,14 @@ interface CardProps {
   card: LorcanaCard;
   onQuantityChange?: (normalChange: number, foilChange: number) => void;
   onCardClick?: (card: LorcanaCard) => void;
+  loading?: 'lazy' | 'eager';
 }
 
-const InteractiveCard: React.FC<CardProps> = ({ 
+const InteractiveCard: React.FC<CardProps> = ({
   card,
   onQuantityChange,
-  onCardClick
+  onCardClick,
+  loading = 'lazy'
 }) => {
   const { user } = useAuth();
   const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity, createDeckAndStartEditing } = useDeck();
@@ -247,6 +249,7 @@ const InteractiveCard: React.FC<CardProps> = ({
           enableHover={true}
           enableTilt={false}
           className="w-full h-full"
+          loading={loading}
         />
       </div>
 

@@ -175,9 +175,13 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
           const top = row * (actualCardHeight + gapSize);
           
           const isFaded = shouldFadeCard(card.id);
-          
+
+          // Load eagerly if in first 2 rows (initial viewport), lazy otherwise
+          const isInitialViewport = row < 2;
+          const loadingStrategy = isInitialViewport ? 'eager' : 'lazy';
+
           return (
-            <div 
+            <div
               key={card.id}
               style={{
                 position: 'absolute',
@@ -190,10 +194,11 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
             >
               <InteractiveCard
                 card={card}
-                onQuantityChange={(normalChange, foilChange) => 
+                onQuantityChange={(normalChange, foilChange) =>
                   onQuantityChange(card, normalChange, foilChange)
                 }
                 onCardClick={onCardClick}
+                loading={loadingStrategy}
               />
             </div>
           );
