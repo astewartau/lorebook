@@ -349,7 +349,60 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          {/* Mobile: Stack buttons vertically */}
+          <div className="sm:hidden flex flex-col gap-3 mb-4">
+            <button
+              onClick={onBack}
+              className="flex items-center space-x-2 text-lorcana-navy hover:text-lorcana-ink transition-colors"
+            >
+              <ArrowLeft size={20} />
+              <span>Back to {user ? 'My Decks' : 'Published Decks'}</span>
+            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleExportToInktable}
+                className="btn-lorcana flex items-center justify-center space-x-2 w-full"
+                title="Open deck in Inktable"
+              >
+                <ExternalLink size={16} />
+                <span>Play on Inktable</span>
+              </button>
+              <button
+                onClick={handleCopyInktableUrl}
+                className={`btn-lorcana-navy flex items-center justify-center space-x-2 w-full transition-colors ${
+                  copySuccess ? 'bg-green-600 hover:bg-green-700' : ''
+                }`}
+                title="Copy Inktable link to clipboard"
+              >
+                {copySuccess ? (
+                  <>
+                    <Check size={16} />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} />
+                    <span>Copy Link</span>
+                  </>
+                )}
+              </button>
+              {user && currentDeck.userId === user.id && (
+                <button
+                  onClick={() => {
+                    startEditingDeck(currentDeck.id);
+                    navigate('/cards');
+                  }}
+                  className="btn-lorcana-navy flex items-center justify-center space-x-2 w-full"
+                >
+                  <Edit3 size={16} />
+                  <span>Edit Deck</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop: Keep horizontal layout */}
+          <div className="hidden sm:flex items-center justify-between mb-4">
             <button
               onClick={onBack}
               className="flex items-center space-x-2 text-lorcana-navy hover:text-lorcana-ink transition-colors"
@@ -388,15 +441,15 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                   )}
                 </button>
               </div>
-              
+
               {user && currentDeck.userId === user.id && (
                 <button
                   onClick={() => {
                     startEditingDeck(currentDeck.id);
                     navigate('/cards');
                   }}
-                className="btn-lorcana-navy flex items-center space-x-2"
-              >
+                  className="btn-lorcana-navy flex items-center space-x-2"
+                >
                   <Edit3 size={16} />
                   <span>Edit Deck</span>
                 </button>
@@ -404,8 +457,105 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
             </div>
           </div>
 
-          <div className="card-lorcana p-6 art-deco-corner">
-            <div className="flex items-start justify-between">
+          <div className="card-lorcana p-4 sm:p-6 art-deco-corner">
+            {/* Mobile Layout */}
+            <div className="sm:hidden">
+              {/* Avatar and Ink Colors side by side */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  {/* Avatar */}
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-4 border-lorcana-gold shadow-lg">
+                      {currentDeck.avatar ? (
+                        <div
+                          className="w-full h-full"
+                          style={{
+                            backgroundImage: `url(${getCardImageUrl(currentDeck.avatar.cardId)})`,
+                            backgroundSize: `${100 * currentDeck.avatar.cropData.scale}%`,
+                            backgroundPosition: `${currentDeck.avatar.cropData.x}% ${currentDeck.avatar.cropData.y}%`,
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        />
+                      ) : (
+                        <img
+                          src="/imgs/lorebook-icon-profile.png"
+                          alt="Default Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ink Colors */}
+                  {inkColors.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                      {inkColors.map(([color]) => (
+                        <div
+                          key={color}
+                          className="relative w-10 h-10 flex items-center justify-center"
+                          title={`${color}: ${summary.inkDistribution[color]} cards`}
+                        >
+                          {COLOR_ICONS[color] ? (
+                            <img
+                              src={COLOR_ICONS[color]}
+                              alt={color}
+                              className="w-full h-full drop-shadow-lg"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-lorcana-gold border-2 border-white shadow-lg" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Title and info below */}
+              <div>
+                <h1 className="text-2xl font-bold text-lorcana-ink mb-2">{currentDeck.name}</h1>
+
+                {/* Author info for public decks */}
+                {currentDeck.userId && currentDeck.userId !== user?.id && (
+                  <div className="flex items-center space-x-2 mb-3">
+                    <span className="text-sm text-lorcana-navy">by</span>
+                    <button
+                      onClick={() => handleViewProfile(currentDeck.userId!)}
+                      className="flex items-center space-x-1 text-sm text-lorcana-gold hover:text-lorcana-navy hover:underline transition-colors"
+                    >
+                      <User size={14} />
+                      <span>{authorDisplayName || currentDeck.authorEmail || 'Unknown Author'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {currentDeck.description && (
+                  <p className="text-lorcana-navy mb-4 text-sm">{currentDeck.description}</p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 text-sm text-lorcana-purple">
+                  <div className="flex items-center space-x-1">
+                    <span className="font-medium">Cards:</span>
+                    <span className={`font-semibold ${totalCards === DECK_RULES.MAX_CARDS ? 'text-green-600' : totalCards > DECK_RULES.MAX_CARDS ? 'text-red-600' : 'text-lorcana-navy'}`}>
+                      {totalCards}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="font-medium">Valid:</span>
+                    <span className={`font-semibold ${summary.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                      {summary.isValid ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  <div className="w-full">
+                    <span className="font-medium">Last Updated:</span>
+                    <span className="ml-1">{formatDate(summary.updatedAt)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Layout */}
+            <div className="hidden sm:flex items-start justify-between">
               {/* Avatar area */}
               <div className="flex-shrink-0 mr-6">
                 <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-lorcana-gold shadow-lg">
@@ -428,10 +578,10 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-lorcana-ink mb-2">{currentDeck.name}</h1>
-                
+
                 {/* Author info for public decks */}
                 {currentDeck.userId && currentDeck.userId !== user?.id && (
                   <div className="flex items-center space-x-2 mb-3">
@@ -445,11 +595,11 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                     </button>
                   </div>
                 )}
-                
+
                 {currentDeck.description && (
                   <p className="text-lorcana-navy mb-4">{currentDeck.description}</p>
                 )}
-                
+
                 <div className="flex flex-wrap items-center gap-4 text-sm text-lorcana-purple">
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">Cards:</span>
@@ -474,14 +624,14 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
               {inkColors.length > 0 && (
                 <div className="flex items-center space-x-2 ml-6">
                   {inkColors.map(([color]) => (
-                    <div 
-                      key={color} 
+                    <div
+                      key={color}
                       className="relative w-10 h-10 flex items-center justify-center"
                       title={`${color}: ${summary.inkDistribution[color]} cards`}
                     >
                       {COLOR_ICONS[color] ? (
-                        <img 
-                          src={COLOR_ICONS[color]} 
+                        <img
+                          src={COLOR_ICONS[color]}
                           alt={color}
                           className="w-full h-full drop-shadow-lg"
                         />

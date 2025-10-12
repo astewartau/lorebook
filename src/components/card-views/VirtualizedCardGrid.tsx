@@ -161,7 +161,7 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   }, [scrollTop, actualCardHeight, gapSize, actualColumns, cardsToRender]);
   
   return (
-    <div ref={containerRef} style={containerStyle}>
+    <div ref={containerRef} style={containerStyle} className="pb-24 sm:pb-16">
       {/* Total height spacer - this makes the page scrollable */}
       <div style={{ height: totalHeight, position: 'relative' }}>
         {/* Render each card with absolute positioning */}
