@@ -204,12 +204,10 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
     const deckCard = deck.cards.find(c => c.cardId === cardId);
     if (deckCard) {
       const newQuantity = deckCard.quantity - 1;
-      console.log('Removing card, newQuantity:', newQuantity, 'will close?', newQuantity === 0);
       onUpdateQuantity(cardId, newQuantity);
 
       // Close PhotoSwipe if we just removed the last copy
       if (newQuantity === 0) {
-        console.log('Closing PhotoSwipe');
         setIsPhotoSwipeOpen(false);
       }
     }

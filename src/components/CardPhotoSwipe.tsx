@@ -41,7 +41,6 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
   useEffect(() => {
     // Simple implementation like the working example
     const hasControls = !!(onAddCard && onRemoveCard);
-    console.log('Creating PhotoSwipe with controls:', hasControls);
 
     let lightbox = new PhotoSwipeLightbox({
       gallery: '#' + galleryID,
