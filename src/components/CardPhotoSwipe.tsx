@@ -43,8 +43,8 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
     const hasControls = !!(onAddCard && onRemoveCard);
 
     let lightbox = new PhotoSwipeLightbox({
-      gallery: '#' + galleryID,
-      children: 'a',
+      // Use dataSource instead of gallery selector - this prevents pre-loading all images
+      dataSource: [],
       pswpModule: () => import('photoswipe'),
       // Disable ALL close mechanisms when controls are present
       bgOpacity: 0.8,
@@ -183,16 +183,27 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
       lightbox.destroy();
       lightboxRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galleryID]); // Don't include cards/cardQuantities/onAddCard/onRemoveCard - they cause recreation on every click
 
   useEffect(() => {
     // Open or close the lightbox when isOpen changes
     if (isOpen && lightboxRef.current) {
+      // Convert cards to PhotoSwipe dataSource format
+      const dataSource = cards.map((card) => ({
+        src: card.images.full,
+        width: 488,
+        height: 680,
+        alt: card.name
+      }));
+
+      // Update the dataSource dynamically
+      lightboxRef.current.options.dataSource = dataSource;
       lightboxRef.current.loadAndOpen(currentCardIndex);
     } else if (!isOpen && lightboxRef.current?.pswp) {
       lightboxRef.current.pswp.close();
     }
-  }, [isOpen, currentCardIndex]);
+  }, [isOpen, currentCardIndex, cards]);
 
   // Handle close event
   useEffect(() => {
@@ -211,23 +222,8 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
     };
   }, [onClose]);
 
-  // Always render the gallery (hidden), like the working example
-  return (
-    <div className="pswp-gallery" id={galleryID} style={{ display: 'none' }}>
-      {cards.map((card, index) => (
-        <a
-          href={card.images.full}
-          data-pswp-width="488"
-          data-pswp-height="680"
-          key={galleryID + '-' + index}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <img src={card.images.full} alt={card.name} />
-        </a>
-      ))}
-    </div>
-  );
+  // No need to render anything - PhotoSwipe uses dataSource API
+  return null;
 };
 
 export default CardPhotoSwipe;
