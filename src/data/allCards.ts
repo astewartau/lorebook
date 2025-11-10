@@ -5,17 +5,17 @@
  * Components should migrate to use useCardData() hook from CardDataContext.
  */
 
-// For now, we'll load from the public allCards.json file synchronously
-// This is a temporary solution until all components are migrated to useCardData()
-
-// Export re-export utilities
-export { rarityOrder } from '../utils/cardDataUtils';
-
 // Import the JSON file directly - this will be bundled
 // Note: This is the downloaded copy from lorcanajson.org
 import cardDatabase from './allCards.json';
 import { CardDatabase, LorcanaCard } from '../types';
 import * as cardDataUtils from '../utils/cardDataUtils';
+
+// For now, we'll load from the public allCards.json file synchronously
+// This is a temporary solution until all components are migrated to useCardData()
+
+// Export re-export utilities
+export { rarityOrder } from '../utils/cardDataUtils';
 
 const db = cardDatabase as CardDatabase;
 
