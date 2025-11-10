@@ -218,7 +218,7 @@ class GroupService {
       }
     } else {
       // No existing invite, create a new one
-      const { data: newInvite, error } = await supabase
+      const { error } = await supabase
         .from('group_invitations')
         .insert({
           group_id: groupId,

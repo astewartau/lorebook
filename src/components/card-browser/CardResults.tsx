@@ -4,7 +4,6 @@ import { CardGridView, CardListView, GroupedView } from '../card-views';
 import { LorcanaCard, FilterOptions, SortOption } from '../../types';
 import { sets } from '../../data/allCards';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
-import ZoomControl from '../ui/ZoomControl';
 
 interface CardResultsProps {
   groupBy: string;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, X, Edit3, Check, X as XIcon, ExternalLink } from 'lucide-react';
+import { Trash2, Edit3, Check, X as XIcon, ExternalLink } from 'lucide-react';
 import { Deck, LorcanaCard } from '../../types';
 import DeckStatistics from './DeckStatistics';
 import DeckCardList from './DeckCardList';

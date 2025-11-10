@@ -46,13 +46,13 @@ export const useDynamicGrid = ({
     if (fixedColumns !== undefined) {
       return fixedColumns;
     }
-    
+
     if (availableWidth === 0) {
       if (viewportWidth < 768) return 2;  // Mobile: 2 columns with smaller cards
-      if (viewportWidth < 1024) return 4; // Tablet: 4 columns 
+      if (viewportWidth < 1024) return 4; // Tablet: 4 columns
       return 6; // Desktop: 6 columns
     }
-    
+
     // Simple approach: try fitting cards one by one
     let cols = 0;
     while (true) {
@@ -63,9 +63,9 @@ export const useDynamicGrid = ({
         break;
       }
     }
-    
+
     return Math.max(1, Math.min(cols, maxColumns));
-  }, [availableWidth, responsiveGapSize, scaledMinCardWidth, maxColumns, fixedColumns]);
+  }, [availableWidth, responsiveGapSize, scaledMinCardWidth, maxColumns, fixedColumns, viewportWidth]);
 
   // Calculate actual card width based on available space
   const actualCardWidth = useMemo(() => {
