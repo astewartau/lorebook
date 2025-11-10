@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Book, Users, Crown, Loader2, Upload, Trash2, Plus } from 'lucide-react';
+import { Package, Book, Users, Crown, Loader2, Trash2, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCollection } from '../contexts/CollectionContext';
 import Collection from './Collection';

@@ -72,12 +72,14 @@ const SetBinder: React.FC = () => {
     if (binderId) {
       loadPublishedBinder();
     }
-  }, [binderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [binderId]); // loadPublishedBinder is stable
 
   // Sync mobile page with desktop page on initial load
   useEffect(() => {
     setCurrentMobilePage(currentPageSpread * 2);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - intentionally ignoring currentPageSpread
 
   const loadPublishedBinder = async () => {
     if (!binderId) return;

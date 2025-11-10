@@ -54,7 +54,8 @@ const GitHubStyleSearch: React.FC<GitHubStyleSearchProps> = ({
       setBubbles(parsed.bubbles);
       setInputText(parsed.remainingText);
     }
-  }, []); // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - intentionally ignoring dependencies
 
   const updateParentValue = (newBubbles: SearchFieldBubbleType[], newInputText: string) => {
     const fullQuery = bubblesToSearchQuery(newBubbles, newInputText);

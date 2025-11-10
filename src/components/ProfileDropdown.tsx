@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { User, Bell, LogOut, Eye } from 'lucide-react';
 import { UserProfile } from '../types';

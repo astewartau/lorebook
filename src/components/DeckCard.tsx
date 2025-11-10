@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Eye, Copy, Trash2, Upload, Camera } from 'lucide-react';
+import { Edit, Eye, Copy, Trash2, Upload } from 'lucide-react';
 import { Deck } from '../types';
 import { COLOR_ICONS } from '../constants/icons';
 import AvatarImage from './AvatarImage';

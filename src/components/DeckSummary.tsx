@@ -106,7 +106,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         };
       })
       .filter(card => card !== null) as CardWithQuantity[];
-  }, [currentDeck, getCardQuantity]);
+  }, [currentDeck, getCardQuantity, allCards]);
 
   // Sort cards based on selected criteria
   const sortedCards = useMemo(() => {
@@ -250,9 +250,10 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   }
 
   const totalCards = cardsWithData.reduce((sum, card) => sum + card.quantity, 0);
-  const averageCost = cardsWithData.length > 0
-    ? (cardsWithData.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards).toFixed(1)
-    : '0';
+  // Commenting out unused variable for now
+  // const averageCost = cardsWithData.length > 0
+  //   ? (cardsWithData.reduce((sum, card) => sum + (card.cost * card.quantity), 0) / totalCards).toFixed(1)
+  //   : '0';
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -736,7 +737,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 2xl:grid-cols-5 gap-2">
                         {cards.map((card) => {
                           // Calculate exact space needed for vertical-only stacking
-                          const stackOffsetUp = (card.quantity - 1) * 12;
+                          // const stackOffsetUp = (card.quantity - 1) * 12;
                           const ownedCopies = card.owned;
                           const missingCopies = card.missing;
                           // Use fixed padding for alignment (max 4 copies = 36px)
