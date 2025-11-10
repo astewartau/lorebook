@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FilterOptions } from '../../types';
-import { cardTypes, stories, subtypes, sets, strengthRange, willpowerRange, loreRange } from '../../data/allCards';
+import { useCardData } from '../../contexts/CardDataContext';
 import MultiSelectFilter from '../MultiSelectFilter';
 import RangeFilter from '../RangeFilter';
 import { CollectionFilter } from '../filters';
@@ -31,6 +31,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   showCollectionFilters = true
 }) => {
   const [illumineerQuestExpanded, setIllumineerQuestExpanded] = useState(false);
+  const { cardTypes, stories, subtypes, sets, strengthRange, willpowerRange, loreRange } = useCardData();
   const {
     toggleColorFilter,
     toggleCostFilter,

@@ -230,7 +230,7 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                   if (card) {
                     // Split dual-ink colors
                     const colors = card.color.includes('-') ? card.color.split('-') : [card.color];
-                    colors.forEach(color => {
+                    colors.forEach((color: string) => {
                       acc[color] = (acc[color] || 0) + entry.quantity;
                     });
                   }

@@ -1,5 +1,5 @@
 import { LorcanaCard, FilterOptions, SortOption } from '../types';
-import { rarityOrder, sets, costRange, strengthRange, willpowerRange, loreRange } from '../data/allCards';
+import { rarityOrder } from '../utils/cardDataUtils';
 import { matchesSmartSearch } from './smartSearch';
 
 // Helper function to check if a card matches search criteria
@@ -180,8 +180,21 @@ export const sortCards = (cards: LorcanaCard[], sortBy: SortOption): LorcanaCard
         bValue = rarityOrder.indexOf(b.rarity);
         break;
       case 'set':
-        aValue = a.setCode;
-        bValue = b.setCode;
+        // Parse setCode as number for proper numeric sorting (e.g., "10" > "9")
+        // Handle special codes like "Q1", "Q2" by checking if they're numeric
+        const aSetNum = isNaN(parseInt(a.setCode)) ? a.setCode : parseInt(a.setCode);
+        const bSetNum = isNaN(parseInt(b.setCode)) ? b.setCode : parseInt(b.setCode);
+        // If one is a number and one is a string, numbers come first
+        if (typeof aSetNum === 'number' && typeof bSetNum === 'string') {
+          aValue = 0;
+          bValue = 1;
+        } else if (typeof aSetNum === 'string' && typeof bSetNum === 'number') {
+          aValue = 1;
+          bValue = 0;
+        } else {
+          aValue = aSetNum;
+          bValue = bSetNum;
+        }
         break;
       case 'number':
         aValue = a.number;
@@ -231,19 +244,20 @@ export const sortCards = (cards: LorcanaCard[], sortBy: SortOption): LorcanaCard
 
 // Group cards by specified field
 export const groupCards = (
-  cards: LorcanaCard[], 
-  groupBy: string
+  cards: LorcanaCard[],
+  groupBy: string,
+  sets?: Array<{ code: string; name: string; number: number }>
 ): Record<string, LorcanaCard[]> => {
   if (groupBy === 'none') return {};
-  
+
   const groupedCards: Record<string, LorcanaCard[]> = {};
-  
+
   cards.forEach(card => {
     let groupKey = '';
-    
+
     switch (groupBy) {
       case 'set':
-        const setInfo = sets.find(s => s.code === card.setCode);
+        const setInfo = sets?.find(s => s.code === card.setCode);
         groupKey = setInfo?.name || card.setCode;
         break;
       case 'color':
@@ -293,6 +307,7 @@ export const groupCards = (
     case 'set':
       // Sort set groups by set order (assuming sets are already in chronological order)
       sortedKeys = Object.keys(groupedCards).sort((a, b) => {
+        if (!sets) return a.localeCompare(b);
         const setA = sets.find(s => s.name === a);
         const setB = sets.find(s => s.name === b);
         if (!setA || !setB) return a.localeCompare(b);
@@ -314,7 +329,20 @@ export const groupCards = (
 };
 
 // Count active filters
-export const countActiveFilters = (filters: FilterOptions): number => {
+export const countActiveFilters = (
+  filters: FilterOptions,
+  ranges?: {
+    costRange?: { min: number; max: number };
+    strengthRange?: { min: number; max: number };
+    willpowerRange?: { min: number; max: number };
+    loreRange?: { min: number; max: number };
+  }
+): number => {
+  const costRange = ranges?.costRange || { min: 0, max: 10 };
+  const strengthRange = ranges?.strengthRange || { min: 0, max: 10 };
+  const willpowerRange = ranges?.willpowerRange || { min: 0, max: 10 };
+  const loreRange = ranges?.loreRange || { min: 0, max: 5 };
+
   return (
     filters.sets.length +
     filters.colors.length +

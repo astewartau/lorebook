@@ -1,15 +1,12 @@
 import { LorcanaCard, CardDatabase } from '../types';
-import fallbackCardData from '../data/allCards.json';
 
-const LORCANAJSON_URL = 'https://lorcanajson.org/files/current/en/allCards.json';
+// Use local copy of allCards.json from public folder
+// This file is downloaded from lorcanajson.org and served directly
+const LORCANAJSON_URL = '/allCards.json';
+
 const CACHE_KEY = 'lorcana_cards_cache';
 const CACHE_TIMESTAMP_KEY = 'lorcana_cards_cache_timestamp';
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
-
-interface CachedData {
-  data: CardDatabase;
-  timestamp: number;
-}
 
 class CardDataService {
   private cardsPromise: Promise<CardDatabase> | null = null;
@@ -70,18 +67,17 @@ class CardDataService {
       
       return data;
     } catch (error) {
-      console.error('Failed to fetch live card data, using fallback:', error);
-      
+      console.error('Failed to fetch live card data:', error);
+
       // Try to use any cached data, even if expired
       const expiredCache = this.getCachedData(true);
       if (expiredCache) {
         console.log('Using expired cache data');
         return expiredCache;
       }
-      
-      // Fall back to static JSON file
-      console.log('Using fallback card data');
-      return fallbackCardData as CardDatabase;
+
+      // No fallback - throw error
+      throw new Error('Failed to load card data. Please check your internet connection and try again.');
     }
   }
 

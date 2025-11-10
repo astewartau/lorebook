@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FilterOptions, SortOption, LorcanaCard } from '../types';
 import { useCollection } from '../contexts/CollectionContext';
+import { useCardData } from '../contexts/CardDataContext';
 import { usePagination } from './usePagination';
 import { useDebounce } from './useDebounce';
 import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils/cardFiltering';
@@ -9,6 +10,7 @@ import { getDefaultFilters, parseURLState } from '../utils/filterDefaults';
 import { PAGINATION } from '../constants';
 
 export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
+  const { sets, costRange, strengthRange, willpowerRange, loreRange } = useCardData();
   // ================================
   // 1. EXTERNAL DEPENDENCIES
   // ================================
@@ -81,16 +83,16 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
   const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
     const filtered = filterCards(cardData, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);
     const sorted = sortCards(filtered, sortBy);
-    const grouped = groupCards(sorted, groupBy);
-    const activeCount = countActiveFilters(filters);
-    
+    const grouped = groupCards(sorted, groupBy, sets);
+    const activeCount = countActiveFilters(filters, { costRange, strengthRange, willpowerRange, loreRange });
+
     return {
       sortedCards: sorted,
       groupedCards: grouped,
       totalCards: sorted.length,
       activeFiltersCount: activeCount
     };
-  }, [debouncedSearchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity]);
+  }, [cardData, debouncedSearchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity, sets, costRange, strengthRange, willpowerRange, loreRange]);
   
   const pagination = usePagination({
     totalItems: totalCards,

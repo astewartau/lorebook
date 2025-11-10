@@ -467,7 +467,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
       
       // Split dual-ink colors (e.g., "Amber-Amethyst" -> ["Amber", "Amethyst"])
       const colors = card.color.includes('-') ? card.color.split('-') : [card.color];
-      colors.forEach(color => {
+      colors.forEach((color: string) => {
         if (!inkDistribution[color]) {
           inkDistribution[color] = 0;
         }

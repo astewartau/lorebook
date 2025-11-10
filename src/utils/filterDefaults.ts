@@ -1,7 +1,22 @@
-import { costRange, strengthRange, willpowerRange, loreRange } from '../data/allCards';
 import { FilterOptions, SortOption } from '../types';
 
-export const getDefaultFilters = (): FilterOptions => {
+// Default ranges - these will be overridden by actual card data when available
+const DEFAULT_COST_RANGE = { min: 0, max: 10 };
+const DEFAULT_STRENGTH_RANGE = { min: 0, max: 10 };
+const DEFAULT_WILLPOWER_RANGE = { min: 0, max: 10 };
+const DEFAULT_LORE_RANGE = { min: 0, max: 5 };
+
+export const getDefaultFilters = (ranges?: {
+  costRange?: { min: number; max: number };
+  strengthRange?: { min: number; max: number };
+  willpowerRange?: { min: number; max: number };
+  loreRange?: { min: number; max: number };
+}): FilterOptions => {
+  const costRange = ranges?.costRange || DEFAULT_COST_RANGE;
+  const strengthRange = ranges?.strengthRange || DEFAULT_STRENGTH_RANGE;
+  const willpowerRange = ranges?.willpowerRange || DEFAULT_WILLPOWER_RANGE;
+  const loreRange = ranges?.loreRange || DEFAULT_LORE_RANGE;
+
   return {
     search: '',
     sets: [],

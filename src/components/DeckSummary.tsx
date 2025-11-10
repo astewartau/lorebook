@@ -5,12 +5,12 @@ import { useDeck } from '../contexts/DeckContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { useCollection } from '../contexts/CollectionContext';
+import { useCardData } from '../contexts/CardDataContext';
 import { COLOR_ICONS } from '../constants/icons';
 import { DECK_RULES } from '../constants';
 import CardImage from './CardImage';
 import DeckStatistics from './deck/DeckStatistics';
 import CardPhotoSwipe from './CardPhotoSwipe';
-import { allCards } from '../data/allCards';
 import { LorcanaCard } from '../types';
 import { exportToInktable, copyInktableUrl, validateInktableExport } from '../utils/inktableExport';
 
@@ -25,6 +25,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   const { user } = useAuth();
   const { loadUserProfile } = useProfile();
   const { getCardQuantity } = useCollection();
+  const { allCards } = useCardData();
   const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
   const [authorDisplayName, setAuthorDisplayName] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
