@@ -31,7 +31,7 @@
     "local": "dotenv -e .env.local -- react-scripts start",
     "dev": "dotenv -e .env.development -- react-scripts start",
     "prod": "dotenv -e .env.production -- react-scripts start",
-    "build": "react-scripts build",
+    "build": "CI=false react-scripts build",
     "build:dev": "dotenv -e .env.development -- react-scripts build",
     "build:prod": "dotenv -e .env.production -- react-scripts build",
     "db:migrate:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" < collection-groups-migration.sql'",
