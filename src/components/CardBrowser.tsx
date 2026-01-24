@@ -10,6 +10,8 @@ import CardFilters from './card-browser/CardFilters';
 import CardResults from './card-browser/CardResults';
 import { useCardData } from '../contexts/CardDataContext';
 import { useDeck } from '../contexts/DeckContext';
+import { useCollection } from '../contexts/CollectionContext';
+import { useAuth } from '../contexts/AuthContext';
 
 
 const CardBrowser: React.FC = () => {
@@ -18,32 +20,51 @@ const CardBrowser: React.FC = () => {
   const [renderedCards, setRenderedCards] = useState<LorcanaCard[]>([]);
   const { allCards, isLoading, error, refreshCardData } = useCardData();
   const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
+  const { getCardQuantity, addCardToCollection, removeCardFromCollection } = useCollection();
+  const { user } = useAuth();
 
   // Memoize photo swipe handlers to avoid recreating on every render
+  // When editing deck: add/remove from deck
+  // When not editing deck (but logged in): add/remove from collection (normal copies)
   const handlePhotoSwipeAddCard = useMemo(() => {
-    if (!isEditingDeck || !currentDeck) return undefined;
-    return (card: LorcanaCard) => {
-      addCardToDeck(card);
-    };
-  }, [isEditingDeck, currentDeck, addCardToDeck]);
+    if (isEditingDeck && currentDeck) {
+      return (card: LorcanaCard) => {
+        addCardToDeck(card);
+      };
+    }
+    if (user) {
+      return (card: LorcanaCard) => {
+        addCardToCollection(card.id, 1, 0); // Add 1 normal copy
+      };
+    }
+    return undefined;
+  }, [isEditingDeck, currentDeck, addCardToDeck, user, addCardToCollection]);
 
   const handlePhotoSwipeRemoveCard = useMemo(() => {
-    if (!isEditingDeck || !currentDeck) return undefined;
-    return (cardId: number) => {
-      const deckCard = currentDeck.cards.find(c => c.cardId === cardId);
-      if (deckCard) {
-        const newQuantity = deckCard.quantity - 1;
-        if (newQuantity === 0) {
-          removeCardFromDeck(cardId);
-          setIsPhotoSwipeOpen(false); // Close PhotoSwipe when card is removed
-        } else {
-          updateCardQuantity(cardId, newQuantity);
+    if (isEditingDeck && currentDeck) {
+      return (cardId: number) => {
+        const deckCard = currentDeck.cards.find(c => c.cardId === cardId);
+        if (deckCard) {
+          const newQuantity = deckCard.quantity - 1;
+          if (newQuantity === 0) {
+            removeCardFromDeck(cardId);
+            setIsPhotoSwipeOpen(false); // Close PhotoSwipe when card is removed
+          } else {
+            updateCardQuantity(cardId, newQuantity);
+          }
         }
-      }
-    };
-  }, [isEditingDeck, currentDeck, removeCardFromDeck, updateCardQuantity]);
+      };
+    }
+    if (user) {
+      return (cardId: number) => {
+        removeCardFromCollection(cardId, 1, 0); // Remove 1 normal copy
+      };
+    }
+    return undefined;
+  }, [isEditingDeck, currentDeck, removeCardFromDeck, updateCardQuantity, user, removeCardFromCollection]);
 
-  const cardQuantitiesMap = useMemo(() => {
+  // For deck editing: use a Map of deck quantities
+  const deckQuantitiesMap = useMemo(() => {
     if (!isEditingDeck || !currentDeck) return undefined;
     const map = new Map<number, number>();
     currentDeck.cards.forEach(entry => {
@@ -51,6 +72,12 @@ const CardBrowser: React.FC = () => {
     });
     return map;
   }, [isEditingDeck, currentDeck]);
+
+  // For collection mode: use a function to get quantities on demand
+  const getCollectionQuantity = useMemo(() => {
+    if (isEditingDeck || !user) return undefined;
+    return (cardId: number) => getCardQuantity(cardId).total;
+  }, [isEditingDeck, user, getCardQuantity]);
 
   const {
     // State
@@ -247,7 +274,8 @@ const CardBrowser: React.FC = () => {
         isOpen={isPhotoSwipeOpen}
         onClose={handlePhotoSwipeClose}
         galleryID="card-browser-gallery"
-        cardQuantities={cardQuantitiesMap}
+        cardQuantities={deckQuantitiesMap}
+        getQuantity={getCollectionQuantity}
         onAddCard={handlePhotoSwipeAddCard}
         onRemoveCard={handlePhotoSwipeRemoveCard}
       />

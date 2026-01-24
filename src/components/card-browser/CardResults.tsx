@@ -2,7 +2,7 @@ import React from 'react';
 import PaginationControls from '../shared/PaginationControls';
 import { CardGridView, CardListView, GroupedView } from '../card-views';
 import { LorcanaCard, FilterOptions, SortOption } from '../../types';
-import { sets } from '../../data/allCards';
+import { useCardData } from '../../contexts/CardDataContext';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
 
 interface CardResultsProps {
@@ -46,6 +46,8 @@ const CardResults: React.FC<CardResultsProps> = ({
   sortBy,
   onRenderedCardsChange,
 }) => {
+  const { sets } = useCardData();
+
   return (
     <div className="w-full">
       <div className="space-y-6">

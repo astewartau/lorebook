@@ -3,9 +3,9 @@ import { X, AlertTriangle, Share2, Package, Upload, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useCardData } from '../contexts/CardDataContext';
 import { useModal } from '../hooks';
 import { supabase, TABLES } from '../lib/supabase';
-import { allCards, sets } from '../data/allCards';
 import { EmptyCollectionState } from './EmptyCollectionState';
 import { SetSummaryCard } from './SetSummaryCard';
 
@@ -27,15 +27,16 @@ interface CollectionProps {
   onDeleteAllClick: () => void;
 }
 
-const Collection: React.FC<CollectionProps> = ({ 
-  totalCards, 
-  uniqueCards, 
-  onImportClick, 
-  onDeleteAllClick 
+const Collection: React.FC<CollectionProps> = ({
+  totalCards,
+  uniqueCards,
+  onImportClick,
+  onDeleteAllClick
 }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { getCardQuantity } = useCollection();
+  const { allCards, sets } = useCardData();
   const publishModal = useModal<{code: string, name: string}>();
   const [publishedBinders, setPublishedBinders] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +70,7 @@ const Collection: React.FC<CollectionProps> = ({
   // Calculate set summaries
   const setSummaries = useMemo((): SetSummary[] => {
     return sets
-      .filter(set => set.number <= 9) // Hide unreleased sets (10, 11)
+      .filter(set => set.number <= 11) // Hide unreleased sets (12+)
       .map(set => {
       // Get all cards in this set - each card is individual now
       const setCards = allCards.filter(card => card.setCode === set.code);

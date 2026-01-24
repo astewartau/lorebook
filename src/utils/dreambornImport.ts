@@ -1,4 +1,3 @@
-import { allCards } from '../data/allCards';
 import { LorcanaCard } from '../types';
 
 export interface DreambornCSVRow {
@@ -184,7 +183,7 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   return rows;
 };
 
-export const matchCardToDatabase = (csvRow: DreambornCSVRow): LorcanaCard | null => {
+export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCard[]): LorcanaCard | null => {
   const { Name: csvName, 'Set Number': csvSet, 'Card Number': csvCardNumber, Rarity: csvRarity } = csvRow;
   
   // Parse card number
@@ -322,7 +321,7 @@ export interface ImportResult {
   failedCards: { name: string; set: string; cardNumber: string; rarity: string }[];
 }
 
-export const importDreambornCollection = (csvContent: string): ImportResult => {
+export const importDreambornCollection = (csvContent: string, allCards: LorcanaCard[]): ImportResult => {
   try {
     console.log('=== STARTING DREAMBORN IMPORT ===');
     const csvRows = parseDreambornCSV(csvContent);
@@ -346,7 +345,7 @@ export const importDreambornCollection = (csvContent: string): ImportResult => {
         });
       }
 
-      const card = matchCardToDatabase(row);
+      const card = matchCardToDatabase(row, allCards);
       if (!card) {
         unmatchedCards++;
         failedCards.push({

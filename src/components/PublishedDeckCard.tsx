@@ -2,7 +2,7 @@ import React from 'react';
 import { Eye, Copy, User } from 'lucide-react';
 import { Deck } from '../types';
 import { COLOR_ICONS } from '../constants/icons';
-import { allCards } from '../data/allCards';
+import { useCardData } from '../contexts/CardDataContext';
 import { useCollection } from '../contexts/CollectionContext';
 import AvatarImage from './AvatarImage';
 
@@ -23,6 +23,7 @@ const PublishedDeckCard: React.FC<PublishedDeckCardProps> = ({
   onViewProfile,
   canDuplicate = false
 }) => {
+  const { allCards } = useCardData();
   const { getCardQuantity } = useCollection();
   const getInkColorBg = (color: string) => {
     switch (color) {

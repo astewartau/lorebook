@@ -35,7 +35,8 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   
   // Simple configuration using actual measurements
   const CARD_ASPECT_RATIO = 1468 / 2048; // Real aspect ratio from original image
-  const CONTROLS_HEIGHT = user ? 28 : 0; // Only when logged in
+  // Controls height includes: control buttons (~36px) + space-y-2 gap (8px) + bottom padding (8px)
+  const CONTROLS_HEIGHT = user ? 52 : 0; // Only when logged in
   const SPACE_BETWEEN = 0; // No extra space needed
   
   // Trust the hook completely - no conflicting calculations

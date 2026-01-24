@@ -5,12 +5,12 @@ import { UserProfile, Deck } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeck } from '../contexts/DeckContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useCardData } from '../contexts/CardDataContext';
 import { COLOR_ICONS } from '../constants/icons';
 import UserAvatarButton from './UserAvatarButton';
 import ProfileEditModal from './ProfileEditModal';
 import { DECK_RULES } from '../constants';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
-import { allCards } from '../data/allCards';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -22,6 +22,7 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
   const { user } = useAuth();
   const { publicDecks, loadPublicDecks } = useDeck();
   const { loadUserProfile } = useProfile();
+  const { allCards } = useCardData();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userDecks, setUserDecks] = useState<Deck[]>([]);
   const [userBinders, setUserBinders] = useState<UserBinder[]>([]);

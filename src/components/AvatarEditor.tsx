@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Search, ZoomIn, ZoomOut, Move, Check } from 'lucide-react';
-import { allCards } from '../data/allCards';
+import { useCardData } from '../contexts/CardDataContext';
 import { LorcanaCard } from '../types';
 
 interface AvatarEditorProps {
@@ -24,6 +24,7 @@ const AvatarEditor: React.FC<AvatarEditorProps> = ({
   currentAvatar,
   title = "Choose Avatar"
 }) => {
+  const { allCards } = useCardData();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
   const [cropData, setCropData] = useState<CropData>({ x: 50, y: 50, scale: 1 });

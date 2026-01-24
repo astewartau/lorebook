@@ -3,8 +3,8 @@ import { ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import { Deck, LorcanaCard } from '../../types';
 import { COLOR_ICONS } from '../../constants/icons';
 import { DECK_RULES } from '../../constants';
-import { allCards } from '../../data/allCards';
 import { useCollection } from '../../contexts/CollectionContext';
+import { useCardData } from '../../contexts/CardDataContext';
 
 interface DeckCardListProps {
   deck: Deck;
@@ -24,6 +24,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
   groupBy = 'cost'
 }) => {
   const { getCardQuantity } = useCollection();
+  const { allCards } = useCardData();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const totalCards = deck.cards.reduce((sum, entry) => sum + entry.quantity, 0);

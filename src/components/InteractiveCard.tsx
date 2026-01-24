@@ -92,24 +92,28 @@ const InteractiveCard: React.FC<CardProps> = ({
     }
   };
 
+  // Check if device supports hover (non-touch)
+  const supportsHover = typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    
+    // Skip tilt effect on touch devices
+    if (!supportsHover || !cardRef.current) return;
+
     // Throttle to ~30fps (33ms)
     const now = performance.now();
     if (now - lastUpdateTime.current < 33) return;
     lastUpdateTime.current = now;
-    
+
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    
+
     // Calculate rotation based on mouse position
     const rotateX = ((y - centerY) / centerY) * -15;
     const rotateY = ((x - centerX) / centerX) * 15;
-    
+
     setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
   };
   
@@ -133,21 +137,21 @@ const InteractiveCard: React.FC<CardProps> = ({
 
   const renderQuantityControls = () => {
     return (
-      <div className="flex space-x-1">
+      <div className="flex space-x-2">
         {/* Normal quantity control */}
-        <div className="flex items-center justify-between px-2 py-1 rounded-md border bg-lorcana-cream border-lorcana-gold transition-all">
+        <div className="flex items-center justify-between px-2 py-1 bg-lorcana-cream rounded-sm border-2 border-lorcana-gold">
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleNormalQuantityChange(-1);
             }}
             disabled={quantities.normal <= 0}
-            className="p-0.5 rounded text-red-600 hover:text-red-800 transition-colors disabled:text-gray-400"
-            title="Remove normal copy"
+            className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+            aria-label={`Remove normal copy of ${card.name}`}
           >
-            <Minus size={10} />
+            <Minus size={14} />
           </button>
-          <span className="font-semibold text-xs min-w-[1rem] text-center text-lorcana-ink">
+          <span className="text-sm font-semibold text-lorcana-ink px-2">
             {quantities.normal}
           </span>
           <button
@@ -155,27 +159,28 @@ const InteractiveCard: React.FC<CardProps> = ({
               e.stopPropagation();
               handleNormalQuantityChange(1);
             }}
-            className="p-0.5 rounded text-green-600 hover:text-green-800 transition-colors"
-            title="Add normal copy"
+            className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 transition-colors rounded-sm"
+            aria-label={`Add normal copy of ${card.name}`}
           >
-            <Plus size={10} />
+            <Plus size={14} />
           </button>
         </div>
 
-        {/* Foil quantity control */}
-        <div className="flex items-center justify-between px-2 py-1 rounded-md border bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 border-lorcana-navy transition-all">
+        {/* Foil quantity control - with shimmer effect */}
+        <div className="flex items-center justify-between px-2 py-1 bg-gradient-to-r from-purple-100 via-pink-100 to-blue-100 rounded-sm border-2 border-purple-400 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -skew-x-12 animate-shimmer pointer-events-none" style={{ animationDuration: '3s' }} />
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleFoilQuantityChange(-1);
             }}
             disabled={quantities.foil <= 0}
-            className="p-0.5 rounded text-red-600 hover:text-red-800 transition-colors disabled:text-gray-400"
-            title="Remove foil copy"
+            className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100/50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm relative z-10"
+            aria-label={`Remove foil copy of ${card.name}`}
           >
-            <Minus size={10} />
+            <Minus size={14} />
           </button>
-          <span className="font-semibold text-xs min-w-[1rem] text-center text-lorcana-ink">
+          <span className="text-sm font-semibold text-purple-800 px-2 relative z-10">
             {quantities.foil}
           </span>
           <button
@@ -183,10 +188,10 @@ const InteractiveCard: React.FC<CardProps> = ({
               e.stopPropagation();
               handleFoilQuantityChange(1);
             }}
-            className="p-0.5 rounded text-green-600 hover:text-green-800 transition-colors"
-            title="Add foil copy"
+            className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100/50 transition-colors rounded-sm relative z-10"
+            aria-label={`Add foil copy of ${card.name}`}
           >
-            <Plus size={10} />
+            <Plus size={14} />
           </button>
         </div>
       </div>
@@ -202,31 +207,33 @@ const InteractiveCard: React.FC<CardProps> = ({
             handleRemoveFromDeck();
           }}
           disabled={deckQuantity <= 0}
-          className="w-6 h-6 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+          className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+          aria-label={`Remove ${card.name} from deck`}
         >
-          <Minus size={12} />
+          <Minus size={14} />
         </button>
-        
-        <span className="text-sm font-semibold text-lorcana-ink">
+
+        <span className="text-sm font-semibold text-lorcana-ink px-2">
           {deckQuantity}{quantities.total > 0 ? `/${Math.min(quantities.total, 4)}` : ''}
         </span>
-        
+
         <button
           onClick={(e) => {
             e.stopPropagation();
             handleAddToDeck();
           }}
           disabled={!canAddToDeck()}
-          className="w-6 h-6 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+          className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+          aria-label={`Add ${card.name} to deck`}
         >
-          <Plus size={12} />
+          <Plus size={14} />
         </button>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-col space-y-2">
+    <div className="flex flex-col space-y-2 pb-2">
       {/* Card Image */}
       <div 
         ref={cardRef}

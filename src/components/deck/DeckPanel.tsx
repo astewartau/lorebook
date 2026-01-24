@@ -5,7 +5,7 @@ import DeckStatistics from './DeckStatistics';
 import DeckCardList from './DeckCardList';
 import CardPhotoSwipe from '../CardPhotoSwipe';
 import { DECK_RULES } from '../../constants';
-import { allCards } from '../../data/allCards';
+import { useCardData } from '../../contexts/CardDataContext';
 import { exportToInktable, validateInktableExport } from '../../utils/inktableExport';
 
 interface DeckPanelProps {
@@ -33,6 +33,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
   validation,
   isCollapsed = false
 }) => {
+  const { allCards } = useCardData();
   const [activeTab, setActiveTab] = useState<'statistics' | 'cards'>('statistics');
   const [imagePreview, setImagePreview] = useState<{
     show: boolean;
@@ -278,29 +279,38 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
             {/* Editable deck name */}
             <div className="flex items-center gap-2 flex-1">
               {isEditingName ? (
-                <div className="flex items-center gap-1 flex-1">
+                <div className="flex items-center gap-2 flex-1">
                   <input
                     type="text"
                     value={editedName}
                     onChange={(e) => setEditedName(e.target.value)}
                     onKeyDown={handleNameKeyPress}
+                    onBlur={() => {
+                      // Auto-save on blur if there are changes
+                      if (editedName.trim() && editedName.trim() !== deck.name) {
+                        handleSaveName();
+                      }
+                    }}
                     className="text-lg font-semibold text-lorcana-ink bg-lorcana-cream border-2 border-lorcana-gold rounded-sm px-2 py-1 flex-1 focus:outline-none focus:ring-2 focus:ring-lorcana-gold"
                     autoFocus
                     maxLength={50}
+                    aria-label="Deck name"
                   />
                   <button
                     onClick={handleSaveName}
-                    className="p-1 text-green-600 hover:bg-green-100 rounded-sm transition-colors"
-                    title="Save deck name"
+                    className="px-2 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-sm transition-colors flex items-center gap-1"
+                    aria-label="Save deck name"
                   >
-                    <Check size={16} />
+                    <Check size={14} />
+                    <span className="hidden sm:inline">Save</span>
                   </button>
                   <button
                     onClick={handleCancelNameEdit}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded-sm transition-colors"
-                    title="Cancel editing"
+                    className="px-2 py-1 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-sm transition-colors"
+                    aria-label="Cancel editing deck name"
                   >
-                    <XIcon size={16} />
+                    <span className="hidden sm:inline">Cancel</span>
+                    <XIcon size={14} className="sm:hidden" />
                   </button>
                 </div>
               ) : (
@@ -310,7 +320,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
                     <button
                       onClick={handleStartEditingName}
                       className="p-1 text-lorcana-navy hover:bg-lorcana-cream rounded-sm transition-colors"
-                      title="Edit deck name"
+                      aria-label="Edit deck name"
                     >
                       <Edit3 size={14} />
                     </button>
@@ -322,7 +332,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
           <button
             onClick={handleDeleteDeck}
             className="p-2 text-red-600 hover:bg-red-100 rounded-sm transition-colors"
-            title="Delete deck"
+            aria-label="Delete deck"
           >
             <Trash2 size={16} />
           </button>
@@ -331,35 +341,37 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
         {/* Deck Description */}
         <div className="mb-3">
           {isEditingDescription ? (
-            <div className="space-y-2">
+            <div className="space-y-2 bg-lorcana-cream/50 p-2 rounded-sm border border-lorcana-gold/30">
               <textarea
                 value={editedDescription}
                 onChange={(e) => setEditedDescription(e.target.value)}
                 onKeyDown={handleDescriptionKeyPress}
-                className="w-full text-sm text-lorcana-ink bg-lorcana-cream border-2 border-lorcana-gold rounded-sm px-2 py-1 resize-none focus:outline-none focus:ring-2 focus:ring-lorcana-gold"
+                className="w-full text-sm text-lorcana-ink bg-white border-2 border-lorcana-gold rounded-sm px-2 py-1 resize-none focus:outline-none focus:ring-2 focus:ring-lorcana-gold"
                 placeholder="Add a description for your deck..."
                 rows={3}
                 maxLength={500}
                 autoFocus
+                aria-label="Deck description"
               />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-lorcana-purple">
                   {editedDescription.length}/500 characters
                 </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleSaveDescription}
-                    className="p-1 text-green-600 hover:bg-green-100 rounded-sm transition-colors"
-                    title="Save description"
-                  >
-                    <Check size={16} />
-                  </button>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={handleCancelDescriptionEdit}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded-sm transition-colors"
-                    title="Cancel editing"
+                    className="px-2 py-1 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-sm transition-colors"
+                    aria-label="Cancel editing description"
                   >
-                    <XIcon size={16} />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveDescription}
+                    className="px-2 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-sm transition-colors flex items-center gap-1"
+                    aria-label="Save description"
+                  >
+                    <Check size={14} />
+                    Save
                   </button>
                 </div>
               </div>
@@ -377,7 +389,7 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
                 <button
                   onClick={handleStartEditingDescription}
                   className="p-1 text-lorcana-navy hover:bg-lorcana-cream rounded-sm transition-colors flex-shrink-0"
-                  title="Edit description"
+                  aria-label="Edit description"
                 >
                   <Edit3 size={14} />
                 </button>

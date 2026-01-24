@@ -77,7 +77,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
                     onEditAvatar?.(deck.id);
                   }}
                   className="w-16 h-16 rounded-full border-2 border-lorcana-gold overflow-hidden hover:border-lorcana-navy transition-all group/avatar"
-                  title="Add Avatar"
+                  aria-label="Add deck avatar"
                 >
                   <img
                     src="/imgs/lorebook-icon-profile.png"
@@ -100,7 +100,7 @@ const DeckCard: React.FC<DeckCardProps> = ({
             {/* Toggle switch for publish status */}
             {(onPublish || onUnpublish) && (
               <div className="flex items-center mt-2 space-x-2">
-                <span className="text-xs text-lorcana-navy">Public:</span>
+                <span className="text-xs text-lorcana-navy" id={`public-label-${deck.id}`}>Public:</span>
                 <label className="toggle-switch">
                   <input
                     type="checkbox"
@@ -113,8 +113,10 @@ const DeckCard: React.FC<DeckCardProps> = ({
                         onPublish(deck.id);
                       }
                     }}
+                    aria-label={`Make deck ${deck.isPublic ? 'private' : 'public'}`}
+                    aria-describedby={`public-label-${deck.id}`}
                   />
-                  <span className="toggle-slider"></span>
+                  <span className="toggle-slider" aria-hidden="true"></span>
                 </label>
               </div>
             )}
@@ -188,29 +190,29 @@ const DeckCard: React.FC<DeckCardProps> = ({
               onDuplicate(deck.id);
             }}
             className="btn-lorcana-navy-sm flex items-center gap-1"
-            title="Duplicate"
+            aria-label="Duplicate deck"
           >
             <Copy size={14} />
           </button>
-          
+
           <button
             onClick={(e) => {
               e.stopPropagation();
               onExport(deck.id);
             }}
             className="btn-lorcana-navy-sm flex items-center gap-1"
-            title="Export"
+            aria-label="Export deck"
           >
             <Upload size={14} />
           </button>
-          
+
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete(deck.id);
             }}
             className="btn-lorcana-navy-sm flex items-center gap-1 hover:bg-red-500 hover:text-white hover:border-red-500"
-            title="Delete"
+            aria-label="Delete deck"
           >
             <Trash2 size={14} />
           </button>

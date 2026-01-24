@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { allCards } from '../data/allCards';
+import { useCardData } from '../contexts/CardDataContext';
 
 interface AvatarImageProps {
   cardId: number;
@@ -14,6 +14,7 @@ const AvatarImage: React.FC<AvatarImageProps> = ({
   className = '',
   onClick
 }) => {
+  const { allCards } = useCardData();
   const [imageError, setImageError] = useState(false);
 
   // Get card data

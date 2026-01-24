@@ -1,8 +1,8 @@
 import React from 'react';
 import { Deck } from '../../types';
 import { useCollection } from '../../contexts/CollectionContext';
+import { useCardData } from '../../contexts/CardDataContext';
 import PieChart from '../shared/PieChart';
-import { allCards } from '../../data/allCards';
 
 interface DeckStatisticsProps {
   deck: Deck;
@@ -10,12 +10,13 @@ interface DeckStatisticsProps {
   onTooltipHide: () => void;
 }
 
-const DeckStatistics: React.FC<DeckStatisticsProps> = ({ 
-  deck, 
-  onTooltipShow, 
-  onTooltipHide 
+const DeckStatistics: React.FC<DeckStatisticsProps> = ({
+  deck,
+  onTooltipShow,
+  onTooltipHide
 }) => {
   const { getCardQuantity } = useCollection();
+  const { allCards } = useCardData();
 
 
   // Calculate statistics

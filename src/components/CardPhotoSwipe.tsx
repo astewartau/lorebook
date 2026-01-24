@@ -9,7 +9,8 @@ interface CardPhotoSwipeProps {
   isOpen: boolean;
   onClose: () => void;
   galleryID: string;
-  cardQuantities?: Map<number, number>; // Map of cardId -> quantity in deck
+  cardQuantities?: Map<number, number>; // Map of cardId -> quantity (legacy)
+  getQuantity?: (cardId: number) => number; // Function to get quantity (preferred)
   onAddCard?: (card: LorcanaCard) => void;
   onRemoveCard?: (cardId: number) => void;
 }
@@ -21,6 +22,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
   onClose,
   galleryID,
   cardQuantities,
+  getQuantity,
   onAddCard,
   onRemoveCard
 }) => {
@@ -28,6 +30,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
   const onAddCardRef = useRef(onAddCard);
   const onRemoveCardRef = useRef(onRemoveCard);
   const cardQuantitiesRef = useRef(cardQuantities);
+  const getQuantityRef = useRef(getQuantity);
   const cardsRef = useRef(cards);
 
   // Keep refs up to date with latest props
@@ -35,12 +38,15 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
     onAddCardRef.current = onAddCard;
     onRemoveCardRef.current = onRemoveCard;
     cardQuantitiesRef.current = cardQuantities;
+    getQuantityRef.current = getQuantity;
     cardsRef.current = cards;
-  }, [onAddCard, onRemoveCard, cardQuantities, cards]);
+  }, [onAddCard, onRemoveCard, cardQuantities, getQuantity, cards]);
+
+  // Track whether we have controls - used for dependency array
+  const hasControls = !!(onAddCard && onRemoveCard);
 
   useEffect(() => {
     // Simple implementation like the working example
-    const hasControls = !!(onAddCard && onRemoveCard);
 
     let lightbox = new PhotoSwipeLightbox({
       // Use dataSource instead of gallery selector - this prevents pre-loading all images
@@ -64,7 +70,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
     });
 
     // Add custom UI elements if handlers provided
-    if (onAddCard && onRemoveCard) {
+    if (hasControls) {
       lightbox.on('uiRegister', function() {
         // Quantity control buttons
         lightbox.pswp?.ui?.registerElement({
@@ -138,7 +144,10 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
 
               const updateDisplay = () => {
                 const currentCard = cardsRef.current[lightbox.pswp?.currIndex || 0];
-                const quantity = cardQuantitiesRef.current?.get(currentCard.id) || 0;
+                // Use getQuantity function if available, otherwise fall back to Map
+                const quantity = getQuantityRef.current
+                  ? getQuantityRef.current(currentCard.id)
+                  : (cardQuantitiesRef.current?.get(currentCard.id) || 0);
                 quantitySpan.textContent = `${quantity}`;
                 minusBtn.disabled = quantity <= 0;
                 minusBtn.style.opacity = quantity <= 0 ? '0.5' : '1';
@@ -184,7 +193,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
       lightboxRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [galleryID]); // Don't include cards/cardQuantities/onAddCard/onRemoveCard - they cause recreation on every click
+  }, [galleryID, hasControls]); // Recreate when entering/exiting deck editing mode
 
   useEffect(() => {
     // Open or close the lightbox when isOpen changes

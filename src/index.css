@@ -124,9 +124,22 @@
 
   .card-lorcana {
     @apply bg-white border-2 border-lorcana-gold rounded-sm shadow-md;
-    @apply hover:shadow-xl hover:border-lorcana-navy;
     /* Specific transitions - avoid animating transforms to prevent art-deco corner rotation */
     transition: box-shadow 200ms, border-color 200ms, background-color 200ms;
+  }
+
+  /* Only apply hover effects on devices that support hover */
+  @media (hover: hover) {
+    .card-lorcana:hover {
+      @apply shadow-xl border-lorcana-navy;
+    }
+  }
+
+  /* For touch devices, show active state instead */
+  @media (hover: none) {
+    .card-lorcana:active {
+      @apply shadow-xl border-lorcana-navy;
+    }
   }
 
   .section-connector {
@@ -229,6 +242,13 @@
   .toggle-slider:hover {
     box-shadow: 0 0 0 2px rgba(211, 186, 132, 0.3);
   }
+
+  /* Focus visible state for keyboard navigation */
+  input:focus-visible + .toggle-slider {
+    box-shadow: 0 0 0 3px rgba(211, 186, 132, 0.6);
+    outline: 2px solid var(--lorcana-navy);
+    outline-offset: 2px;
+  }
 }
 
 @keyframes shimmer {
@@ -252,6 +272,10 @@
 
   .animate-flip {
     animation: pageFlip 0.6s ease-in-out;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s infinite;
   }
 }
 
@@ -314,4 +338,20 @@
     transform: perspective(1200px) rotateY(0deg) rotateX(0deg) scale3d(1, 1, 1);
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   }
+}
+
+/* Toast slide-in animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
 }

@@ -3,9 +3,28 @@ import { Deck, LorcanaCard, DeckSummary, DeckCardEntry } from '../types';
 import { validateDeck as validateDeckUtil } from '../utils/deckValidation';
 import { supabase, UserDeck, TABLES } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useCardData } from './CardDataContext';
 import { v4 as uuidv4 } from 'uuid';
 import { DECK_RULES } from '../constants';
-import { allCards } from '../data/allCards';
+
+// Helper function to convert Supabase deck format to app format
+function convertSupabaseDeck(d: any, authorEmail?: string): Deck {
+  return {
+    id: d.id,
+    name: d.name,
+    description: d.description,
+    cards: (d.cards as any[]).map(c => ({
+      cardId: c.id || c.cardId,
+      quantity: c.quantity
+    })),
+    avatar: d.avatar,
+    createdAt: new Date(d.created_at),
+    updatedAt: new Date(d.updated_at),
+    isPublic: d.is_public,
+    userId: d.user_id,
+    authorEmail: authorEmail || `User ${d.user_id.slice(0, 8)}...`
+  };
+}
 
 interface DeckContextType {
   decks: Deck[];
@@ -43,6 +62,7 @@ interface DeckProviderProps {
 
 export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
   const { user, session } = useAuth();
+  const { allCards } = useCardData();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [publicDecks, setPublicDecks] = useState<Deck[]>([]);
   const [currentDeck, setCurrentDeck] = useState<Deck | null>(null);
@@ -74,21 +94,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
       if (error) {
         console.error('Error loading decks:', error);
       } else if (data) {
-        const convertedDecks = data.map((d: UserDeck) => ({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          cards: (d.cards as any[]).map(c => ({
-            cardId: c.id || c.cardId,
-            quantity: c.quantity
-          })),
-          avatar: d.avatar,
-          createdAt: new Date(d.created_at),
-          updatedAt: new Date(d.updated_at),
-          isPublic: d.is_public,
-          userId: d.user_id,
-          authorEmail: user.email
-        }));
+        const convertedDecks = data.map((d: UserDeck) => convertSupabaseDeck(d, user.email));
         setDecks(convertedDecks);
       }
     } catch (error) {
@@ -118,22 +124,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
         console.error('Error loading public decks:', error);
         console.error('Query error details:', error.message);
       } else if (data) {
-        // console.log('Found public decks:', data.length);
-        const convertedDecks = data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          cards: (d.cards as any[]).map(c => ({
-            cardId: c.id || c.cardId,
-            quantity: c.quantity
-          })),
-          avatar: d.avatar,
-          createdAt: new Date(d.created_at),
-          updatedAt: new Date(d.updated_at),
-          isPublic: d.is_public,
-          userId: d.user_id,
-          authorEmail: `User ${d.user_id.slice(0, 8)}...` // Show partial user ID instead
-        }));
+        const convertedDecks = data.map((d: any) => convertSupabaseDeck(d));
         setPublicDecks(convertedDecks);
       }
     } catch (error) {
@@ -475,7 +466,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
       });
     });
 
-    const validation = validateDeckUtil(deck);
+    const validation = validateDeckUtil(deck, allCards);
 
     return {
       id: deck.id,
@@ -490,7 +481,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
   };
 
   const validateDeck = (deck: Deck): { isValid: boolean; errors: string[] } => {
-    return validateDeckUtil(deck);
+    return validateDeckUtil(deck, allCards);
   };
 
   const clearCurrentDeck = (): void => {

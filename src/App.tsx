@@ -16,6 +16,8 @@ import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProfileProvider, useProfile } from './contexts/ProfileContext';
 import { CardDataProvider } from './contexts/CardDataContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/ui/Toast';
 import ProfileEditModal from './components/ProfileEditModal';
 import LegalNoticeModal from './components/LegalNoticeModal';
 import DataAttributionModal from './components/DataAttributionModal';
@@ -316,9 +318,12 @@ function App() {
         <CardDataProvider>
           <CollectionProvider>
             <DeckProvider>
-              <Router>
-                <AppContent />
-              </Router>
+              <ToastProvider>
+                <Router>
+                  <AppContent />
+                  <ToastContainer />
+                </Router>
+              </ToastProvider>
             </DeckProvider>
           </CollectionProvider>
         </CardDataProvider>

@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { CollectionCardEntry } from '../types';
 import { supabase, UserCollection, TABLES } from '../lib/supabase';
 import { useAuth } from './AuthContext';
-import { allCards } from '../data/allCards';
+import { useCardData } from './CardDataContext';
+import { getCollectionTarget } from '../utils/collectionGroupHelper';
+import { exportCollectionToCSV } from '../utils/collectionExport';
 
 interface CollectionContextType {
   collection: CollectionCardEntry[];
@@ -32,6 +34,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // STATE MANAGEMENT
   // ================================
   const { user, session } = useAuth();
+  const { allCards } = useCardData();
   const [collection, setCollection] = useState<CollectionCardEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'error' | 'offline'>('idle');
   
@@ -60,27 +63,11 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     
     setSyncStatus('loading');
     try {
-      // Check if user is in a group and get group details
-      const { data: memberData } = await supabase
-        .from('collection_group_members')
-        .select(`
-          group_id,
-          role,
-          collection_groups(owner_id)
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
-      
+      // Get target user ID (group owner if in group, self otherwise)
+      const { targetUserId } = await getCollectionTarget(user.id);
+
       let data, error;
-      let targetUserId = user.id; // Default to loading own collection
-      
-      if (memberData?.group_id) {
-        // User is in a group - determine whose collection to load
-        const groupOwnerId = (memberData as any).collection_groups.owner_id;
-        targetUserId = groupOwnerId; // Load the group owner's collection
-      } else {
-      }
-      
+
       // Load the target user's collection using pagination to handle Supabase limits
       console.log(`[CollectionContext] Loading collection for user: ${targetUserId}`);
 
@@ -157,27 +144,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     }
     setSyncStatus('loading');
     try {
-      // Check if user is in a group and get group details
-      const { data: memberData } = await supabase
-        .from('collection_group_members')
-        .select(`
-          group_id,
-          role,
-          collection_groups(owner_id)
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
-
-      let targetUserId = user.id; // Default to saving to own collection
-      let userGroupId: string | null = null;
-      
-      if (memberData?.group_id) {
-        // User is in a group - save to the group owner's collection
-        const groupOwnerId = (memberData as any).collection_groups.owner_id;
-        targetUserId = groupOwnerId; // Save to owner's collection
-        userGroupId = memberData.group_id;
-      } else {
-      }
+      // Get target user ID (group owner if in group, self otherwise)
+      const { targetUserId, groupId: userGroupId } = await getCollectionTarget(user.id);
 
       const updateEntries = Array.from(updates.entries());
       
@@ -391,65 +359,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   };
 
   const exportCollectionCSV = (): string => {
-
-    // Group collection by unique card identity (name + set + card number)
-    const cardMap = new Map<string, {
-      card: any;
-      normalQuantity: number;
-      foilQuantity: number;
-    }>();
-
-    collection.forEach(entry => {
-      const card = allCards.find((c: any) => c.id === entry.cardId);
-      if (!card) return;
-
-      // Create unique key based on card identity
-      const key = `${card.fullName}|${card.setCode}|${card.number}`;
-
-      if (cardMap.has(key)) {
-        // Add to existing entry
-        const existing = cardMap.get(key)!;
-        existing.normalQuantity += entry.quantityNormal;
-        existing.foilQuantity += entry.quantityFoil;
-      } else {
-        // Create new entry
-        cardMap.set(key, {
-          card,
-          normalQuantity: entry.quantityNormal,
-          foilQuantity: entry.quantityFoil
-        });
-      }
-    });
-
-    // Build CSV content with Dreamborn format headers
-    const headers = 'Normal,Foil,Name,Set,Card Number,Color,Rarity,Price,Foil Price';
-    const rows: string[] = [headers];
-
-    cardMap.forEach(({ card, normalQuantity, foilQuantity }) => {
-      // Only include cards with quantities > 0
-      if (normalQuantity > 0 || foilQuantity > 0) {
-        // Format card number for display
-        let displayCardNumber = card.number.toString();
-        if (card.promoGrouping) {
-          // For promo cards, use the promo grouping as the set and include promo number
-          displayCardNumber = card.promoGrouping.includes('/') ? card.promoGrouping : displayCardNumber;
-        }
-
-        // Escape quotes in card names and wrap in quotes if needed
-        const escapedName = card.fullName.includes(',') || card.fullName.includes('"')
-          ? `"${card.fullName.replace(/"/g, '""')}"`
-          : card.fullName;
-
-        const set = card.promoGrouping || card.setCode;
-        const color = card.color || '';
-        const rarity = card.rarity || '';
-
-        const row = `${normalQuantity},${foilQuantity},${escapedName},${set},${displayCardNumber},${color},${rarity},,`;
-        rows.push(row);
-      }
-    });
-
-    return rows.join('\n');
+    return exportCollectionToCSV(collection, allCards);
   };
 
   const importCollection = (data: string): boolean => {
@@ -489,26 +399,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     setSyncStatus('loading');
 
     try {
-      // Check if user is in a group and get group details
-      const { data: memberData } = await supabase
-        .from('collection_group_members')
-        .select(`
-          group_id,
-          role,
-          collection_groups(owner_id)
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
-
-      let targetUserId = user.id; // Default to importing to own collection
-      let userGroupId: string | null = null;
-      
-      if (memberData?.group_id) {
-        // User is in a group - import to the group owner's collection
-        const groupOwnerId = (memberData as any).collection_groups.owner_id;
-        targetUserId = groupOwnerId; // Import to owner's collection
-        userGroupId = memberData.group_id;
-      }
+      // Get target user ID (group owner if in group, self otherwise)
+      const { targetUserId, groupId: userGroupId } = await getCollectionTarget(user.id);
 
       // Convert to database format
       const upserts = cards.map(card => ({
@@ -585,26 +477,10 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     if (!user) return;
     
     setSyncStatus('loading');
-    
-    try {
-      // Check if user is in a group and get group details
-      const { data: memberData } = await supabase
-        .from('collection_group_members')
-        .select(`
-          group_id,
-          role,
-          collection_groups(owner_id)
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results
 
-      let targetUserId = user.id; // Default to clearing own collection
-      
-      if (memberData?.group_id) {
-        // User is in a group - clear the group owner's collection
-        const groupOwnerId = (memberData as any).collection_groups.owner_id;
-        targetUserId = groupOwnerId; // Clear owner's collection
-      }
+    try {
+      // Get target user ID (group owner if in group, self otherwise)
+      const { targetUserId } = await getCollectionTarget(user.id);
 
       // Clear from database first
       const { error } = await supabase

@@ -1,6 +1,5 @@
-import { Deck } from '../types';
+import { Deck, LorcanaCard } from '../types';
 import { DECK_RULES } from '../constants';
-import { allCards } from '../data/allCards';
 
 export interface DeckValidationResult {
   isValid: boolean;
@@ -8,7 +7,7 @@ export interface DeckValidationResult {
   warnings: string[];
 }
 
-export const validateDeck = (deck: Deck): DeckValidationResult => {
+export const validateDeck = (deck: Deck, allCards: LorcanaCard[]): DeckValidationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];
   
@@ -108,7 +107,7 @@ export const validateDeck = (deck: Deck): DeckValidationResult => {
   };
 };
 
-export const getDeckStatistics = (deck: Deck) => {
+export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   
   // Cost distribution
@@ -186,7 +185,7 @@ export const getDeckStatistics = (deck: Deck) => {
   };
 };
 
-export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck) => {
+export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck, allCards: LorcanaCard[]) => {
   const changes: Array<{
     type: 'added' | 'removed' | 'modified';
     cardName: string;
@@ -253,11 +252,11 @@ export const generateDeckHash = (deck: Deck): string => {
   return hash.toString(36);
 };
 
-export const isLegalFormat = (deck: Deck, format: 'standard' | 'unlimited' = 'standard'): boolean => {
+export const isLegalFormat = (deck: Deck, allCards: LorcanaCard[], format: 'standard' | 'unlimited' = 'standard'): boolean => {
   // For now, we'll just implement basic validation
   // In the future, this could check against banned/restricted lists for different formats
-  
-  const validation = validateDeck(deck);
+
+  const validation = validateDeck(deck, allCards);
   if (!validation.isValid) return false;
   
   if (format === 'standard') {

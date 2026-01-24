@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Upload, FileJson, FileText, AlertCircle } from 'lucide-react';
-import { allCards } from '../data/allCards';
+import { useCardData } from '../contexts/CardDataContext';
 
 interface ParsedDeck {
   name: string;
@@ -21,6 +21,7 @@ interface DeckImportModalProps {
 }
 
 const DeckImportModal: React.FC<DeckImportModalProps> = ({ isOpen, onClose, onImport }) => {
+  const { allCards } = useCardData();
   const [activeTab, setActiveTab] = useState<'json' | 'text'>('json');
   const [jsonFile, setJsonFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState('');

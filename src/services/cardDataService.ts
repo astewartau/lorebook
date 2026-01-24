@@ -1,8 +1,9 @@
 import { LorcanaCard, CardDatabase } from '../types';
 
-// Use local copy of allCards.json from public folder
-// This file is downloaded from lorcanajson.org and served directly
-const LORCANAJSON_URL = '/allCards.json';
+// Primary: fetch from lorcanajson.org for latest data
+const REMOTE_URL = 'https://lorcanajson.org/files/current/en/allCards.json';
+// Fallback: local copy in public folder
+const LOCAL_URL = '/allCards.json';
 
 const CACHE_KEY = 'lorcana_cards_cache';
 const CACHE_TIMESTAMP_KEY = 'lorcana_cards_cache_timestamp';
@@ -38,47 +39,68 @@ class CardDataService {
   }
 
   private async fetchCardData(): Promise<CardDatabase> {
-    try {
-      // Check localStorage cache first
-      const cachedData = this.getCachedData();
-      if (cachedData) {
-        console.log('Using cached card data');
-        return cachedData;
-      }
-
-      // Fetch fresh data from lorcanajson.org
-      console.log('Fetching fresh card data from lorcanajson.org');
-      const response = await fetch(LORCANAJSON_URL);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json() as CardDatabase;
-      
-      // Validate the fetched data
-      if (!this.validateCardData(data)) {
-        throw new Error('Invalid card data structure');
-      }
-
-      // Cache the data
-      this.setCachedData(data);
-      console.log(`Successfully fetched ${data.cards.length} cards`);
-      
-      return data;
-    } catch (error) {
-      console.error('Failed to fetch live card data:', error);
-
-      // Try to use any cached data, even if expired
-      const expiredCache = this.getCachedData(true);
-      if (expiredCache) {
-        console.log('Using expired cache data');
-        return expiredCache;
-      }
-
-      // No fallback - throw error
-      throw new Error('Failed to load card data. Please check your internet connection and try again.');
+    // Check localStorage cache first
+    const cachedData = this.getCachedData();
+    if (cachedData) {
+      console.log('Using cached card data');
+      return cachedData;
     }
+
+    // Try remote first, then fallback to local
+    let data: CardDatabase | null = null;
+
+    // Attempt 1: Fetch from remote lorcanajson.org
+    try {
+      console.log('Fetching card data from lorcanajson.org...');
+      const response = await fetch(REMOTE_URL);
+
+      if (response.ok) {
+        data = await response.json() as CardDatabase;
+        if (this.validateCardData(data)) {
+          console.log(`Successfully fetched ${data.cards.length} cards from remote`);
+          this.setCachedData(data);
+          return data;
+        } else {
+          console.warn('Remote data failed validation');
+          data = null;
+        }
+      } else {
+        console.warn(`Remote fetch failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch from remote:', error);
+    }
+
+    // Attempt 2: Fallback to local copy
+    try {
+      console.log('Falling back to local card data...');
+      const response = await fetch(LOCAL_URL);
+
+      if (response.ok) {
+        data = await response.json() as CardDatabase;
+        if (this.validateCardData(data)) {
+          console.log(`Successfully loaded ${data.cards.length} cards from local`);
+          this.setCachedData(data);
+          return data;
+        } else {
+          console.error('Local data failed validation');
+        }
+      } else {
+        console.error(`Local fetch failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to fetch from local:', error);
+    }
+
+    // Attempt 3: Try expired cache as last resort
+    const expiredCache = this.getCachedData(true);
+    if (expiredCache) {
+      console.log('Using expired cache data as last resort');
+      return expiredCache;
+    }
+
+    // All attempts failed
+    throw new Error('Failed to load card data. Please check your internet connection and try again.');
   }
 
   private validateCardData(data: any): data is CardDatabase {

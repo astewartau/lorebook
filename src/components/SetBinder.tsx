@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Book, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { useCollection } from '../contexts/CollectionContext';
-import { allCards, sets } from '../data/allCards';
-import CardImage from './CardImage';
+import { useBinderNavigation } from '../hooks/useBinderNavigation';
+import { useCardData } from '../contexts/CardDataContext';
 import CardPhotoSwipe from './CardPhotoSwipe';
+import BinderCardSlot from './binder/BinderCardSlot';
 import { LorcanaCard } from '../types';
 import { supabase, TABLES, UserBinder } from '../lib/supabase';
 
@@ -12,8 +13,7 @@ const SetBinder: React.FC = () => {
   const { setCode, binderId } = useParams<{ setCode?: string; binderId?: string }>();
   const navigate = useNavigate();
   const { getCardQuantity } = useCollection();
-  const [currentPageSpread, setCurrentPageSpread] = useState(0);
-  const [currentMobilePage, setCurrentMobilePage] = useState(0);
+  const { allCards, sets } = useCardData();
   const [selectedCard, setSelectedCard] = useState<LorcanaCard | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -24,8 +24,6 @@ const SetBinder: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const binderRef = useRef<HTMLDivElement>(null);
 
@@ -74,12 +72,6 @@ const SetBinder: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [binderId]); // loadPublishedBinder is stable
-
-  // Sync mobile page with desktop page on initial load
-  useEffect(() => {
-    setCurrentMobilePage(currentPageSpread * 2);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount - intentionally ignoring currentPageSpread
 
   const loadPublishedBinder = async () => {
     if (!binderId) return;
@@ -240,77 +232,28 @@ const SetBinder: React.FC = () => {
   const totalPageSpreads = Math.ceil(cardsWithOwnership.length / 18);
   const totalMobilePages = Math.ceil(cardsWithOwnership.length / 9);
 
-  
-  const handleNextPage = useCallback(() => {
-    if (currentPageSpread < totalPageSpreads - 1) {
-      console.log(`[SetBinder] Navigating to next page: ${currentPageSpread} → ${currentPageSpread + 1}`);
-      setCurrentPageSpread(prev => prev + 1);
-      // Update mobile page to show equivalent content
-      setCurrentMobilePage(prev => Math.min(prev + 2, totalMobilePages - 1));
-    }
-  }, [currentPageSpread, totalPageSpreads, totalMobilePages]);
-  
-  const handlePrevPage = useCallback(() => {
-    if (currentPageSpread > 0) {
-      console.log(`[SetBinder] Navigating to prev page: ${currentPageSpread} → ${currentPageSpread - 1}`);
-      setCurrentPageSpread(prev => prev - 1);
-      // Update mobile page to show equivalent content
-      setCurrentMobilePage(prev => Math.max(prev - 2, 0));
-    }
-  }, [currentPageSpread]);
-
-  const handleNextMobilePage = useCallback(() => {
-    if (currentMobilePage < totalMobilePages - 1) {
-      console.log(`[SetBinder] Mobile navigating to next page: ${currentMobilePage} → ${currentMobilePage + 1}`);
-      setCurrentMobilePage(prev => prev + 1);
-      // Update desktop spread to show equivalent content
-      setCurrentPageSpread(Math.floor(currentMobilePage / 2));
-    }
-  }, [currentMobilePage, totalMobilePages]);
-  
-  const handlePrevMobilePage = useCallback(() => {
-    if (currentMobilePage > 0) {
-      console.log(`[SetBinder] Mobile navigating to prev page: ${currentMobilePage} → ${currentMobilePage - 1}`);
-      setCurrentMobilePage(prev => prev - 1);
-      // Update desktop spread to show equivalent content
-      setCurrentPageSpread(Math.floor((currentMobilePage - 1) / 2));
-    }
-  }, [currentMobilePage]);
-
-  // Swipe detection
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isMobile) {
-      if (isLeftSwipe) {
-        // Swipe left = next page
-        handleNextMobilePage();
-      } else if (isRightSwipe) {
-        // Swipe right = previous page
-        handlePrevMobilePage();
-      }
-    }
-  };
+  // Navigation hook (handles desktop/mobile nav, swipe, and keyboard)
+  const {
+    currentPageSpread,
+    currentMobilePage,
+    setCurrentPageSpread,
+    setCurrentMobilePage,
+    handleNextPage,
+    handlePrevPage,
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd
+  } = useBinderNavigation({ totalPageSpreads, totalMobilePages, isMobile, disableKeyboardNav: isModalOpen });
 
   const handleCardClick = (card: LorcanaCard) => {
     setSelectedCard(card);
     setIsModalOpen(true);
   };
+
+  // Calculate the index of the selected card in the cards array for PhotoSwipe
+  const selectedCardIndex = selectedCard
+    ? cardsWithOwnership.findIndex(c => c.id === selectedCard.id)
+    : 0;
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -328,23 +271,6 @@ const SetBinder: React.FC = () => {
   const handleCardMouseLeave = () => {
     setHoveredCard(null);
   };
-
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        handlePrevPage();
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        handleNextPage();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [handlePrevPage, handleNextPage]);
 
   // Show loading spinner while loading published binder
   if (loading && binderId) {
@@ -842,108 +768,22 @@ const SetBinder: React.FC = () => {
                     <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 h-[calc(100%-4rem)] w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentPageSpread * 18, currentPageSpread * 18 + 9)
-                        .map((cardData, index) => (
-                          <div
+                        .map((cardData) => (
+                          <BinderCardSlot
                             key={cardData.id}
-                            className={`relative overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer aspect-[5/7] ${isFullscreen ? 'w-[calc(25vh*5/7)]' : ''}`}
-                            onClick={() => handleCardClick(cardData)}
-                            onMouseMove={(e) => handleCardMouseMove(e, cardData.id.toString())}
+                            card={cardData}
+                            isFullscreen={isFullscreen}
+                            isMobile={false}
+                            hoveredCard={hoveredCard}
+                            mousePosition={mousePosition}
+                            onCardClick={handleCardClick}
+                            onMouseMove={handleCardMouseMove}
                             onMouseLeave={handleCardMouseLeave}
-                            style={{
-                              border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
-                              background: cardData.owned 
-                                ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,248,248,0.95) 100%)' 
-                                : 'linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%)',
-                              boxShadow: cardData.owned 
-                                ? 'inset 0 1px 3px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.1)'
-                                : 'inset 0 1px 3px rgba(0,0,0,0.3)'
-                            }}
-                          >
-                            {/* Card slot indentation effect */}
-                            <div className="absolute inset-0" style={{
-                              boxShadow: cardData.owned ? 'inset 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 1px 3px rgba(0,0,0,0.3)',
-                              backgroundImage: 'url(/imgs/cardback.svg)',
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center'
-                            }}>
-                              
-                              {/* Card image with progressive loading */}
-                              <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
-                                <CardImage
-                                  card={cardData}
-                                  enableHover={false}
-                                  enableTilt={false}
-                                  className="w-full h-full"
-                                />
-                              </div>
-                              
-                              {cardData.owned ? (
-                                /* Quantity badge */
-                                <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1.5 py-0.5 rounded shadow-lg">
-                                  {cardData.totalQuantity}
-                                </div>
-                              ) : null}
-
-                              {/* Plastic sleeve shine effect for owned cards */}
-                              {cardData.owned && (
-                                <>
-                                  {/* Rectangular border shine - like light hitting the raised sleeve edges */}
-                                  <div 
-                                    className="absolute inset-0 pointer-events-none"
-                                    style={{
-                                      background: `
-                                        linear-gradient(to right, rgba(255,255,255,0.4) 0%, transparent 8%),
-                                        linear-gradient(to left, rgba(255,255,255,0.4) 0%, transparent 8%),
-                                        linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 6%),
-                                        linear-gradient(to top, rgba(255,255,255,0.3) 0%, transparent 6%)
-                                      `,
-                                      opacity: 0.6
-                                    }}
-                                  />
-                                  {/* Corner highlights */}
-                                  <div 
-                                    className="absolute inset-0 pointer-events-none"
-                                    style={{
-                                      background: `
-                                        radial-gradient(circle at top left, rgba(255,255,255,0.5) 0%, transparent 25%),
-                                        radial-gradient(circle at top right, rgba(255,255,255,0.5) 0%, transparent 25%),
-                                        radial-gradient(circle at bottom left, rgba(255,255,255,0.3) 0%, transparent 25%),
-                                        radial-gradient(circle at bottom right, rgba(255,255,255,0.3) 0%, transparent 25%)
-                                      `,
-                                      opacity: 0.4
-                                    }}
-                                  />
-                                  {/* Dynamic mouse light effect */}
-                                  {hoveredCard === cardData.id.toString() && (
-                                    <div 
-                                      className="absolute inset-0 pointer-events-none transition-opacity duration-150"
-                                      style={{
-                                        background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 20%, rgba(255,255,255,0.1) 40%, transparent 60%)`,
-                                        opacity: 0.8
-                                      }}
-                                    />
-                                  )}
-                                  {/* Subtle overall gloss */}
-                                  <div 
-                                    className="absolute inset-0 pointer-events-none"
-                                    style={{
-                                      background: 'rgba(255,255,255,0.05)',
-                                      opacity: 0.8
-                                    }}
-                                  />
-                                </>
-                              )}
-                              
-                              {/* Card number at bottom */}
-                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded">
-                                #{cardData.number}
-                              </div>
-                            </div>
-                          </div>
+                          />
                         ))}
-                      
-                      {Array.from({ 
-                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentPageSpread * 18, currentPageSpread * 18 + 9).length) 
+
+                      {Array.from({
+                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentPageSpread * 18, currentPageSpread * 18 + 9).length)
                       }, (_, i) => (
                         <div
                           key={`empty-left-${i}`}
@@ -952,7 +792,7 @@ const SetBinder: React.FC = () => {
                         />
                       ))}
                     </div>
-                    
+
                     {/* Page number */}
                     <div className={`mt-auto text-center text-amber-800 text-sm font-medium relative z-10 ${isFullscreen ? 'pt-8' : 'pt-4'}`}>
                       Page {currentPageSpread * 2 + 1}
@@ -999,108 +839,22 @@ const SetBinder: React.FC = () => {
                     <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-8 h-[calc(100%-4rem)] w-full justify-items-center px-8' : 'gap-3 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentPageSpread * 18 + 9, currentPageSpread * 18 + 18)
-                        .map((cardData, index) => (
-                          <div
+                        .map((cardData) => (
+                          <BinderCardSlot
                             key={cardData.id}
-                            className={`relative overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer aspect-[5/7] ${isFullscreen ? 'w-[calc(25vh*5/7)]' : ''}`}
-                            onClick={() => handleCardClick(cardData)}
-                            onMouseMove={(e) => handleCardMouseMove(e, cardData.id.toString())}
+                            card={cardData}
+                            isFullscreen={isFullscreen}
+                            isMobile={false}
+                            hoveredCard={hoveredCard}
+                            mousePosition={mousePosition}
+                            onCardClick={handleCardClick}
+                            onMouseMove={handleCardMouseMove}
                             onMouseLeave={handleCardMouseLeave}
-                            style={{
-                              border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
-                              background: cardData.owned 
-                                ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,248,248,0.95) 100%)' 
-                                : 'linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%)',
-                              boxShadow: cardData.owned 
-                                ? 'inset 0 1px 3px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.1)'
-                                : 'inset 0 1px 3px rgba(0,0,0,0.3)'
-                            }}
-                          >
-                            {/* Card slot indentation effect */}
-                            <div className="absolute inset-0" style={{
-                              boxShadow: cardData.owned ? 'inset 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 1px 3px rgba(0,0,0,0.3)',
-                              backgroundImage: 'url(/imgs/cardback.svg)',
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center'
-                            }}>
-                              
-                              {/* Card image with progressive loading */}
-                              <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
-                                <CardImage
-                                  card={cardData}
-                                  enableHover={false}
-                                  enableTilt={false}
-                                  className="w-full h-full"
-                                />
-                              </div>
-                              
-                              {cardData.owned ? (
-                                /* Quantity badge */
-                                <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1.5 py-0.5 rounded shadow-lg">
-                                  {cardData.totalQuantity}
-                                </div>
-                              ) : null}
-
-                              {/* Plastic sleeve shine effect for owned cards */}
-                              {cardData.owned && (
-                                <>
-                                  {/* Rectangular border shine - like light hitting the raised sleeve edges */}
-                                  <div 
-                                    className="absolute inset-0 pointer-events-none"
-                                    style={{
-                                      background: `
-                                        linear-gradient(to right, rgba(255,255,255,0.4) 0%, transparent 8%),
-                                        linear-gradient(to left, rgba(255,255,255,0.4) 0%, transparent 8%),
-                                        linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 6%),
-                                        linear-gradient(to top, rgba(255,255,255,0.3) 0%, transparent 6%)
-                                      `,
-                                      opacity: 0.6
-                                    }}
-                                  />
-                                  {/* Corner highlights */}
-                                  <div 
-                                    className="absolute inset-0 pointer-events-none"
-                                    style={{
-                                      background: `
-                                        radial-gradient(circle at top left, rgba(255,255,255,0.5) 0%, transparent 25%),
-                                        radial-gradient(circle at top right, rgba(255,255,255,0.5) 0%, transparent 25%),
-                                        radial-gradient(circle at bottom left, rgba(255,255,255,0.3) 0%, transparent 25%),
-                                        radial-gradient(circle at bottom right, rgba(255,255,255,0.3) 0%, transparent 25%)
-                                      `,
-                                      opacity: 0.4
-                                    }}
-                                  />
-                                  {/* Dynamic mouse light effect */}
-                                  {hoveredCard === cardData.id.toString() && (
-                                    <div 
-                                      className="absolute inset-0 pointer-events-none transition-opacity duration-150"
-                                      style={{
-                                        background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 20%, rgba(255,255,255,0.1) 40%, transparent 60%)`,
-                                        opacity: 0.8
-                                      }}
-                                    />
-                                  )}
-                                  {/* Subtle overall gloss */}
-                                  <div 
-                                    className="absolute inset-0 pointer-events-none"
-                                    style={{
-                                      background: 'rgba(255,255,255,0.05)',
-                                      opacity: 0.8
-                                    }}
-                                  />
-                                </>
-                              )}
-                              
-                              {/* Card number at bottom */}
-                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded">
-                                #{cardData.number}
-                              </div>
-                            </div>
-                          </div>
+                          />
                         ))}
-                      
-                      {Array.from({ 
-                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentPageSpread * 18 + 9, currentPageSpread * 18 + 18).length) 
+
+                      {Array.from({
+                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentPageSpread * 18 + 9, currentPageSpread * 18 + 18).length)
                       }, (_, i) => (
                         <div
                           key={`empty-right-${i}`}
@@ -1109,7 +863,7 @@ const SetBinder: React.FC = () => {
                         />
                       ))}
                     </div>
-                    
+
                     {/* Page number */}
                     <div className={`mt-auto text-center text-amber-800 text-sm font-medium relative z-10 ${isFullscreen ? 'pt-8' : 'pt-4'}`}>
                       Page {currentPageSpread * 2 + 2}
@@ -1117,7 +871,7 @@ const SetBinder: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Mobile: Single page view */}
                 <div 
                   className="sm:hidden relative h-full"
@@ -1152,55 +906,23 @@ const SetBinder: React.FC = () => {
                     <div className={`grid grid-cols-3 ${isFullscreen ? 'gap-4 h-[calc(100%-3rem)] w-full justify-items-center px-4' : 'gap-1 flex-1'}`}>
                       {cardsWithOwnership
                         .slice(currentMobilePage * 9, (currentMobilePage + 1) * 9)
-                        .map((cardData, index) => (
-                          <div
+                        .map((cardData) => (
+                          <BinderCardSlot
                             key={cardData.id}
-                            className="relative aspect-[5/7] overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer"
-                            onClick={() => handleCardClick(cardData)}
-                            style={{
-                              border: cardData.owned ? '1px solid rgba(255,255,255,0.3)' : '2px dashed #999',
-                              background: cardData.owned 
-                                ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,248,248,0.95) 100%)' 
-                                : 'linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%)',
-                              boxShadow: cardData.owned 
-                                ? 'inset 0 1px 3px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.1)'
-                                : 'inset 0 1px 3px rgba(0,0,0,0.3)'
-                            }}
-                          >
-                            <div className="absolute inset-0" style={{
-                              boxShadow: cardData.owned ? 'inset 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 1px 3px rgba(0,0,0,0.3)',
-                              backgroundImage: 'url(/imgs/cardback.svg)',
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center'
-                            }}>
-                              {/* Card image */}
-                              <div className={`w-full h-full leading-[0] ${!cardData.owned ? 'opacity-60 grayscale' : ''}`}>
-                                <CardImage
-                                  card={cardData}
-                                  enableHover={false}
-                                  enableTilt={false}
-                                  className="w-full h-full"
-                                />
-                              </div>
-                              
-                              {cardData.owned && (
-                                /* Quantity badge */
-                                <div className="absolute top-1 right-1 bg-lorcana-gold text-lorcana-ink text-xs font-bold px-1 py-0.5 rounded shadow-lg">
-                                  {cardData.totalQuantity}
-                                </div>
-                              )}
-                              
-                              {/* Card number */}
-                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-80 text-white text-xs px-1 py-0.5 rounded">
-                                #{cardData.number}
-                              </div>
-                            </div>
-                          </div>
+                            card={cardData}
+                            isFullscreen={isFullscreen}
+                            isMobile={true}
+                            hoveredCard={hoveredCard}
+                            mousePosition={mousePosition}
+                            onCardClick={handleCardClick}
+                            onMouseMove={handleCardMouseMove}
+                            onMouseLeave={handleCardMouseLeave}
+                          />
                         ))}
-                      
+
                       {/* Fill empty slots */}
-                      {Array.from({ 
-                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentMobilePage * 9, (currentMobilePage + 1) * 9).length) 
+                      {Array.from({
+                        length: Math.max(0, 9 - cardsWithOwnership.slice(currentMobilePage * 9, (currentMobilePage + 1) * 9).length)
                       }, (_, i) => (
                         <div
                           key={`empty-mobile-${i}`}
@@ -1209,7 +931,7 @@ const SetBinder: React.FC = () => {
                         />
                       ))}
                     </div>
-                    
+
                     {/* Page number */}
                     <div className={`mt-auto text-center text-amber-800 text-sm font-medium relative z-10 ${isFullscreen ? 'pt-4' : 'pt-1'}`}>
                       Page {currentMobilePage + 1}
@@ -1227,8 +949,8 @@ const SetBinder: React.FC = () => {
 
       {/* Card Preview Modal */}
       <CardPhotoSwipe
-        cards={selectedCard ? [selectedCard] : []}
-        currentCardIndex={0}
+        cards={cardsWithOwnership}
+        currentCardIndex={selectedCardIndex}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         galleryID="set-binder-gallery"
