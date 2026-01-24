@@ -3,6 +3,14 @@ import { LorcanaCard, CardDatabase } from '../types';
 // Export static data that doesn't depend on card data
 export const rarityOrder = ['Common', 'Uncommon', 'Rare', 'Super Rare', 'Legendary', 'Epic', 'Enchanted', 'Iconic', 'Special'];
 
+// Rarities that only exist as foil (no normal version)
+const FOIL_ONLY_RARITIES = new Set(['Enchanted', 'Special', 'Epic']);
+
+// Check if a card can have a normal (non-foil) version
+export const canHaveNormal = (rarity: string): boolean => {
+  return !FOIL_ONLY_RARITIES.has(rarity);
+};
+
 // Functions to compute derived data from cards
 export const getSetsFromDatabase = (db: CardDatabase) => {
   return Object.entries(db.sets).map(([key, set]) => ({

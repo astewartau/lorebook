@@ -58,7 +58,17 @@ const DreambornImport: React.FC<DreambornImportProps> = ({ onClose }) => {
           quantityFoil: foilQuantity
         }));
 
-      
+      // Debug: Log what we're about to import
+      const totalFoil = collectionCards.reduce((sum, c) => sum + c.quantityFoil, 0);
+      const cardsWithFoil = collectionCards.filter(c => c.quantityFoil > 0);
+      console.log(`=== IMPORTING TO COLLECTION ===`);
+      console.log(`Total cards to import: ${collectionCards.length}`);
+      console.log(`Cards with foil quantities: ${cardsWithFoil.length}`);
+      console.log(`Total foil quantity: ${totalFoil}`);
+      if (cardsWithFoil.length > 0) {
+        console.log(`First 5 cards with foils:`, cardsWithFoil.slice(0, 5));
+      }
+
       // Use direct import - simple and fast!
       const success = await importCollectionDirect(collectionCards);
       

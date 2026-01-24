@@ -185,18 +185,31 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
 
 export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCard[]): LorcanaCard | null => {
   const { Name: csvName, 'Set Number': csvSet, 'Card Number': csvCardNumber, Rarity: csvRarity } = csvRow;
-  
-  // Parse card number
-  const cardNumber = parseInt(csvCardNumber?.toString().trim() || '0');
-  
-  if (!csvSet || (cardNumber < 0 || isNaN(cardNumber))) {
+
+  const cardNumberStr = csvCardNumber?.toString().trim() || '0';
+  const setStr = csvSet?.toString().trim() || '';
+
+  // Check if card number contains a promo group (e.g., "8/P2", "14/C1")
+  const promoMatch = cardNumberStr.match(/^(\d+)\/(P[123]|C[12]|D23)$/);
+
+  let cardNumber: number;
+  let promoGroup: string | null = null;
+
+  if (promoMatch) {
+    // Promo card with format "number/promoGroup"
+    cardNumber = parseInt(promoMatch[1]);
+    promoGroup = promoMatch[2];
+  } else {
+    // Regular card number
+    cardNumber = parseInt(cardNumberStr);
+  }
+
+  if (!setStr || cardNumber < 0 || isNaN(cardNumber)) {
     console.warn(`Invalid set or card number: Set="${csvSet}", Card Number="${csvCardNumber}" for card: ${csvName}`);
     return null;
   }
-  
-  const setStr = csvSet.toString().trim();
-  
-  console.log(`Matching: ${csvName} - CSV Set: ${setStr}, Card Number: ${cardNumber}, Rarity: ${csvRarity}`);
+
+  console.log(`Matching: ${csvName} - CSV Set: ${setStr}, Card Number: ${cardNumber}, Promo Group: ${promoGroup}, Rarity: ${csvRarity}`);
 
   // Debug: Show first few cards that might match
   const debugMatches = allCards.filter(card =>
@@ -210,29 +223,29 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCa
       promo: c.promoGrouping
     })));
   }
-  
+
   let matches: LorcanaCard[] = [];
-  
-  // Handle promo sets (P1, P2, C1, D23, etc.)
-  if (setStr.match(/^(P[12]|C1|D23)$/)) {
-    const promoGroup = setStr;
-    console.log(`Looking for promo card with promoGrouping: ${promoGroup} and number: ${cardNumber}`);
-    
+
+  // Handle promo cards (detected from card number like "8/P2" or set like "P1")
+  if (promoGroup || setStr.match(/^(P[123]|C[12]|D23)$/)) {
+    const effectivePromoGroup = promoGroup || setStr;
+    console.log(`Looking for promo card with promoGrouping: ${effectivePromoGroup} and number: ${cardNumber}`);
+
     // Find cards with matching promoGrouping and card number
     matches = allCards.filter(card => {
-      return card.promoGrouping === promoGroup && card.number === cardNumber;
+      return card.promoGrouping === effectivePromoGroup && card.number === cardNumber;
     });
-    
+
   } else {
     // Handle regular sets (001, 002, 008, etc.)
     const setNumber = parseInt(setStr);
     const setCode = isNaN(setNumber) ? setStr : setNumber.toString();
-    
+
     console.log(`Looking for regular card in set: ${setCode}, number: ${cardNumber}`);
-    
+
     matches = allCards.filter(card => {
-      return card.setCode === setCode && 
-             card.number === cardNumber && 
+      return card.setCode === setCode &&
+             card.number === cardNumber &&
              !card.promoGrouping; // Exclude promo cards from regular matching
     });
   }
@@ -388,12 +401,27 @@ export const importDreambornCollection = (csvContent: string, allCards: LorcanaC
     }
 
     const importedCards: ImportedCard[] = Array.from(cardQuantityMap.values());
-    
+
+    // Debug: Show foil quantities
+    const cardsWithFoil = importedCards.filter(c => c.foilQuantity > 0);
+    const totalFoilQty = importedCards.reduce((sum, c) => sum + c.foilQuantity, 0);
+    const totalNormalQty = importedCards.reduce((sum, c) => sum + c.normalQuantity, 0);
+
     console.log(`=== IMPORT SUMMARY ===`);
     console.log(`Total CSV rows with quantities: ${csvRows.length}`);
     console.log(`Successfully matched: ${matchedCards}`);
     console.log(`Could not match: ${unmatchedCards}`);
     console.log(`Final imported cards: ${importedCards.length}`);
+    console.log(`Total normal quantity: ${totalNormalQty}`);
+    console.log(`Total foil quantity: ${totalFoilQty}`);
+    console.log(`Cards with foil copies: ${cardsWithFoil.length}`);
+    if (cardsWithFoil.length > 0) {
+      console.log(`First 5 cards with foils:`, cardsWithFoil.slice(0, 5).map(c => ({
+        name: c.card.fullName,
+        normal: c.normalQuantity,
+        foil: c.foilQuantity
+      })));
+    }
 
     return { importedCards, failedCards };
   } catch (error) {

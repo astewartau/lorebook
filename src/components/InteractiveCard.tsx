@@ -7,6 +7,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import CardImage from './CardImage';
 import ContextMenu from './ContextMenu';
 import { DECK_RULES } from '../constants';
+import { canHaveNormal } from '../utils/cardDataUtils';
 
 interface CardProps {
   card: LorcanaCard;
@@ -136,35 +137,39 @@ const InteractiveCard: React.FC<CardProps> = ({
   };
 
   const renderQuantityControls = () => {
+    const showNormalControls = canHaveNormal(card.rarity);
+
     return (
       <div className="flex space-x-2">
-        {/* Normal quantity control */}
-        <div className="flex items-center justify-between px-2 py-1 bg-lorcana-cream rounded-sm border-2 border-lorcana-gold">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNormalQuantityChange(-1);
-            }}
-            disabled={quantities.normal <= 0}
-            className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
-            aria-label={`Remove normal copy of ${card.name}`}
-          >
-            <Minus size={14} />
-          </button>
-          <span className="text-sm font-semibold text-lorcana-ink px-2">
-            {quantities.normal}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNormalQuantityChange(1);
-            }}
-            className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 transition-colors rounded-sm"
-            aria-label={`Add normal copy of ${card.name}`}
-          >
-            <Plus size={14} />
-          </button>
-        </div>
+        {/* Normal quantity control (only for cards that have normal versions) */}
+        {showNormalControls && (
+          <div className="flex items-center justify-between px-2 py-1 bg-lorcana-cream rounded-sm border-2 border-lorcana-gold">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNormalQuantityChange(-1);
+              }}
+              disabled={quantities.normal <= 0}
+              className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+              aria-label={`Remove normal copy of ${card.name}`}
+            >
+              <Minus size={14} />
+            </button>
+            <span className="text-sm font-semibold text-lorcana-ink px-2">
+              {quantities.normal}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNormalQuantityChange(1);
+              }}
+              className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 transition-colors rounded-sm"
+              aria-label={`Add normal copy of ${card.name}`}
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Foil quantity control - with shimmer effect */}
         <div className="flex items-center justify-between px-2 py-1 bg-gradient-to-r from-purple-100 via-pink-100 to-blue-100 rounded-sm border-2 border-purple-400 relative overflow-hidden">
