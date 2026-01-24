@@ -69,7 +69,7 @@ const Collection: React.FC<CollectionProps> = ({
   // Calculate set summaries
   const setSummaries = useMemo((): SetSummary[] => {
     return sets
-      .filter(set => set.number <= 9) // Hide unreleased sets (10, 11)
+      .filter(set => set.number <= 11) // Include Set 11 (Winterspell)
       .map(set => {
       // Get all cards in this set - each card is individual now
       const setCards = allCards.filter(card => card.setCode === set.code);
