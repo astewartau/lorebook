@@ -90,10 +90,22 @@ const matchesCollectionFilter = (
 // Helper function to check if a card matches range filters
 const matchesRangeFilters = (card: LorcanaCard, filters: FilterOptions): boolean => {
   const matchesCostRange = card.cost >= filters.costMin && card.cost <= filters.costMax;
-  const matchesStrength = card.strength === undefined || (card.strength >= filters.strengthMin && card.strength <= filters.strengthMax);
-  const matchesWillpower = card.willpower === undefined || (card.willpower >= filters.willpowerMin && card.willpower <= filters.willpowerMax);
-  const matchesLore = card.lore === undefined || (card.lore >= filters.loreMin && card.lore <= filters.loreMax);
-  
+
+  // Treat 0-0 ranges as "no filter" (data not loaded yet or no filtering intended)
+  const strengthRangeActive = filters.strengthMin !== 0 || filters.strengthMax !== 0;
+  const willpowerRangeActive = filters.willpowerMin !== 0 || filters.willpowerMax !== 0;
+  const loreRangeActive = filters.loreMin !== 0 || filters.loreMax !== 0;
+
+  const matchesStrength = card.strength === undefined ||
+    !strengthRangeActive ||
+    (card.strength >= filters.strengthMin && card.strength <= filters.strengthMax);
+  const matchesWillpower = card.willpower === undefined ||
+    !willpowerRangeActive ||
+    (card.willpower >= filters.willpowerMin && card.willpower <= filters.willpowerMax);
+  const matchesLore = card.lore === undefined ||
+    !loreRangeActive ||
+    (card.lore >= filters.loreMin && card.lore <= filters.loreMax);
+
   return matchesCostRange && matchesStrength && matchesWillpower && matchesLore;
 };
 
@@ -343,6 +355,12 @@ export const countActiveFilters = (
   const willpowerRange = ranges?.willpowerRange || { min: 0, max: 10 };
   const loreRange = ranges?.loreRange || { min: 0, max: 5 };
 
+  // Only count range filters as active if data has loaded (range max > 0)
+  const costRangeActive = costRange.max > 0 && (filters.costMin !== costRange.min || filters.costMax !== costRange.max);
+  const strengthRangeActive = strengthRange.max > 0 && (filters.strengthMin !== strengthRange.min || filters.strengthMax !== strengthRange.max);
+  const willpowerRangeActive = willpowerRange.max > 0 && (filters.willpowerMin !== willpowerRange.min || filters.willpowerMax !== willpowerRange.max);
+  const loreRangeActive = loreRange.max > 0 && (filters.loreMin !== loreRange.min || filters.loreMax !== loreRange.max);
+
   return (
     filters.sets.length +
     filters.colors.length +
@@ -351,10 +369,10 @@ export const countActiveFilters = (
     filters.stories.length +
     filters.subtypes.length +
     filters.costs.length +
-    (filters.costMin !== costRange.min || filters.costMax !== costRange.max ? 1 : 0) +
-    (filters.strengthMin !== strengthRange.min || filters.strengthMax !== strengthRange.max ? 1 : 0) +
-    (filters.willpowerMin !== willpowerRange.min || filters.willpowerMax !== willpowerRange.max ? 1 : 0) +
-    (filters.loreMin !== loreRange.min || filters.loreMax !== loreRange.max ? 1 : 0) +
+    (costRangeActive ? 1 : 0) +
+    (strengthRangeActive ? 1 : 0) +
+    (willpowerRangeActive ? 1 : 0) +
+    (loreRangeActive ? 1 : 0) +
     (filters.inkwellOnly !== null ? 1 : 0) +
     (filters.hasEnchanted !== null ? 1 : 0) +
     (filters.hasSpecial !== null ? 1 : 0) +

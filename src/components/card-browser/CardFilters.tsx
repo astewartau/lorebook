@@ -45,15 +45,18 @@ const CardFilters: React.FC<CardFiltersProps> = ({
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-lorcana-ink">Filters</h3>
             <div className="flex items-center space-x-2">
-              {activeFiltersCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-lorcana-ink hover:text-lorcana-navy border-2 border-lorcana-gold rounded-sm hover:bg-lorcana-cream transition-colors"
-                >
-                  <RotateCcw size={14} />
-                  <span>Clear All</span>
-                </button>
-              )}
+              <button
+                onClick={clearAllFilters}
+                disabled={activeFiltersCount === 0}
+                className={`flex items-center space-x-1 px-3 py-1 text-sm border-2 border-lorcana-gold rounded-sm transition-colors ${
+                  activeFiltersCount > 0
+                    ? 'text-lorcana-ink hover:text-lorcana-navy hover:bg-lorcana-cream cursor-pointer'
+                    : 'text-gray-400 border-gray-300 cursor-not-allowed'
+                }`}
+              >
+                <RotateCcw size={14} />
+                <span>Clear All</span>
+              </button>
               <button
                 onClick={() => setShowFilters(false)}
                 className="text-lorcana-navy hover:text-lorcana-ink transition-colors text-xl font-bold"
