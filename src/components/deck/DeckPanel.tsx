@@ -434,17 +434,17 @@ const DeckPanel: React.FC<DeckPanelProps> = ({
       <div className="flex border-b-2 border-lorcana-gold flex-shrink-0">
         <button
           onClick={() => setActiveTab('statistics')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
             activeTab === 'statistics'
               ? 'text-lorcana-navy border-b-2 border-lorcana-navy bg-lorcana-cream'
               : 'text-lorcana-purple hover:text-lorcana-navy'
           }`}
         >
-          Statistics
+          Stats
         </button>
         <button
           onClick={() => setActiveTab('cards')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
             activeTab === 'cards'
               ? 'text-lorcana-navy border-b-2 border-lorcana-navy bg-lorcana-cream'
               : 'text-lorcana-purple hover:text-lorcana-navy'

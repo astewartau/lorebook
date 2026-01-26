@@ -44,6 +44,7 @@ interface DeckContextType {
   addCardToDeck: (card: LorcanaCard, deckId?: string) => boolean;
   removeCardFromDeck: (cardId: number, deckId?: string) => void;
   updateCardQuantity: (cardId: number, quantity: number, deckId?: string) => void;
+  setDeckCards: (cards: DeckCardEntry[], deckId?: string) => void;
   getDeckSummary: (deckId: string) => DeckSummary | null;
   validateDeck: (deck: Deck) => { isValid: boolean; errors: string[] };
   clearCurrentDeck: () => void;
@@ -447,6 +448,27 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     }
   };
 
+  const setDeckCards = (cards: DeckCardEntry[], deckId?: string): void => {
+    const targetDeck = deckId ? decks.find(d => d.id === deckId) : currentDeck;
+    if (!targetDeck) return;
+
+    // Create a new deck object with the new cards
+    const updatedDeck: Deck = {
+      ...targetDeck,
+      cards: cards,
+      updatedAt: new Date()
+    };
+
+    // Update local state immediately for responsive UI
+    if (targetDeck === currentDeck) {
+      setCurrentDeck(updatedDeck);
+    }
+    setDecks(prev => prev.map(d => d.id === updatedDeck.id ? updatedDeck : d));
+
+    // Then update the database
+    updateDeck(updatedDeck);
+  };
+
   const getDeckSummary = (deckId: string): DeckSummary | null => {
     const deck = decks.find(d => d.id === deckId) || publicDecks.find(d => d.id === deckId);
     if (!deck) return null;
@@ -574,6 +596,7 @@ export const DeckProvider: React.FC<DeckProviderProps> = ({ children }) => {
     addCardToDeck,
     removeCardFromDeck,
     updateCardQuantity,
+    setDeckCards,
     getDeckSummary,
     validateDeck,
     clearCurrentDeck,

@@ -5,7 +5,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useCardData } from '../contexts/CardDataContext';
 import { usePagination } from './usePagination';
 import { useDebounce } from './useDebounce';
-import { filterCards, sortCards, groupCards, countActiveFilters } from '../utils/cardFiltering';
+import { filterCards, sortCards, groupCards, countActiveFilters, computeContextualFilterOptions } from '../utils/cardFiltering';
 import { getDefaultFilters, parseURLState } from '../utils/filterDefaults';
 import { PAGINATION } from '../constants';
 
@@ -28,8 +28,42 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
   const [groupBy, setGroupByState] = useState<string>(urlState.groupBy);
   const [filters, setFiltersState] = useState<FilterOptions>(urlState.filters);
   const [showFilters, setShowFilters] = useState(false);
-  
-  // ================================  
+
+  // ================================
+  // 2b. SYNC STATE FROM URL CHANGES (e.g., when navigating from wizard)
+  // ================================
+  useEffect(() => {
+    const newUrlState = parseURLState(searchParams);
+
+    // Only update if URL has meaningful filter params (not just empty)
+    const hasUrlFilters = searchParams.toString().length > 0;
+
+    if (hasUrlFilters) {
+      // Check if filters actually changed to avoid unnecessary updates
+      const currentColors = JSON.stringify(filters.colors);
+      const newColors = JSON.stringify(newUrlState.filters.colors);
+      const currentTypes = JSON.stringify(filters.types);
+      const newTypes = JSON.stringify(newUrlState.filters.types);
+      const currentStories = JSON.stringify(filters.stories);
+      const newStories = JSON.stringify(newUrlState.filters.stories);
+      const currentRarities = JSON.stringify(filters.rarities);
+      const newRarities = JSON.stringify(newUrlState.filters.rarities);
+
+      if (currentColors !== newColors || currentTypes !== newTypes ||
+          currentStories !== newStories || currentRarities !== newRarities ||
+          filters.inkwellOnly !== newUrlState.filters.inkwellOnly ||
+          filters.costMin !== newUrlState.filters.costMin ||
+          filters.costMax !== newUrlState.filters.costMax) {
+        setFiltersState(newUrlState.filters);
+      }
+
+      if (searchTerm !== newUrlState.searchTerm) {
+        setSearchTermState(newUrlState.searchTerm);
+      }
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ================================
   // 3. STALE CARD TRACKING STATE
   // ================================
   const [staleCardIds, setStaleCardIds] = useState<Set<number>>(new Set());
@@ -123,17 +157,21 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     return PAGINATION.CARDS_PER_PAGE; // Default 100
   }, [viewMode, windowSize]);
 
-  const { sortedCards, groupedCards, totalCards, activeFiltersCount } = useMemo(() => {
+  const { sortedCards, groupedCards, totalCards, activeFiltersCount, contextualOptions } = useMemo(() => {
     const filtered = filterCards(cardData, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);
     const sorted = sortCards(filtered, sortBy);
     const grouped = groupCards(sorted, groupBy, sets);
     const activeCount = countActiveFilters(filters, { costRange, strengthRange, willpowerRange, loreRange });
 
+    // Compute contextual filter options based on current filters
+    const contextual = computeContextualFilterOptions(cardData, debouncedSearchTerm, filters, getCardQuantity);
+
     return {
       sortedCards: sorted,
       groupedCards: grouped,
       totalCards: sorted.length,
-      activeFiltersCount: activeCount
+      activeFiltersCount: activeCount,
+      contextualOptions: contextual
     };
   }, [cardData, debouncedSearchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity, sets, costRange, strengthRange, willpowerRange, loreRange]);
   
@@ -337,6 +375,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     totalCards,
     activeFiltersCount,
     paginatedCards,
-    pagination
+    pagination,
+    contextualOptions
   };
 };

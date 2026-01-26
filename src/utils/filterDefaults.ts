@@ -71,7 +71,10 @@ export const parseURLState = (searchParams: URLSearchParams): URLState => {
   
   const types = searchParams.getAll('type');
   if (types.length > 0) urlFilters.types = types;
-  
+
+  const stories = searchParams.getAll('story');
+  if (stories.length > 0) urlFilters.stories = stories;
+
   const collectionFilter = searchParams.get('collection');
   if (collectionFilter) urlFilters.collectionFilter = collectionFilter as any;
   

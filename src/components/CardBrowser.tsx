@@ -109,7 +109,8 @@ const CardBrowser: React.FC = () => {
     activeFiltersCount,
     paginatedCards,
     pagination,
-    sortedCards
+    sortedCards,
+    contextualOptions
   } = useCardBrowser(allCards);
 
   const handleCardClick = (card: LorcanaCard) => {
@@ -216,6 +217,7 @@ const CardBrowser: React.FC = () => {
           setFilters={setFilters}
           activeFiltersCount={activeFiltersCount}
           clearAllFilters={clearAllFilters}
+          contextualOptions={contextualOptions}
         />
 
         {/* Card Results */}

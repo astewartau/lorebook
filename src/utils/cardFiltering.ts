@@ -340,6 +340,150 @@ export const groupCards = (
   return sortedGroupedCards;
 };
 
+// Compute available filter options based on cards filtered by OTHER filters
+// This enables "contextual" filtering where selecting one filter narrows options in other filters
+export interface FilterOptionWithCount {
+  value: string;
+  count: number;
+}
+
+export interface ContextualFilterOptions {
+  sets: string[];
+  colors: string[];
+  rarities: string[];
+  types: string[];
+  stories: string[];
+  subtypes: string[];
+  costs: number[];
+  // Counts for each option
+  setCounts: Record<string, number>;
+  colorCounts: Record<string, number>;
+  rarityCounts: Record<string, number>;
+  typeCounts: Record<string, number>;
+  storyCounts: Record<string, number>;
+  subtypeCounts: Record<string, number>;
+  costCounts: Record<number, number>;
+}
+
+// Helper to filter cards with one filter category excluded
+const filterCardsExcluding = (
+  cards: LorcanaCard[],
+  searchTerm: string,
+  filters: FilterOptions,
+  excludeFilter: keyof FilterOptions,
+  getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number }
+): LorcanaCard[] => {
+  return cards.filter(card => {
+    const matchesSearch = matchesSearchFilter(card, searchTerm);
+    const matchesSet = excludeFilter === 'sets' || filters.sets.length === 0 || filters.sets.includes(card.setCode);
+
+    // Handle Illumineer's Quest cards
+    const isIllumineerQuest = card.color === '';
+    const matchesIllumineerQuest = isIllumineerQuest ? filters.includeIllumineerQuest : true;
+
+    // Color filtering - only apply to non-Illumineer's Quest cards
+    const matchesColor = excludeFilter === 'colors' || isIllumineerQuest || matchesColorFilter(card, filters);
+
+    const matchesRarity = excludeFilter === 'rarities' || filters.rarities.length === 0 || filters.rarities.includes(card.rarity);
+    const matchesType = excludeFilter === 'types' || filters.types.length === 0 || filters.types.includes(card.type);
+    const matchesStory = excludeFilter === 'stories' || filters.stories.length === 0 || (card.story && filters.stories.includes(card.story));
+    const matchesSubtype = excludeFilter === 'subtypes' || filters.subtypes.length === 0 || (card.subtypes && card.subtypes.some(st => filters.subtypes.includes(st)));
+
+    const matchesCostList = excludeFilter === 'costs' || filters.costs.length === 0 || filters.costs.includes(card.cost);
+    const matchesRanges = matchesRangeFilters(card, filters);
+
+    const matchesInkwell = filters.inkwellOnly === null || card.inkwell === filters.inkwellOnly;
+    const matchesInCollection = matchesCollectionFilter(card, filters, getCardQuantity);
+
+    const matchesCardCount = filters.cardCountOperator === null || (() => {
+      const quantities = getCardQuantity(card.id);
+      const totalCount = quantities.total;
+      switch (filters.cardCountOperator) {
+        case 'eq': return totalCount === filters.cardCountValue;
+        case 'gte': return totalCount >= filters.cardCountValue;
+        case 'lte': return totalCount <= filters.cardCountValue;
+        default: return true;
+      }
+    })();
+
+    const matchesEnchanted = filters.hasEnchanted === null ||
+      (filters.hasEnchanted === true && card.rarity === 'Enchanted') ||
+      (filters.hasEnchanted === false && card.rarity !== 'Enchanted');
+
+    const matchesSpecial = filters.hasSpecial === null ||
+      (filters.hasSpecial === true && (card.rarity === 'Special' || card.promoGrouping !== undefined)) ||
+      (filters.hasSpecial === false && card.rarity !== 'Special' && card.promoGrouping === undefined);
+
+    return matchesSearch && matchesSet && matchesColor && matchesIllumineerQuest && matchesRarity &&
+           matchesType && matchesStory && matchesSubtype && matchesCostList && matchesRanges &&
+           matchesInkwell && matchesInCollection && matchesCardCount && matchesEnchanted && matchesSpecial;
+  });
+};
+
+// Helper to count occurrences
+const countBy = <T>(items: T[], keyFn: (item: T) => string | string[]): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  items.forEach(item => {
+    const keys = keyFn(item);
+    const keyArray = Array.isArray(keys) ? keys : [keys];
+    keyArray.forEach(key => {
+      if (key) {
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+  });
+  return counts;
+};
+
+// Compute contextual options for each filter category
+export const computeContextualFilterOptions = (
+  allCards: LorcanaCard[],
+  searchTerm: string,
+  filters: FilterOptions,
+  getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number }
+): ContextualFilterOptions => {
+  // For each filter, compute available options by filtering with all OTHER filters applied
+  const setsFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'sets', getCardQuantity);
+  const colorsFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'colors', getCardQuantity);
+  const raritiesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'rarities', getCardQuantity);
+  const typesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'types', getCardQuantity);
+  const storiesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'stories', getCardQuantity);
+  const subtypesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'subtypes', getCardQuantity);
+  const costsFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'costs', getCardQuantity);
+
+  // Compute counts for each filter option
+  const setCounts = countBy(setsFiltered, c => c.setCode);
+  const colorCounts = countBy(colorsFiltered, c =>
+    c.color ? (c.color.includes('-') ? c.color.split('-') : [c.color]) : []
+  );
+  const rarityCounts = countBy(raritiesFiltered, c => c.rarity);
+  const typeCounts = countBy(typesFiltered, c => c.type);
+  const storyCounts = countBy(storiesFiltered, c => c.story || '');
+  const subtypeCounts = countBy(subtypesFiltered, c => c.subtypes || []);
+  const costCountsRaw = countBy(costsFiltered, c => String(c.cost));
+  const costCounts: Record<number, number> = {};
+  Object.entries(costCountsRaw).forEach(([k, v]) => { costCounts[parseInt(k)] = v; });
+
+  return {
+    sets: Array.from(new Set(setsFiltered.map(c => c.setCode))),
+    colors: Array.from(new Set(colorsFiltered.flatMap(c =>
+      c.color ? (c.color.includes('-') ? c.color.split('-') : [c.color]) : []
+    ))),
+    rarities: Array.from(new Set(raritiesFiltered.map(c => c.rarity))),
+    types: Array.from(new Set(typesFiltered.map(c => c.type))),
+    stories: Array.from(new Set(storiesFiltered.map(c => c.story).filter((s): s is string => !!s))).sort(),
+    subtypes: Array.from(new Set(subtypesFiltered.flatMap(c => c.subtypes || []))).sort(),
+    costs: Array.from(new Set(costsFiltered.map(c => c.cost))).sort((a, b) => a - b),
+    setCounts,
+    colorCounts,
+    rarityCounts,
+    typeCounts,
+    storyCounts,
+    subtypeCounts,
+    costCounts
+  };
+};
+
 // Count active filters
 export const countActiveFilters = (
   filters: FilterOptions,

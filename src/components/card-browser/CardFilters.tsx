@@ -3,6 +3,7 @@ import { RotateCcw } from 'lucide-react';
 import FilterPanel from '../shared/FilterPanel';
 import { FilterOptions } from '../../types';
 import { RARITY_ICONS, COLOR_ICONS } from '../../constants/icons';
+import { ContextualFilterOptions } from '../../utils/cardFiltering';
 
 interface CardFiltersProps {
   showFilters: boolean;
@@ -11,6 +12,7 @@ interface CardFiltersProps {
   setFilters: (filters: FilterOptions) => void;
   activeFiltersCount: number;
   clearAllFilters: () => void;
+  contextualOptions?: ContextualFilterOptions;
 }
 
 const CardFilters: React.FC<CardFiltersProps> = ({
@@ -20,6 +22,7 @@ const CardFilters: React.FC<CardFiltersProps> = ({
   setFilters,
   activeFiltersCount,
   clearAllFilters,
+  contextualOptions,
 }) => {
   if (!showFilters) return null;
 
@@ -77,6 +80,7 @@ const CardFilters: React.FC<CardFiltersProps> = ({
             rarityIconMap={RARITY_ICONS}
             colorIconMap={COLOR_ICONS}
             showCollectionFilters={true}
+            contextualOptions={contextualOptions}
           />
         </div>
       </div>

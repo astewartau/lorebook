@@ -5,6 +5,7 @@ import { useCardData } from '../../contexts/CardDataContext';
 import { useFilterToggle } from '../../hooks/useFilterToggle';
 import { INK_COLORS, INK_COSTS, RARITIES } from '../../utils/filterHelpers';
 import CustomDropdown from '../CustomDropdown';
+import { ContextualFilterOptions } from '../../utils/cardFiltering';
 
 interface FilterPanelProps {
   filters: FilterOptions;
@@ -15,6 +16,7 @@ interface FilterPanelProps {
   rarityIconMap?: Record<string, string>;
   colorIconMap?: Record<string, string>;
   showCollectionFilters?: boolean;
+  contextualOptions?: ContextualFilterOptions;
 }
 
 // Reusable collapsible section component
@@ -85,9 +87,10 @@ interface IconToggleProps {
   isActive: boolean;
   onClick: () => void;
   size?: 'sm' | 'md';
+  available?: boolean;
 }
 
-const IconToggle: React.FC<IconToggleProps> = ({ icon, label, isActive, onClick, size = 'md' }) => {
+const IconToggle: React.FC<IconToggleProps> = ({ icon, label, isActive, onClick, size = 'md', available = true }) => {
   const sizeClasses = size === 'sm' ? 'w-7 h-7' : 'w-9 h-9';
   const imgSizeClasses = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6';
 
@@ -98,12 +101,14 @@ const IconToggle: React.FC<IconToggleProps> = ({ icon, label, isActive, onClick,
         ${sizeClasses} rounded-lg flex items-center justify-center transition-all
         ${isActive
           ? 'bg-lorcana-navy ring-2 ring-lorcana-gold shadow-md scale-105'
-          : 'bg-lorcana-cream hover:bg-lorcana-gold/30 border border-lorcana-gold/50'
+          : available
+            ? 'bg-lorcana-cream hover:bg-lorcana-gold/30 border border-lorcana-gold/50'
+            : 'bg-gray-100 border border-gray-200 opacity-40'
         }
       `}
       title={label}
     >
-      <img src={icon} alt={label} className={imgSizeClasses} />
+      <img src={icon} alt={label} className={`${imgSizeClasses} ${!available && !isActive ? 'grayscale' : ''}`} />
     </button>
   );
 };
@@ -114,18 +119,29 @@ interface CheckboxOptionProps {
   checked: boolean;
   onChange: () => void;
   icon?: string;
+  available?: boolean; // Whether this option has matching cards in current filter context
+  count?: number; // Number of cards matching this option
 }
 
-const CheckboxOption: React.FC<CheckboxOptionProps> = ({ label, checked, onChange, icon }) => (
-  <label className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-lorcana-cream/50 cursor-pointer transition-colors">
+const CheckboxOption: React.FC<CheckboxOptionProps> = ({ label, checked, onChange, icon, available = true, count }) => (
+  <label className={`flex items-center gap-2 py-1.5 px-2 rounded transition-colors ${
+    available
+      ? 'hover:bg-lorcana-cream/50 cursor-pointer'
+      : 'opacity-40 cursor-pointer'
+  }`}>
     <input
       type="checkbox"
       checked={checked}
       onChange={onChange}
       className="w-4 h-4 rounded border-lorcana-gold text-lorcana-navy focus:ring-lorcana-gold focus:ring-offset-0"
     />
-    {icon && <img src={icon} alt="" className="w-4 h-4" />}
-    <span className="text-sm text-lorcana-ink">{label}</span>
+    {icon && <img src={icon} alt="" className={`w-4 h-4 ${!available ? 'grayscale' : ''}`} />}
+    <span className={`text-sm flex-1 ${available ? 'text-lorcana-ink' : 'text-gray-400'}`}>{label}</span>
+    {count !== undefined && (
+      <span className={`text-xs ${available ? 'text-lorcana-navy' : 'text-gray-400'}`}>
+        {count}
+      </span>
+    )}
   </label>
 );
 
@@ -134,7 +150,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   setFilters,
   showCollectionFilters = true,
   colorIconMap = {},
-  rarityIconMap = {}
+  rarityIconMap = {},
+  contextualOptions
 }) => {
   const {
     sets,
@@ -191,15 +208,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
           {/* Color Icons */}
           <div className="flex flex-wrap gap-2">
-            {INK_COLORS.map(color => (
-              <IconToggle
-                key={color}
-                icon={colorIconMap[color] || `/imgs/${color.toLowerCase()}.svg`}
-                label={color}
-                isActive={filters.colors.includes(color)}
-                onClick={() => toggleColorFilter(color)}
-              />
-            ))}
+            {INK_COLORS.map(color => {
+              const isAvailable = !contextualOptions || contextualOptions.colors.includes(color);
+              return (
+                <IconToggle
+                  key={color}
+                  icon={colorIconMap[color] || `/imgs/${color.toLowerCase()}.svg`}
+                  label={color}
+                  isActive={filters.colors.includes(color)}
+                  onClick={() => toggleColorFilter(color)}
+                  available={isAvailable}
+                />
+              );
+            })}
           </div>
         </div>
       </FilterSection>
@@ -245,16 +266,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         defaultExpanded={true}
       >
         <div className="flex flex-wrap gap-2">
-          {RARITIES.map(rarity => (
-            <IconToggle
-              key={rarity}
-              icon={rarityIconMap[rarity] || `/imgs/${rarity.toLowerCase().replace(' ', '_')}.svg`}
-              label={rarity}
-              isActive={filters.rarities.includes(rarity)}
-              onClick={() => toggleRarityFilter(rarity)}
-              size="sm"
-            />
-          ))}
+          {RARITIES.map(rarity => {
+            const isAvailable = !contextualOptions || contextualOptions.rarities.includes(rarity);
+            return (
+              <IconToggle
+                key={rarity}
+                icon={rarityIconMap[rarity] || `/imgs/${rarity.toLowerCase().replace(' ', '_')}.svg`}
+                label={rarity}
+                isActive={filters.rarities.includes(rarity)}
+                onClick={() => toggleRarityFilter(rarity)}
+                size="sm"
+                available={isAvailable}
+              />
+            );
+          })}
         </div>
       </FilterSection>
 
@@ -303,14 +328,20 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         defaultExpanded={false}
       >
         <div className="grid grid-cols-2 gap-1">
-          {cardTypes.map(type => (
-            <CheckboxOption
-              key={type}
-              label={type}
-              checked={filters.types.includes(type)}
-              onChange={() => updateFilter('types', toggleArrayValue(filters.types, type))}
-            />
-          ))}
+          {cardTypes.map(type => {
+            const isAvailable = !contextualOptions || contextualOptions.types.includes(type);
+            const count = contextualOptions?.typeCounts[type];
+            return (
+              <CheckboxOption
+                key={type}
+                label={type}
+                checked={filters.types.includes(type)}
+                onChange={() => updateFilter('types', toggleArrayValue(filters.types, type))}
+                available={isAvailable}
+                count={count}
+              />
+            );
+          })}
         </div>
       </FilterSection>
 
@@ -322,14 +353,28 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         defaultExpanded={false}
       >
         <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
-          {sets.map(set => (
-            <CheckboxOption
-              key={set.code}
-              label={set.name}
-              checked={filters.sets.includes(set.code)}
-              onChange={() => updateFilter('sets', toggleArrayValue(filters.sets, set.code))}
-            />
-          ))}
+          {/* Sort sets: available first (maintaining original order), then unavailable */}
+          {[...sets]
+            .sort((a, b) => {
+              const aAvailable = !contextualOptions || contextualOptions.sets.includes(a.code);
+              const bAvailable = !contextualOptions || contextualOptions.sets.includes(b.code);
+              if (aAvailable === bAvailable) return 0;
+              return aAvailable ? -1 : 1;
+            })
+            .map(set => {
+              const isAvailable = !contextualOptions || contextualOptions.sets.includes(set.code);
+              const count = contextualOptions?.setCounts[set.code];
+              return (
+                <CheckboxOption
+                  key={set.code}
+                  label={set.name}
+                  checked={filters.sets.includes(set.code)}
+                  onChange={() => updateFilter('sets', toggleArrayValue(filters.sets, set.code))}
+                  available={isAvailable}
+                  count={count}
+                />
+              );
+            })}
         </div>
       </FilterSection>
 
@@ -341,14 +386,28 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         defaultExpanded={false}
       >
         <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
-          {stories.map(story => (
-            <CheckboxOption
-              key={story}
-              label={story}
-              checked={filters.stories.includes(story)}
-              onChange={() => updateFilter('stories', toggleArrayValue(filters.stories, story))}
-            />
-          ))}
+          {/* Sort stories: available first (alphabetically), then unavailable */}
+          {[...stories]
+            .sort((a, b) => {
+              const aAvailable = !contextualOptions || contextualOptions.stories.includes(a);
+              const bAvailable = !contextualOptions || contextualOptions.stories.includes(b);
+              if (aAvailable === bAvailable) return a.localeCompare(b);
+              return aAvailable ? -1 : 1;
+            })
+            .map(story => {
+              const isAvailable = !contextualOptions || contextualOptions.stories.includes(story);
+              const count = contextualOptions?.storyCounts[story];
+              return (
+                <CheckboxOption
+                  key={story}
+                  label={story}
+                  checked={filters.stories.includes(story)}
+                  onChange={() => updateFilter('stories', toggleArrayValue(filters.stories, story))}
+                  available={isAvailable}
+                  count={count}
+                />
+              );
+            })}
         </div>
       </FilterSection>
 
@@ -360,14 +419,28 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         defaultExpanded={false}
       >
         <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
-          {subtypes.map(subtype => (
-            <CheckboxOption
-              key={subtype}
-              label={subtype}
-              checked={filters.subtypes.includes(subtype)}
-              onChange={() => updateFilter('subtypes', toggleArrayValue(filters.subtypes, subtype))}
-            />
-          ))}
+          {/* Sort subtypes: available first (alphabetically), then unavailable */}
+          {[...subtypes]
+            .sort((a, b) => {
+              const aAvailable = !contextualOptions || contextualOptions.subtypes.includes(a);
+              const bAvailable = !contextualOptions || contextualOptions.subtypes.includes(b);
+              if (aAvailable === bAvailable) return a.localeCompare(b);
+              return aAvailable ? -1 : 1;
+            })
+            .map(subtype => {
+              const isAvailable = !contextualOptions || contextualOptions.subtypes.includes(subtype);
+              const count = contextualOptions?.subtypeCounts[subtype];
+              return (
+                <CheckboxOption
+                  key={subtype}
+                  label={subtype}
+                  checked={filters.subtypes.includes(subtype)}
+                  onChange={() => updateFilter('subtypes', toggleArrayValue(filters.subtypes, subtype))}
+                  available={isAvailable}
+                  count={count}
+                />
+              );
+            })}
         </div>
       </FilterSection>
 
