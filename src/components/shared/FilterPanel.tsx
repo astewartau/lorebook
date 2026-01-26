@@ -185,6 +185,48 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   return (
     <div className="space-y-1">
+      {/* Format/Legality Section */}
+      <FilterSection
+        title="Format"
+        activeCount={filters.legality !== 'core' ? 1 : 0}
+        onClear={() => updateFilter('legality', 'core')}
+        defaultExpanded={true}
+      >
+        <div className="flex gap-2">
+          <button
+            onClick={() => updateFilter('legality', 'core')}
+            className={`
+              flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium
+              ${filters.legality === 'core'
+                ? 'bg-lorcana-navy text-lorcana-gold ring-2 ring-lorcana-gold'
+                : 'bg-lorcana-cream hover:bg-lorcana-gold/30 text-lorcana-ink border border-lorcana-gold/50'
+              }
+            `}
+            title="Core Constructed: Sets 5-10"
+          >
+            Core
+          </button>
+          <button
+            onClick={() => updateFilter('legality', 'infinity')}
+            className={`
+              flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium
+              ${filters.legality === 'infinity'
+                ? 'bg-lorcana-navy text-lorcana-gold ring-2 ring-lorcana-gold'
+                : 'bg-lorcana-cream hover:bg-lorcana-gold/30 text-lorcana-ink border border-lorcana-gold/50'
+              }
+            `}
+            title="Infinity: All sets"
+          >
+            Infinity
+          </button>
+        </div>
+        <p className="text-xs text-lorcana-navy mt-2">
+          {filters.legality === 'core'
+            ? 'Core Constructed: Sets 5-10 only'
+            : 'Infinity: All sets included'}
+        </p>
+      </FilterSection>
+
       {/* Ink Colors Section */}
       <FilterSection
         title="Ink Color"

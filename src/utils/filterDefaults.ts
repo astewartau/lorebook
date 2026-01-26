@@ -19,6 +19,7 @@ export const getDefaultFilters = (ranges?: {
 
   return {
     search: '',
+    legality: 'core',
     sets: [],
     colors: [],
     colorMatchMode: 'any',
@@ -60,6 +61,9 @@ export const parseURLState = (searchParams: URLSearchParams): URLState => {
   // Parse filters from URL params
   const urlFilters = { ...defaultFilters };
   
+  const legality = searchParams.get('legality');
+  if (legality === 'core' || legality === 'infinity') urlFilters.legality = legality;
+
   const sets = searchParams.getAll('set');
   if (sets.length > 0) urlFilters.sets = sets;
   

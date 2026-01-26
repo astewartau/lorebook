@@ -2,6 +2,17 @@ import { LorcanaCard, FilterOptions, SortOption } from '../types';
 import { rarityOrder } from '../utils/cardDataUtils';
 import { matchesSmartSearch } from './smartSearch';
 
+// Core Constructed legal sets (sets 5-10)
+// This should be updated when new sets are released
+export const CORE_CONSTRUCTED_LEGAL_SETS = ['5', '6', '7', '8', '9', '10'];
+
+// Helper function to check if a card is legal in the selected format
+const matchesLegality = (card: LorcanaCard, legality: 'core' | 'infinity'): boolean => {
+  if (legality === 'infinity') return true;
+  // Core constructed: only sets 5-10 are legal
+  return CORE_CONSTRUCTED_LEGAL_SETS.includes(card.setCode);
+};
+
 // Helper function to check if a card matches search criteria
 const matchesSearchFilter = (card: LorcanaCard, searchTerm: string): boolean => {
   return matchesSmartSearch(card, searchTerm);
@@ -125,6 +136,7 @@ export const filterCards = (
     }
     
     const matchesSearch = matchesSearchFilter(card, searchTerm);
+    const matchesLegalFormat = matchesLegality(card, filters.legality);
     const matchesSet = filters.sets.length === 0 || filters.sets.includes(card.setCode);
     
     // Handle Illumineer's Quest cards (no ink color) separately
@@ -167,7 +179,7 @@ export const filterCards = (
       (filters.hasSpecial === true && (card.rarity === 'Special' || card.promoGrouping !== undefined)) ||
       (filters.hasSpecial === false && card.rarity !== 'Special' && card.promoGrouping === undefined);
 
-    return matchesSearch && matchesSet && matchesColor && matchesIllumineerQuest && matchesRarity && matchesType && 
+    return matchesSearch && matchesLegalFormat && matchesSet && matchesColor && matchesIllumineerQuest && matchesRarity && matchesType &&
            matchesStory && matchesSubtype && matchesCostList && matchesRanges &&
            matchesInkwell && matchesInCollection && matchesCardCount && matchesEnchanted && matchesSpecial;
   });
@@ -375,6 +387,7 @@ const filterCardsExcluding = (
 ): LorcanaCard[] => {
   return cards.filter(card => {
     const matchesSearch = matchesSearchFilter(card, searchTerm);
+    const matchesLegalFormat = excludeFilter === 'legality' || matchesLegality(card, filters.legality);
     const matchesSet = excludeFilter === 'sets' || filters.sets.length === 0 || filters.sets.includes(card.setCode);
 
     // Handle Illumineer's Quest cards
@@ -414,7 +427,7 @@ const filterCardsExcluding = (
       (filters.hasSpecial === true && (card.rarity === 'Special' || card.promoGrouping !== undefined)) ||
       (filters.hasSpecial === false && card.rarity !== 'Special' && card.promoGrouping === undefined);
 
-    return matchesSearch && matchesSet && matchesColor && matchesIllumineerQuest && matchesRarity &&
+    return matchesSearch && matchesLegalFormat && matchesSet && matchesColor && matchesIllumineerQuest && matchesRarity &&
            matchesType && matchesStory && matchesSubtype && matchesCostList && matchesRanges &&
            matchesInkwell && matchesInCollection && matchesCardCount && matchesEnchanted && matchesSpecial;
   });

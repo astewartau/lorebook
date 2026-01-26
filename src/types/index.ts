@@ -96,6 +96,7 @@ export interface UserProfile {
 
 export interface FilterOptions {
   search: string;
+  legality: 'core' | 'infinity'; // Game format - core constructed (sets 5+) or infinity (all sets)
   sets: string[];
   colors: string[];
   colorMatchMode: 'any' | 'only' | 'dual-only'; // Color filtering mode

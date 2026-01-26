@@ -239,6 +239,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     const defaultFilters = getDefaultFilters();
     
     const params: Record<string, string | string[] | undefined> = {
+      legality: newFilters.legality !== defaultFilters.legality ? newFilters.legality : undefined,
       set: newFilters.sets.length > 0 && JSON.stringify(newFilters.sets) !== JSON.stringify(defaultFilters.sets) ? newFilters.sets : undefined,
       color: newFilters.colors.length > 0 && JSON.stringify(newFilters.colors) !== JSON.stringify(defaultFilters.colors) ? newFilters.colors : undefined,
       rarity: newFilters.rarities.length > 0 && JSON.stringify(newFilters.rarities) !== JSON.stringify(defaultFilters.rarities) ? newFilters.rarities : undefined,
