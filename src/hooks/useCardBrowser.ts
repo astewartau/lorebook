@@ -244,6 +244,8 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
       color: newFilters.colors.length > 0 && JSON.stringify(newFilters.colors) !== JSON.stringify(defaultFilters.colors) ? newFilters.colors : undefined,
       rarity: newFilters.rarities.length > 0 && JSON.stringify(newFilters.rarities) !== JSON.stringify(defaultFilters.rarities) ? newFilters.rarities : undefined,
       type: newFilters.types.length > 0 && JSON.stringify(newFilters.types) !== JSON.stringify(defaultFilters.types) ? newFilters.types : undefined,
+      story: newFilters.stories.length > 0 && JSON.stringify(newFilters.stories) !== JSON.stringify(defaultFilters.stories) ? newFilters.stories : undefined,
+      subtype: newFilters.subtypes.length > 0 && JSON.stringify(newFilters.subtypes) !== JSON.stringify(defaultFilters.subtypes) ? newFilters.subtypes : undefined,
       collection: newFilters.collectionFilter !== defaultFilters.collectionFilter ? newFilters.collectionFilter : undefined,
       inkable: newFilters.inkwellOnly !== defaultFilters.inkwellOnly ? String(newFilters.inkwellOnly) : undefined,
       minCost: newFilters.costMin !== defaultFilters.costMin ? String(newFilters.costMin) : undefined,

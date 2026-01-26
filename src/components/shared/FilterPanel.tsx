@@ -88,28 +88,36 @@ interface IconToggleProps {
   onClick: () => void;
   size?: 'sm' | 'md';
   available?: boolean;
+  count?: number;
 }
 
-const IconToggle: React.FC<IconToggleProps> = ({ icon, label, isActive, onClick, size = 'md', available = true }) => {
+const IconToggle: React.FC<IconToggleProps> = ({ icon, label, isActive, onClick, size = 'md', available = true, count }) => {
   const sizeClasses = size === 'sm' ? 'w-7 h-7' : 'w-9 h-9';
   const imgSizeClasses = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6';
 
   return (
-    <button
-      onClick={onClick}
-      className={`
-        ${sizeClasses} rounded-lg flex items-center justify-center transition-all
-        ${isActive
-          ? 'bg-lorcana-navy ring-2 ring-lorcana-gold shadow-md scale-105'
-          : available
-            ? 'bg-lorcana-cream hover:bg-lorcana-gold/30 border border-lorcana-gold/50'
-            : 'bg-gray-100 border border-gray-200 opacity-40'
-        }
-      `}
-      title={label}
-    >
-      <img src={icon} alt={label} className={`${imgSizeClasses} ${!available && !isActive ? 'grayscale' : ''}`} />
-    </button>
+    <div className="flex flex-col items-center gap-0.5">
+      <button
+        onClick={onClick}
+        className={`
+          ${sizeClasses} rounded-lg flex items-center justify-center transition-all
+          ${isActive
+            ? 'bg-lorcana-navy ring-2 ring-lorcana-gold shadow-md scale-105'
+            : available
+              ? 'bg-lorcana-cream hover:bg-lorcana-gold/30 border border-lorcana-gold/50'
+              : 'bg-gray-100 border border-gray-200 opacity-40'
+          }
+        `}
+        title={label}
+      >
+        <img src={icon} alt={label} className={`${imgSizeClasses} ${!available && !isActive ? 'grayscale' : ''}`} />
+      </button>
+      {count !== undefined && (
+        <span className={`text-[10px] font-medium ${available ? 'text-lorcana-navy' : 'text-gray-400'}`}>
+          {count}
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -252,6 +260,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           <div className="flex flex-wrap gap-2">
             {INK_COLORS.map(color => {
               const isAvailable = !contextualOptions || contextualOptions.colors.includes(color);
+              const count = contextualOptions?.colorCounts[color];
               return (
                 <IconToggle
                   key={color}
@@ -260,6 +269,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   isActive={filters.colors.includes(color)}
                   onClick={() => toggleColorFilter(color)}
                   available={isAvailable}
+                  count={count}
                 />
               );
             })}
@@ -277,24 +287,41 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         <div className="flex flex-wrap gap-2">
           {INK_COSTS.map(cost => {
             const isSelected = isCostSelected(cost);
+            // For cost 7+, sum up all costs >= 7
+            const count = contextualOptions
+              ? (cost === 7
+                  ? Object.entries(contextualOptions.costCounts)
+                      .filter(([c]) => parseInt(c) >= 7)
+                      .reduce((sum, [, cnt]) => sum + cnt, 0)
+                  : contextualOptions.costCounts[cost])
+              : undefined;
+            const isAvailable = count === undefined || count > 0;
             return (
-              <button
-                key={cost}
-                onClick={() => toggleCostFilter(cost)}
-                className={`
-                  relative w-9 h-9 rounded-lg flex items-center justify-center transition-all
-                  ${isSelected
-                    ? 'bg-lorcana-navy ring-2 ring-lorcana-gold shadow-md scale-105'
-                    : 'bg-lorcana-cream hover:bg-lorcana-gold/30 border border-lorcana-gold/50'
-                  }
-                `}
-                title={`Cost ${cost}${cost === 7 ? '+' : ''}`}
-              >
-                <img src="/imgs/uninkable.png" alt="" className="w-6 h-6 opacity-80" />
-                <span className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${isSelected ? 'text-lorcana-gold' : 'text-lorcana-ink'}`}>
-                  {cost === 7 ? '7+' : cost}
-                </span>
-              </button>
+              <div key={cost} className="flex flex-col items-center gap-0.5">
+                <button
+                  onClick={() => toggleCostFilter(cost)}
+                  className={`
+                    relative w-9 h-9 rounded-lg flex items-center justify-center transition-all
+                    ${isSelected
+                      ? 'bg-lorcana-navy ring-2 ring-lorcana-gold shadow-md scale-105'
+                      : isAvailable
+                        ? 'bg-lorcana-cream hover:bg-lorcana-gold/30 border border-lorcana-gold/50'
+                        : 'bg-gray-100 border border-gray-200 opacity-40'
+                    }
+                  `}
+                  title={`Cost ${cost}${cost === 7 ? '+' : ''}`}
+                >
+                  <img src="/imgs/uninkable.png" alt="" className={`w-6 h-6 opacity-80 ${!isAvailable && !isSelected ? 'grayscale' : ''}`} />
+                  <span className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${isSelected ? 'text-lorcana-gold' : 'text-lorcana-ink'}`}>
+                    {cost === 7 ? '7+' : cost}
+                  </span>
+                </button>
+                {count !== undefined && (
+                  <span className={`text-[10px] font-medium ${isAvailable ? 'text-lorcana-navy' : 'text-gray-400'}`}>
+                    {count}
+                  </span>
+                )}
+              </div>
             );
           })}
         </div>
@@ -310,6 +337,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         <div className="flex flex-wrap gap-2">
           {RARITIES.map(rarity => {
             const isAvailable = !contextualOptions || contextualOptions.rarities.includes(rarity);
+            const count = contextualOptions?.rarityCounts[rarity];
             return (
               <IconToggle
                 key={rarity}
@@ -319,6 +347,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 onClick={() => toggleRarityFilter(rarity)}
                 size="sm"
                 available={isAvailable}
+                count={count}
               />
             );
           })}

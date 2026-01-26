@@ -44,7 +44,7 @@ const CardFilters: React.FC<CardFiltersProps> = ({
         transform transition-transform duration-300
         ${showFilters ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="sticky top-0 bg-white border-b-2 border-lorcana-gold p-4 lg:p-6">
+        <div className="sticky top-0 z-10 bg-white border-b-2 border-lorcana-gold p-4 lg:p-6">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-lorcana-ink">Filters</h3>
             <div className="flex items-center space-x-2">
