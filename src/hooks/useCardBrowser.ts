@@ -256,9 +256,9 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
   }, [updateURLParams]);
 
   const clearAllFilters = useCallback(() => {
-    setFilters(getDefaultFilters());
+    setFilters(getDefaultFilters({ costRange, strengthRange, willpowerRange, loreRange }));
     setSearchTerm('');
-  }, [setFilters, setSearchTerm]);
+  }, [setFilters, setSearchTerm, costRange, strengthRange, willpowerRange, loreRange]);
 
   // ================================
   // 7. STALE CARD BUSINESS LOGIC
