@@ -29,7 +29,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
   const [authorDisplayName, setAuthorDisplayName] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [sortBy, setSortBy] = useState<'cost' | 'type' | 'color' | 'set'>('set');
+  const [sortBy, setSortBy] = useState<'cost' | 'type' | 'color' | 'set' | 'story'>('set');
   const [tooltip, setTooltip] = useState<{ show: boolean; x: number; y: number; content: string }>({
     show: false, x: 0, y: 0, content: ''
   });
@@ -127,6 +127,11 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
           if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode);
           if (a.number !== b.number) return a.number - b.number;
           return a.name.localeCompare(b.name);
+        case 'story':
+          const storyA = a.story || 'Unknown';
+          const storyB = b.story || 'Unknown';
+          if (storyA !== storyB) return storyA.localeCompare(storyB);
+          return a.name.localeCompare(b.name);
         default:
           return a.name.localeCompare(b.name);
       }
@@ -151,6 +156,9 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
           break;
         case 'color':
           groupKey = card.color || 'None';
+          break;
+        case 'story':
+          groupKey = card.story || 'Unknown';
           break;
         default:
           groupKey = 'All Cards';
@@ -407,6 +415,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
               <option value="cost">Group by Cost</option>
               <option value="type">Group by Type</option>
               <option value="color">Group by Color</option>
+              <option value="story">Group by Franchise</option>
               <option value="set">Order by Set</option>
             </select>
           </div>

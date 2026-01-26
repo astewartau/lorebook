@@ -69,9 +69,155 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
       }
     });
 
-    // Add custom UI elements if handlers provided
-    if (hasControls) {
-      lightbox.on('uiRegister', function() {
+    // Register all UI elements in a single handler
+    lightbox.on('uiRegister', function() {
+      // Info panel toggle button - in the top toolbar area
+      lightbox.pswp?.ui?.registerElement({
+        name: 'info-button',
+        ariaLabel: 'Card Info',
+        order: 9,
+        isButton: true,
+        appendTo: 'bar',
+        html: '<svg aria-hidden="true" class="pswp__icn" viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 16v-4M12 8h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        onClick: (event: Event, el: HTMLElement) => {
+          const infoPanel = document.getElementById('pswp-info-panel');
+          if (infoPanel) {
+            const isVisible = infoPanel.style.transform === 'translateY(0px)';
+            infoPanel.style.transform = isVisible ? 'translateY(100%)' : 'translateY(0px)';
+          }
+        }
+      });
+
+      // Info panel container
+      lightbox.pswp?.ui?.registerElement({
+        name: 'info-panel',
+        order: 9,
+        isButton: false,
+        html: '',
+        onInit: (el: HTMLElement) => {
+          el.id = 'pswp-info-panel';
+          el.style.position = 'fixed';
+          el.style.bottom = hasControls ? '90px' : '0';
+          el.style.left = '0';
+          el.style.right = '0';
+          el.style.maxHeight = '60vh';
+          el.style.backgroundColor = 'rgba(26, 43, 60, 0.97)';
+          el.style.borderTop = '2px solid #D4AF37';
+          el.style.color = 'white';
+          el.style.transform = 'translateY(100%)';
+          el.style.transition = 'transform 0.3s ease-in-out';
+          el.style.zIndex = '9999';
+          el.style.overflowY = 'auto';
+          el.style.pointerEvents = 'auto';
+          el.setAttribute('data-pswp-controls', 'true');
+
+          const updateInfoPanel = () => {
+            const currentCard = cardsRef.current[lightbox.pswp?.currIndex || 0];
+            if (!currentCard) return;
+
+            el.innerHTML = `
+              <div style="padding: 20px; max-width: 600px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                  <div>
+                    <h2 style="margin: 0; font-size: 1.5rem; color: #D4AF37; font-weight: bold;">${currentCard.fullName}</h2>
+                    ${currentCard.version ? `<p style="margin: 4px 0 0 0; color: #9CA3AF; font-style: italic;">${currentCard.version}</p>` : ''}
+                  </div>
+                  <button id="close-info-panel" style="background: none; border: none; color: #9CA3AF; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Set</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">Set ${currentCard.setCode} · #${currentCard.number}</p>
+                  </div>
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Rarity</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.rarity}</p>
+                  </div>
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Ink</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.color || 'None'}</p>
+                  </div>
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Cost</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.cost} · ${currentCard.inkwell ? 'Inkable' : 'Uninkable'}</p>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Type</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.type}${currentCard.subtypes?.length ? ' · ' + currentCard.subtypes.join(', ') : ''}</p>
+                  </div>
+                  ${currentCard.type === 'Character' ? `
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Stats</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">⚔️ ${currentCard.strength ?? '-'} · 🛡️ ${currentCard.willpower ?? '-'} · ◆ ${currentCard.lore ?? '-'}</p>
+                  </div>
+                  ` : `
+                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Lore</span>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">◆ ${currentCard.lore ?? '-'}</p>
+                  </div>
+                  `}
+                </div>
+
+                ${currentCard.story ? `
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Franchise</span>
+                  <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.story}</p>
+                </div>
+                ` : ''}
+
+                ${currentCard.abilities?.length ? `
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Abilities</span>
+                  ${currentCard.abilities.map((ability: any) => `
+                    <div style="margin-top: 8px;">
+                      ${ability.name ? `<p style="margin: 0; font-weight: 600; color: #D4AF37;">${ability.name}</p>` : ''}
+                      <p style="margin: 4px 0 0 0; font-size: 0.9rem;">${ability.effect || ability.text || ''}</p>
+                    </div>
+                  `).join('')}
+                </div>
+                ` : ''}
+
+                ${currentCard.flavorText ? `
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Flavor Text</span>
+                  <p style="margin: 4px 0 0 0; font-style: italic; color: #D1D5DB;">${currentCard.flavorText}</p>
+                </div>
+                ` : ''}
+
+                ${currentCard.artists?.length ? `
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
+                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Artist${currentCard.artists.length > 1 ? 's' : ''}</span>
+                  <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.artists.join(', ')}</p>
+                </div>
+                ` : ''}
+              </div>
+            `;
+
+            // Add close button handler
+            const closeBtn = document.getElementById('close-info-panel');
+            if (closeBtn) {
+              closeBtn.addEventListener('click', () => {
+                el.style.transform = 'translateY(100%)';
+              });
+            }
+          };
+
+          // Update when slide changes
+          lightbox.pswp?.on('change', () => {
+            updateInfoPanel();
+          });
+
+          // Initial update
+          updateInfoPanel();
+        }
+      });
+
+      // Add quantity control UI elements if handlers provided
+      if (hasControls) {
         // Quantity control buttons
         lightbox.pswp?.ui?.registerElement({
             name: 'quantity-controls',
@@ -181,9 +327,8 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
               updateDisplay();
             }
           });
-      });
-
-    }
+      }
+    });
 
     lightbox.init();
     lightboxRef.current = lightbox;

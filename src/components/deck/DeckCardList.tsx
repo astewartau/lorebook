@@ -12,7 +12,7 @@ interface DeckCardListProps {
   onUpdateQuantity: (cardId: number, quantity: number) => void;
   onImagePreview: (show: boolean, x?: number, y?: number, imageUrl?: string) => void;
   onCardClick?: (cardId: number) => void;
-  groupBy?: 'cost' | 'type' | 'color' | 'set';
+  groupBy?: 'cost' | 'type' | 'color' | 'set' | 'story';
 }
 
 const DeckCardList: React.FC<DeckCardListProps> = ({
@@ -77,6 +77,9 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
           break;
         case 'set':
           groupKey = card.setCode || 'Unknown Set';
+          break;
+        case 'story':
+          groupKey = card.story || 'Unknown';
           break;
         default:
           groupKey = 'Other';
