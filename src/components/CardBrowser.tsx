@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCardBrowser } from '../hooks';
 import QuickFilters from './QuickFilters';
 import { RARITY_ICONS, COLOR_ICONS } from '../constants/icons';
@@ -18,6 +18,7 @@ const CardBrowser: React.FC = () => {
   const [isPhotoSwipeOpen, setIsPhotoSwipeOpen] = useState(false);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [renderedCards, setRenderedCards] = useState<LorcanaCard[]>([]);
+  const [isHeaderMinimized, setIsHeaderMinimized] = useState(false);
   const { allCards, isLoading, error, refreshCardData } = useCardData();
   const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
   const { getCardQuantity, addCardToCollection, removeCardFromCollection } = useCollection();
@@ -174,36 +175,74 @@ const CardBrowser: React.FC = () => {
       
       {/* Search container - sticky */}
       <div className="sticky top-0 z-30">
-        {/* Search section */}
-        <CardSearch
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          filters={filters}
-          setFilters={setFilters}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          groupBy={groupBy}
-          setGroupBy={setGroupBy}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          showFilters={showFilters}
-          setShowFilters={setShowFilters}
-          activeFiltersCount={activeFiltersCount}
-          showFilterNotification={showFilterNotification}
-          refreshStaleCards={refreshStaleCards}
-        />
-        
-        {/* Quick Filters - hidden on mobile */}
-        <div className="hidden md:block">
+        {isHeaderMinimized ? (
+          /* Minimized header - just a thin bar with restore button */
           <div className="w-full px-2 sm:px-4">
-            <QuickFilters
+            <div className="bg-white border-2 border-lorcana-gold border-t-0 rounded-b-sm shadow-lg px-3 py-1 flex items-center justify-between">
+              <span className="text-sm text-lorcana-navy">
+                {totalCards} cards
+                {activeFiltersCount > 0 && (
+                  <span className="ml-2 text-lorcana-purple">
+                    ({activeFiltersCount} filter{activeFiltersCount !== 1 ? 's' : ''} active)
+                  </span>
+                )}
+              </span>
+              <button
+                onClick={() => setIsHeaderMinimized(false)}
+                className="flex items-center gap-1 px-3 py-1 text-sm text-lorcana-navy hover:bg-lorcana-cream rounded-sm transition-colors"
+                title="Show search bar"
+              >
+                <ChevronDown size={16} />
+                <span className="hidden sm:inline">Show Controls</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Search section */}
+            <CardSearch
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
               filters={filters}
               setFilters={setFilters}
-              colorIconMap={COLOR_ICONS}
-              rarityIconMap={RARITY_ICONS}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              groupBy={groupBy}
+              setGroupBy={setGroupBy}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+              activeFiltersCount={activeFiltersCount}
+              showFilterNotification={showFilterNotification}
+              refreshStaleCards={refreshStaleCards}
             />
-          </div>
-        </div>
+
+            {/* Quick Filters - hidden on mobile */}
+            <div className="hidden md:block">
+              <div className="w-full px-2 sm:px-4">
+                <QuickFilters
+                  filters={filters}
+                  setFilters={setFilters}
+                  colorIconMap={COLOR_ICONS}
+                  rarityIconMap={RARITY_ICONS}
+                  onMinimize={() => setIsHeaderMinimized(true)}
+                />
+              </div>
+            </div>
+
+            {/* Minimize button for mobile - since QuickFilters is hidden */}
+            <div className="md:hidden w-full px-2 flex justify-end">
+              <button
+                onClick={() => setIsHeaderMinimized(true)}
+                className="bg-lorcana-cream border-2 border-t-0 border-lorcana-gold rounded-b-sm px-3 py-0.5 text-lorcana-navy hover:bg-lorcana-gold transition-colors -mt-[2px]"
+                title="Minimize search bar"
+              >
+                <ChevronUp size={14} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
       
       <div>

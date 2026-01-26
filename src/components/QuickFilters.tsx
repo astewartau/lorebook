@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronUp } from 'lucide-react';
 import { FilterOptions } from '../types';
 import CustomDropdown from './CustomDropdown';
 import { useFilterToggle } from '../hooks/useFilterToggle';
@@ -9,13 +10,15 @@ interface QuickFiltersProps {
   setFilters: (filters: FilterOptions) => void;
   colorIconMap: Record<string, string>;
   rarityIconMap: Record<string, string>;
+  onMinimize?: () => void;
 }
 
 const QuickFilters: React.FC<QuickFiltersProps> = ({
   filters,
   setFilters,
   colorIconMap,
-  rarityIconMap
+  rarityIconMap,
+  onMinimize
 }) => {
   const {
     toggleColorFilter,
@@ -27,6 +30,16 @@ const QuickFilters: React.FC<QuickFiltersProps> = ({
 
   return (
     <div className="bg-lorcana-navy border-2 border-lorcana-gold border-t-0 rounded-b-sm shadow-xl p-3 mb-6 relative">
+      {/* Minimize button */}
+      {onMinimize && (
+        <button
+          onClick={onMinimize}
+          className="absolute right-1 bottom-1 bg-lorcana-purple/50 hover:bg-lorcana-purple rounded-sm p-0.5 text-lorcana-gold transition-colors z-20"
+          title="Minimize"
+        >
+          <ChevronUp size={12} />
+        </button>
+      )}
       {/* Subtle inner glow for connection */}
       <div className="absolute inset-0 bg-gradient-to-b from-lorcana-gold/10 via-transparent to-transparent rounded-b-sm pointer-events-none"></div>
       <div className="relative z-10">

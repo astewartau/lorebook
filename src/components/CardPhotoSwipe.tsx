@@ -78,17 +78,17 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
         order: 9,
         isButton: true,
         appendTo: 'bar',
-        html: '<svg aria-hidden="true" class="pswp__icn" viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 16v-4M12 8h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        html: '<svg aria-hidden="true" class="pswp__icn" viewBox="0 0 24 24" width="24" height="24" style="color: white;"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 16v-4M12 8h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
         onClick: (event: Event, el: HTMLElement) => {
           const infoPanel = document.getElementById('pswp-info-panel');
           if (infoPanel) {
-            const isVisible = infoPanel.style.transform === 'translateY(0px)';
-            infoPanel.style.transform = isVisible ? 'translateY(100%)' : 'translateY(0px)';
+            const isVisible = infoPanel.style.display !== 'none';
+            infoPanel.style.display = isVisible ? 'none' : 'block';
           }
         }
       });
 
-      // Info panel container
+      // Info panel container - dropdown box near the info button
       lightbox.pswp?.ui?.registerElement({
         name: 'info-panel',
         order: 9,
@@ -97,18 +97,20 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
         onInit: (el: HTMLElement) => {
           el.id = 'pswp-info-panel';
           el.style.position = 'fixed';
-          el.style.bottom = hasControls ? '90px' : '0';
-          el.style.left = '0';
-          el.style.right = '0';
-          el.style.maxHeight = '60vh';
+          el.style.top = '50px';
+          el.style.right = '10px';
+          el.style.width = '320px';
+          el.style.maxWidth = 'calc(100vw - 20px)';
+          el.style.maxHeight = 'calc(100vh - 120px)';
           el.style.backgroundColor = 'rgba(26, 43, 60, 0.97)';
-          el.style.borderTop = '2px solid #D4AF37';
+          el.style.border = '2px solid #D4AF37';
+          el.style.borderRadius = '8px';
           el.style.color = 'white';
-          el.style.transform = 'translateY(100%)';
-          el.style.transition = 'transform 0.3s ease-in-out';
+          el.style.display = 'none';
           el.style.zIndex = '9999';
           el.style.overflowY = 'auto';
           el.style.pointerEvents = 'auto';
+          el.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.5)';
           el.setAttribute('data-pswp-controls', 'true');
 
           const updateInfoPanel = () => {
@@ -116,82 +118,82 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
             if (!currentCard) return;
 
             el.innerHTML = `
-              <div style="padding: 20px; max-width: 600px; margin: 0 auto;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                  <div>
-                    <h2 style="margin: 0; font-size: 1.5rem; color: #D4AF37; font-weight: bold;">${currentCard.fullName}</h2>
-                    ${currentCard.version ? `<p style="margin: 4px 0 0 0; color: #9CA3AF; font-style: italic;">${currentCard.version}</p>` : ''}
+              <div style="padding: 12px; font-size: 0.875rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                  <div style="flex: 1; min-width: 0;">
+                    <h2 style="margin: 0; font-size: 1rem; color: #D4AF37; font-weight: bold; word-wrap: break-word;">${currentCard.fullName}</h2>
+                    ${currentCard.version ? `<p style="margin: 2px 0 0 0; color: #9CA3AF; font-style: italic; font-size: 0.75rem;">${currentCard.version}</p>` : ''}
                   </div>
-                  <button id="close-info-panel" style="background: none; border: none; color: #9CA3AF; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                  <button id="close-info-panel" style="background: none; border: none; color: #9CA3AF; font-size: 18px; cursor: pointer; padding: 0 0 0 8px; line-height: 1; flex-shrink: 0;">&times;</button>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Set</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">Set ${currentCard.setCode} · #${currentCard.number}</p>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px;">
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Set</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">Set ${currentCard.setCode} · #${currentCard.number}</p>
                   </div>
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Rarity</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.rarity}</p>
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Rarity</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${currentCard.rarity}</p>
                   </div>
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Ink</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.color || 'None'}</p>
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Ink</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${currentCard.color || 'None'}</p>
                   </div>
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Cost</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.cost} · ${currentCard.inkwell ? 'Inkable' : 'Uninkable'}</p>
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Cost</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${currentCard.cost} · ${currentCard.inkwell ? 'Inkable' : 'Uninkable'}</p>
                   </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Type</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.type}${currentCard.subtypes?.length ? ' · ' + currentCard.subtypes.join(', ') : ''}</p>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px;">
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Type</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${currentCard.type}${currentCard.subtypes?.length ? ' · ' + currentCard.subtypes.join(', ') : ''}</p>
                   </div>
                   ${currentCard.type === 'Character' ? `
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Stats</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">⚔️ ${currentCard.strength ?? '-'} · 🛡️ ${currentCard.willpower ?? '-'} · ◆ ${currentCard.lore ?? '-'}</p>
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Stats</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">⚔️ ${currentCard.strength ?? '-'} · 🛡️ ${currentCard.willpower ?? '-'} · ◆ ${currentCard.lore ?? '-'}</p>
                   </div>
                   ` : `
-                  <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                    <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Lore</span>
-                    <p style="margin: 4px 0 0 0; font-weight: 500;">◆ ${currentCard.lore ?? '-'}</p>
+                  <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                    <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Lore</span>
+                    <p style="margin: 2px 0 0 0; font-size: 0.75rem;">◆ ${currentCard.lore ?? '-'}</p>
                   </div>
                   `}
                 </div>
 
                 ${currentCard.story ? `
-                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Franchise</span>
-                  <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.story}</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px; margin-bottom: 6px;">
+                  <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Franchise</span>
+                  <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${currentCard.story}</p>
                 </div>
                 ` : ''}
 
                 ${currentCard.abilities?.length ? `
-                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Abilities</span>
+                <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px; margin-bottom: 6px;">
+                  <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Abilities</span>
                   ${currentCard.abilities.map((ability: any) => `
-                    <div style="margin-top: 8px;">
-                      ${ability.name ? `<p style="margin: 0; font-weight: 600; color: #D4AF37;">${ability.name}</p>` : ''}
-                      <p style="margin: 4px 0 0 0; font-size: 0.9rem;">${ability.effect || ability.text || ''}</p>
+                    <div style="margin-top: 4px;">
+                      ${ability.name ? `<p style="margin: 0; font-weight: 600; color: #D4AF37; font-size: 0.75rem;">${ability.name}</p>` : ''}
+                      <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${ability.effect || ability.text || ''}</p>
                     </div>
                   `).join('')}
                 </div>
                 ` : ''}
 
                 ${currentCard.flavorText ? `
-                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Flavor Text</span>
-                  <p style="margin: 4px 0 0 0; font-style: italic; color: #D1D5DB;">${currentCard.flavorText}</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px; margin-bottom: 6px;">
+                  <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Flavor Text</span>
+                  <p style="margin: 2px 0 0 0; font-style: italic; color: #D1D5DB; font-size: 0.75rem;">${currentCard.flavorText}</p>
                 </div>
                 ` : ''}
 
                 ${currentCard.artists?.length ? `
-                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px;">
-                  <span style="color: #9CA3AF; font-size: 0.75rem; text-transform: uppercase;">Artist${currentCard.artists.length > 1 ? 's' : ''}</span>
-                  <p style="margin: 4px 0 0 0; font-weight: 500;">${currentCard.artists.join(', ')}</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 6px; border-radius: 4px;">
+                  <span style="color: #9CA3AF; font-size: 0.625rem; text-transform: uppercase;">Artist${currentCard.artists.length > 1 ? 's' : ''}</span>
+                  <p style="margin: 2px 0 0 0; font-size: 0.75rem;">${currentCard.artists.join(', ')}</p>
                 </div>
                 ` : ''}
               </div>
@@ -201,7 +203,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
             const closeBtn = document.getElementById('close-info-panel');
             if (closeBtn) {
               closeBtn.addEventListener('click', () => {
-                el.style.transform = 'translateY(100%)';
+                el.style.display = 'none';
               });
             }
           };
