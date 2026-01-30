@@ -46,7 +46,7 @@ const CardSearch: React.FC<CardSearchProps> = ({
           {/* Mobile Layout */}
           <div className="md:hidden">
             <div className="flex gap-1 mb-3">
-              <div className="flex-1 min-w-0 max-w-[calc(100%-120px)]">
+              <div className="flex-1 min-w-0 max-w-[calc(100%-130px)]">
                 <GitHubStyleSearch
                   value={searchTerm}
                   onChange={setSearchTerm}
@@ -56,7 +56,7 @@ const CardSearch: React.FC<CardSearchProps> = ({
               </div>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex-shrink-0 h-12 px-2 py-2 border-2 rounded-sm focus:ring-2 focus:ring-lorcana-gold flex items-center transition-colors ${
+                className={`flex-shrink-0 h-12 min-w-[48px] px-3 py-2 border-2 rounded-sm focus:ring-2 focus:ring-lorcana-gold flex items-center justify-center transition-colors touch-manipulation ${
                   activeFiltersCount > 0 ? 'bg-lorcana-gold border-lorcana-navy text-lorcana-ink' : 'border-lorcana-gold hover:bg-lorcana-cream'
                 }`}
               >

@@ -150,7 +150,7 @@ const InteractiveCard: React.FC<CardProps> = ({
                 handleNormalQuantityChange(-1);
               }}
               disabled={quantities.normal <= 0}
-              className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
               aria-label={`Remove normal copy of ${card.name}`}
             >
               <Minus size={14} />
@@ -163,7 +163,7 @@ const InteractiveCard: React.FC<CardProps> = ({
                 e.stopPropagation();
                 handleNormalQuantityChange(1);
               }}
-              className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 transition-colors rounded-sm"
+              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 transition-colors rounded-sm"
               aria-label={`Add normal copy of ${card.name}`}
             >
               <Plus size={14} />
@@ -180,7 +180,7 @@ const InteractiveCard: React.FC<CardProps> = ({
               handleFoilQuantityChange(-1);
             }}
             disabled={quantities.foil <= 0}
-            className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100/50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm relative z-10"
+            className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100/50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm relative z-10"
             aria-label={`Remove foil copy of ${card.name}`}
           >
             <Minus size={14} />
@@ -193,7 +193,7 @@ const InteractiveCard: React.FC<CardProps> = ({
               e.stopPropagation();
               handleFoilQuantityChange(1);
             }}
-            className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100/50 transition-colors rounded-sm relative z-10"
+            className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100/50 transition-colors rounded-sm relative z-10"
             aria-label={`Add foil copy of ${card.name}`}
           >
             <Plus size={14} />
@@ -212,7 +212,7 @@ const InteractiveCard: React.FC<CardProps> = ({
             handleRemoveFromDeck();
           }}
           disabled={deckQuantity <= 0}
-          className="w-8 h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+          className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
           aria-label={`Remove ${card.name} from deck`}
         >
           <Minus size={14} />
@@ -228,7 +228,7 @@ const InteractiveCard: React.FC<CardProps> = ({
             handleAddToDeck();
           }}
           disabled={!canAddToDeck()}
-          className="w-8 h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
+          className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors rounded-sm"
           aria-label={`Add ${card.name} to deck`}
         >
           <Plus size={14} />

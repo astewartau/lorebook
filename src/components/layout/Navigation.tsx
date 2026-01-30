@@ -41,10 +41,11 @@ const Navigation: React.FC<NavigationProps> = ({
 
   return (
     /* Mobile Navigation - scroll responsive */
-    <nav 
+    <nav
       className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-lorcana-navy/95 backdrop-blur border-t-2 border-lorcana-gold transition-transform duration-200 ease-in-out"
       style={{
-        transform: navVisible ? 'translateY(0)' : 'translateY(100%)'
+        transform: navVisible ? 'translateY(0)' : 'translateY(100%)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
       }}
     >
       <div className="flex justify-around px-4 py-2">
