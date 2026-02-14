@@ -2,14 +2,14 @@ import { LorcanaCard, FilterOptions, SortOption } from '../types';
 import { rarityOrder } from '../utils/cardDataUtils';
 import { matchesSmartSearch } from './smartSearch';
 
-// Core Constructed legal sets (sets 5-10)
+// Core Constructed legal sets (sets 5-11)
 // This should be updated when new sets are released
-export const CORE_CONSTRUCTED_LEGAL_SETS = ['5', '6', '7', '8', '9', '10'];
+export const CORE_CONSTRUCTED_LEGAL_SETS = ['5', '6', '7', '8', '9', '10', '11'];
 
 // Helper function to check if a card is legal in the selected format
 const matchesLegality = (card: LorcanaCard, legality: 'core' | 'infinity'): boolean => {
   if (legality === 'infinity') return true;
-  // Core constructed: only sets 5-10 are legal
+  // Core constructed: only sets 5-11 are legal
   return CORE_CONSTRUCTED_LEGAL_SETS.includes(card.setCode);
 };
 
