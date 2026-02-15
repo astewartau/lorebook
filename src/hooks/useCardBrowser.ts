@@ -236,7 +236,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
 
   const setFilters = useCallback((newFilters: FilterOptions) => {
     setFiltersState(newFilters);
-    const defaultFilters = getDefaultFilters();
+    const defaultFilters = getDefaultFilters({ costRange, strengthRange, willpowerRange, loreRange });
     
     const params: Record<string, string | string[] | undefined> = {
       legality: newFilters.legality !== defaultFilters.legality ? newFilters.legality : undefined,
@@ -253,7 +253,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     };
     
     updateURLParams(params);
-  }, [updateURLParams]);
+  }, [updateURLParams, costRange, strengthRange, willpowerRange, loreRange]);
 
   const clearAllFilters = useCallback(() => {
     setFilters(getDefaultFilters({ costRange, strengthRange, willpowerRange, loreRange }));

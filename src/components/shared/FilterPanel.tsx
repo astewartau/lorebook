@@ -424,12 +424,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         defaultExpanded={false}
       >
         <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
-          {/* Sort sets: available first (maintaining original order), then unavailable */}
+          {/* Sort sets: newest first, then available before unavailable */}
           {[...sets]
             .sort((a, b) => {
               const aAvailable = !contextualOptions || contextualOptions.sets.includes(a.code);
               const bAvailable = !contextualOptions || contextualOptions.sets.includes(b.code);
-              if (aAvailable === bAvailable) return 0;
+              if (aAvailable === bAvailable) return b.number - a.number;
               return aAvailable ? -1 : 1;
             })
             .map(set => {
@@ -438,7 +438,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               return (
                 <CheckboxOption
                   key={set.code}
-                  label={set.name}
+                  label={`#${set.number} ${set.name}`}
                   checked={filters.sets.includes(set.code)}
                   onChange={() => updateFilter('sets', toggleArrayValue(filters.sets, set.code))}
                   available={isAvailable}
