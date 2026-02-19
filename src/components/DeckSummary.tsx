@@ -25,7 +25,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   const { user } = useAuth();
   const { loadUserProfile } = useProfile();
   const { getCardQuantity } = useCollection();
-  const { allCards } = useCardData();
+  const { allCards, sets } = useCardData();
   const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks, addCardToDeck, removeCardFromDeck, updateCardQuantity } = useDeck();
   const [authorDisplayName, setAuthorDisplayName] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
@@ -124,7 +124,14 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
           if (colorA !== colorB) return colorA.localeCompare(colorB);
           return a.name.localeCompare(b.name);
         case 'set':
-          if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode);
+          if (a.setCode !== b.setCode) {
+            const aNum = parseInt(a.setCode);
+            const bNum = parseInt(b.setCode);
+            if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+            if (!isNaN(aNum)) return -1;
+            if (!isNaN(bNum)) return 1;
+            return a.setCode.localeCompare(b.setCode);
+          }
           if (a.number !== b.number) return a.number - b.number;
           return a.name.localeCompare(b.name);
         case 'story':
@@ -138,13 +145,8 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     });
   }, [cardsWithData, sortBy]);
 
-  // Group cards for display (when not using set ordering)
+  // Group cards for display
   const groupedCards = useMemo(() => {
-    if (sortBy === 'set') {
-      // For set ordering, don't group - just return all cards in one group
-      return { 'All Cards': sortedCards };
-    }
-
     return sortedCards.reduce((acc, card) => {
       let groupKey: string;
       switch (sortBy) {
@@ -157,6 +159,10 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         case 'color':
           groupKey = card.color || 'None';
           break;
+        case 'set':
+          const setInfo = sets.find(s => s.code === card.setCode);
+          groupKey = setInfo?.name || `Set ${card.setCode}`;
+          break;
         case 'story':
           groupKey = card.story || 'Unknown';
           break;
@@ -168,7 +174,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
       acc[groupKey].push(card);
       return acc;
     }, {} as Record<string, CardWithQuantity[]>);
-  }, [sortedCards, sortBy]);
+  }, [sortedCards, sortBy, sets]);
 
   // Sort groups
   const sortedGroups = useMemo(() => {
@@ -178,9 +184,17 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         const costB = parseInt(b.split(' ')[0]);
         return costA - costB;
       }
+      if (sortBy === 'set') {
+        const setA = sets.find(s => s.name === a);
+        const setB = sets.find(s => s.name === b);
+        if (setA && setB) return setA.number - setB.number;
+        if (setA) return -1;
+        if (setB) return 1;
+        return a.localeCompare(b);
+      }
       return a.localeCompare(b);
     });
-  }, [groupedCards, sortBy]);
+  }, [groupedCards, sortBy, sets]);
 
   const handleCardClick = (card: LorcanaCard) => {
     // Create a flattened array of unique cards in the current display order
@@ -416,7 +430,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
               <option value="type">Group by Type</option>
               <option value="color">Group by Color</option>
               <option value="story">Group by Franchise</option>
-              <option value="set">Order by Set</option>
+              <option value="set">Group by Set</option>
             </select>
           </div>
         </div>

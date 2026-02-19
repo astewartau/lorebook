@@ -24,7 +24,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
   groupBy = 'cost'
 }) => {
   const { getCardQuantity } = useCollection();
-  const { allCards } = useCardData();
+  const { allCards, sets } = useCardData();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const totalCards = deck.cards.reduce((sum, entry) => sum + entry.quantity, 0);
@@ -55,7 +55,14 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
   // Sort cards by set and number (always)
   const sortedCards = useMemo(() => {
     return [...cardsWithData].sort((a, b) => {
-      if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode);
+      if (a.setCode !== b.setCode) {
+        const aNum = parseInt(a.setCode);
+        const bNum = parseInt(b.setCode);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        if (!isNaN(aNum)) return -1;
+        if (!isNaN(bNum)) return 1;
+        return a.setCode.localeCompare(b.setCode);
+      }
       if (a.number !== b.number) return a.number - b.number;
       return a.name.localeCompare(b.name);
     });
@@ -76,7 +83,8 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
           groupKey = card.color || 'None';
           break;
         case 'set':
-          groupKey = card.setCode || 'Unknown Set';
+          const setInfo = sets.find(s => s.code === card.setCode);
+          groupKey = setInfo?.name || `Set ${card.setCode}`;
           break;
         case 'story':
           groupKey = card.story || 'Unknown';
@@ -89,7 +97,7 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
       acc[groupKey].push(card);
       return acc;
     }, {} as Record<string, CardWithQuantity[]>);
-  }, [sortedCards, groupBy]);
+  }, [sortedCards, groupBy, sets]);
 
   // Sort groups
   const sortedGroups = useMemo(() => {
@@ -100,11 +108,16 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
         return costA - costB;
       }
       if (groupBy === 'set') {
+        const setA = sets.find(s => s.name === a);
+        const setB = sets.find(s => s.name === b);
+        if (setA && setB) return setA.number - setB.number;
+        if (setA) return -1;
+        if (setB) return 1;
         return a.localeCompare(b);
       }
       return a.localeCompare(b);
     });
-  }, [groupedCards, groupBy]);
+  }, [groupedCards, groupBy, sets]);
 
   const toggleGroup = (groupName: string) => {
     setCollapsed(prev => ({
