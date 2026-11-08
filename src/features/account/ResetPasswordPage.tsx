@@ -1,29 +1,19 @@
-import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, KeyRound, Link2Off } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import * as api from '../../lib/api';
 import { Spinner } from '../../ui/PageState';
 import { hasAuthParams, linkError } from './authLinks';
+import { LinkCard } from './LinkCard';
 
 type State =
   | { step: 'checking' }
   | { step: 'ready' }
-  | { step: 'invalid'; reason: string }
+  | { step: 'invalid'; title: string; reason: string }
   | { step: 'done' };
 
-/** A small centred card for the pages reached from email links. */
-export function LinkCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
-  return (
-    <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
-      <div className="panel p-6 sm:p-8 shadow-card">
-        <div className="h-12 w-12 rounded-full bg-accent-fill/15 text-accent inline-flex items-center justify-center">{icon}</div>
-        <h1 className="mt-4 font-display text-2xl font-semibold">{title}</h1>
-        <div className="mt-2">{children}</div>
-      </div>
-    </div>
-  );
-}
+const BAD_LINK = "This reset link can't be used";
 
 function NewLinkForm({ initialEmail = '' }: { initialEmail?: string }) {
   const { resetPasswordForEmail } = useAuth();
@@ -69,13 +59,14 @@ export default function ResetPasswordPage() {
     const fromUrl = linkError(search, hash);
     api.finishEmailLink().then(({ signedIn, error }) => {
       if (!live) return;
-      if (fromUrl) setState({ step: 'invalid', reason: fromUrl });
+      if (fromUrl) setState({ step: 'invalid', title: BAD_LINK, reason: fromUrl });
       else if (signedIn) setState({ step: 'ready' });
-      else if (error && hasAuthParams(search, hash)) {
-        setState({ step: 'invalid', reason: /verifier|flow state/i.test(error)
-          ? 'This link was opened in a different browser from the one you asked from.'
-          : 'This link has expired or has already been used.' });
-      } else setState({ step: 'invalid', reason: 'This page sets a new password from a reset email, and no link was found.' });
+      else if (hasAuthParams(search, hash)) {
+        // Without the browser's PKCE verifier the client ignores the code, so there may be no error.
+        setState({ step: 'invalid', title: BAD_LINK, reason: error && !/verifier|flow state/i.test(error)
+          ? 'This link has expired or has already been used.'
+          : 'This link has expired, has already been used, or was opened in a different browser from the one you asked from.' });
+      } else setState({ step: 'invalid', title: 'Reset your password', reason: "We'll email you a link to choose a new password." });
     });
     return () => { live = false; };
   }, []);
@@ -98,8 +89,8 @@ export default function ResetPasswordPage() {
 
   if (state.step === 'invalid') {
     return (
-      <LinkCard icon={<Link2Off size={22} />} title="This reset link can't be used">
-        <p className="text-muted">{state.reason} Ask for a new one below; links work once, for a limited time.</p>
+      <LinkCard icon={state.title === BAD_LINK ? <Link2Off size={22} /> : <KeyRound size={22} />} title={state.title}>
+        <p className="text-muted">{state.reason}{state.title === BAD_LINK && ' Ask for a new one below. Each link works once, for a limited time.'}</p>
         <NewLinkForm initialEmail={user?.email ?? ''} />
       </LinkCard>
     );

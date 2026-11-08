@@ -42,10 +42,14 @@ const same = (a: Form, b: Form) =>
   a.avatarCardId === b.avatarCardId &&
   (a.avatarCardId === null || (a.crop.x === b.crop.x && a.crop.y === b.crop.y && a.crop.scale === b.crop.scale));
 
+const NAV: [string, string][] = [
+  ['picture', 'Profile picture'], ['profile', 'Profile'], ['privacy', 'Privacy'], ['appearance', 'Appearance'], ['account', 'Account'],
+];
+
 function Section({ id, title, description, children }: { id: string; title: string; description?: ReactNode; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="panel p-5 sm:p-6">
-      <h2 id={id} className="font-display text-xl font-semibold">{title}</h2>
+    <section aria-labelledby={`${id}-title`} id={id} className="panel p-5 sm:p-6 scroll-mt-20">
+      <h2 id={`${id}-title`} className="font-display text-xl font-semibold">{title}</h2>
       {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       <div className="mt-5">{children}</div>
     </section>
@@ -142,7 +146,7 @@ function Settings({ profile, email }: { profile: UserProfile; email: string }) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-8 pb-16">
+    <div className="mx-auto max-w-5xl px-4 pt-8 pb-16">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="font-display text-3xl font-semibold">Settings</h1>
         <Link to={`/u/${profile.userId}`} className="btn-ghost btn-sm h-9 text-accent">
@@ -150,111 +154,122 @@ function Settings({ profile, email }: { profile: UserProfile; email: string }) {
         </Link>
       </div>
 
-      <form onSubmit={save} className="mt-6 space-y-5" noValidate>
-        <Section id="picture" title="Profile picture" description="Pick any card and frame its art. It's shown next to your name everywhere.">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            {card ? (
-              <AvatarEditor cardId={card.id} cardName={card.fullName} crop={form.crop} onChange={crop => set({ crop })} />
-            ) : (
-              <button type="button" onClick={() => setPicking(true)}
-                className="h-56 w-56 sm:h-60 sm:w-60 rounded-full border-2 border-dashed border-line text-muted hover:text-fg hover:border-accent-fill flex flex-col items-center justify-center gap-2 transition-colors">
-                <ImagePlus size={28} />
-                <span className="text-sm font-medium">{cardsLoading && form.avatarCardId !== null ? 'Loading…' : 'Choose a card'}</span>
-              </button>
-            )}
-            <div className="flex-1 w-full space-y-5">
-              <div>
-                <p className="label">Preview</p>
-                <div className="mt-2 flex items-end gap-4">
-                  <CardAvatar cardId={card?.id} crop={form.crop} fallback={form.displayName || '?'} className="h-24 w-24 text-3xl" hiRes />
-                  <CardAvatar cardId={card?.id} crop={form.crop} fallback={form.displayName || '?'} className="h-12 w-12 text-lg" />
-                  <CardAvatar cardId={card?.id} crop={form.crop} fallback={form.displayName || '?'} className="h-9 w-9" />
-                </div>
-                {card && <p className="mt-2 text-sm text-muted truncate">{card.fullName}</p>}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" className="btn-secondary" onClick={() => setPicking(true)}>
-                  <ImagePlus size={16} /> {card ? 'Choose another card' : 'Choose a card'}
-                </button>
-                {card && (
-                  <>
-                    <button type="button" className="btn-ghost" onClick={() => set({ crop: { ...DEFAULT_CROP } })}>
-                      <RotateCcw size={16} /> Reset framing
-                    </button>
-                    <button type="button" className="btn-ghost text-danger" onClick={() => set({ avatarCardId: null })}>
-                      <Trash2 size={16} /> Remove
-                    </button>
-                  </>
+      <div className="mt-6 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
+        <nav aria-label="Settings sections" className="hidden lg:block">
+          <ul className="sticky top-20 space-y-0.5">
+            {NAV.map(([id, label]) => (
+              <li key={id}><a href={`#${id}`} className="flex items-center h-9 px-3 rounded-md text-sm text-muted hover:text-fg hover:bg-surface-2">{label}</a></li>
+            ))}
+          </ul>
+        </nav>
+        <div className="min-w-0">
+          <form onSubmit={save} className="space-y-5" noValidate>
+            <Section id="picture" title="Profile picture" description="Pick any card and frame its art. It's shown next to your name everywhere.">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                {card ? (
+                  <AvatarEditor cardId={card.id} cardName={card.fullName} crop={form.crop} onChange={crop => set({ crop })} />
+                ) : (
+                  <button type="button" onClick={() => setPicking(true)}
+                    className="h-56 w-56 sm:h-60 sm:w-60 rounded-full border-2 border-dashed border-line text-muted hover:text-fg hover:border-accent-fill flex flex-col items-center justify-center gap-2 transition-colors">
+                    <ImagePlus size={28} />
+                    <span className="text-sm font-medium">{cardsLoading && form.avatarCardId !== null ? 'Loading…' : 'Choose a card'}</span>
+                  </button>
                 )}
+                <div className="flex-1 w-full space-y-5">
+                  <div>
+                    <p className="label">Preview</p>
+                    <div className="mt-2 flex items-end gap-4">
+                      <CardAvatar cardId={card?.id} crop={form.crop} fallback={form.displayName || '?'} className="h-24 w-24 text-3xl" hiRes />
+                      <CardAvatar cardId={card?.id} crop={form.crop} fallback={form.displayName || '?'} className="h-12 w-12 text-lg" />
+                      <CardAvatar cardId={card?.id} crop={form.crop} fallback={form.displayName || '?'} className="h-9 w-9" />
+                    </div>
+                    {card && <p className="mt-2 text-sm text-muted truncate">{card.fullName}</p>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="btn-secondary" onClick={() => setPicking(true)}>
+                      <ImagePlus size={16} /> {card ? 'Choose another card' : 'Choose a card'}
+                    </button>
+                    {card && (
+                      <>
+                        <button type="button" className="btn-ghost" onClick={() => set({ crop: { ...DEFAULT_CROP } })}>
+                          <RotateCcw size={16} /> Reset framing
+                        </button>
+                        <button type="button" className="btn-ghost text-danger" onClick={() => set({ avatarCardId: null })}>
+                          <Trash2 size={16} /> Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </Section>
+            </Section>
 
-        <Section id="profile" title="Profile" description="What other players see on your profile.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Display name" count={[form.displayName.length, 50]}>
-              {id => <>
-                <input id={id} className={`input ${nameError ? 'border-danger' : ''}`} value={form.displayName} maxLength={60} autoComplete="nickname"
-                  aria-invalid={!!nameError} aria-describedby={nameError ? `${id}-err` : undefined}
-                  onChange={e => set({ displayName: e.target.value })} />
-                {nameError && <p id={`${id}-err`} className="text-xs text-danger">{nameError}</p>}
-              </>}
-            </Field>
-            <Field label="Full name" hint="Optional.">
-              {id => <input id={id} className="input" value={form.fullName} maxLength={100} autoComplete="name" onChange={e => set({ fullName: e.target.value })} />}
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Location" hint="Optional. A city or region helps local players find you.">
-                {id => <input id={id} className="input" value={form.location} maxLength={100} placeholder="Brisbane, Australia" onChange={e => set({ location: e.target.value })} />}
-              </Field>
-            </div>
-            <div className="sm:col-span-2">
-              <Field label="Bio" count={[form.bio.length, 1000]}>
-                {id => <textarea id={id} className="input h-auto min-h-[7rem] py-2 leading-relaxed resize-y" value={form.bio} maxLength={1000}
-                  placeholder="Favourite inks, what you're collecting, where you play…" onChange={e => set({ bio: e.target.value })} />}
-              </Field>
-            </div>
-          </div>
-        </Section>
+            <Section id="profile" title="Profile" description="What other players see on your profile.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Display name" count={[form.displayName.length, 50]}>
+                  {id => <>
+                    <input id={id} className={`input ${nameError ? 'border-danger' : ''}`} value={form.displayName} maxLength={60} autoComplete="nickname"
+                      aria-invalid={!!nameError} aria-describedby={nameError ? `${id}-err` : undefined}
+                      onChange={e => set({ displayName: e.target.value })} />
+                    {nameError && <p id={`${id}-err`} className="text-xs text-danger">{nameError}</p>}
+                  </>}
+                </Field>
+                <Field label="Full name" hint="Optional.">
+                  {id => <input id={id} className="input" value={form.fullName} maxLength={100} autoComplete="name" onChange={e => set({ fullName: e.target.value })} />}
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Location" hint="Optional. A city or region helps local players find you.">
+                    {id => <input id={id} className="input" value={form.location} maxLength={100} placeholder="Brisbane, Australia" onChange={e => set({ location: e.target.value })} />}
+                  </Field>
+                </div>
+                <div className="sm:col-span-2">
+                  <Field label="Bio" count={[form.bio.length, 1000]}>
+                    {id => <textarea id={id} className="input h-auto min-h-[7rem] py-2 leading-relaxed resize-y" value={form.bio} maxLength={1000}
+                      placeholder="Favourite inks, what you're collecting, where you play…" onChange={e => set({ bio: e.target.value })} />}
+                  </Field>
+                </div>
+              </div>
+            </Section>
 
-        <Section id="privacy" title="Privacy">
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <p id="public-label" className="font-medium">Public profile</p>
-              <p className="mt-1 text-sm text-muted">
-                {form.isPublic
-                  ? 'Anyone can find you on the Players page and open your profile, with your bio, location, public decks and public binders.'
-                  : "Your profile is hidden: you're not listed on the Players page and only people you share a collection with can open it."}
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                Either way, decks and binders you've made public stay visible to anyone with their link. Make them private one by one to hide them.
-              </p>
-            </div>
-            <button type="button" role="switch" aria-checked={form.isPublic} aria-labelledby="public-label"
-              onClick={() => set({ isPublic: !form.isPublic })}
-              className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors ${form.isPublic ? 'bg-accent-fill' : 'bg-surface-3'}`}>
-              <span className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow-card transition-transform ${form.isPublic ? 'translate-x-5' : ''}`} />
-            </button>
-          </div>
-        </Section>
+            <Section id="privacy" title="Privacy">
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <p id="public-label" className="font-medium">Public profile</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {form.isPublic
+                      ? 'Anyone can find you on the Players page and open your profile, with your bio, location, public decks and public binders.'
+                      : "Your profile is hidden: you're not listed on the Players page and only people you share a collection with can open it."}
+                  </p>
+                  <p className="mt-2 text-sm text-muted">
+                    Either way, decks and binders you've made public stay visible to anyone with their link. Make them private one by one to hide them.
+                  </p>
+                </div>
+                <button type="button" role="switch" aria-checked={form.isPublic} aria-labelledby="public-label"
+                  onClick={() => set({ isPublic: !form.isPublic })}
+                  className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors ${form.isPublic ? 'bg-accent-fill' : 'bg-surface-3'}`}>
+                  <span className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow-card transition-transform ${form.isPublic ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+            </Section>
 
-        {(dirty || error) && (
-          <div className="sticky bottom-20 sm:bottom-4 z-30 panel shadow-pop px-4 py-3 flex flex-wrap items-center gap-3" role="region" aria-label="Unsaved changes">
-            <p className={`flex-1 min-w-[10rem] text-sm ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
-              {error ?? 'You have unsaved changes.'}
-            </p>
-            <button type="button" className="btn-ghost" disabled={saving} onClick={() => { setForm(saved); setError(null); }}>Discard</button>
-            <button type="submit" className="btn-primary" disabled={saving || !!nameError}>{saving ? 'Saving…' : 'Save changes'}</button>
-          </div>
-        )}
-      </form>
+            {(dirty || error) && (
+              <div className="sticky bottom-20 sm:bottom-4 z-30 panel shadow-pop px-4 py-3 flex flex-wrap items-center gap-3" role="region" aria-label="Unsaved changes">
+                <p className={`flex-1 min-w-[10rem] text-sm ${error ? 'text-danger' : 'text-muted'}`} role={error ? 'alert' : undefined}>
+                  {error ?? 'You have unsaved changes.'}
+                </p>
+                <button type="button" className="btn-ghost" disabled={saving} onClick={() => { setForm(saved); setError(null); }}>Discard</button>
+                <button type="submit" className="btn-primary" disabled={saving || !!nameError}>{saving ? 'Saving…' : 'Save changes'}</button>
+              </div>
+            )}
+          </form>
 
-      <div className="mt-5 space-y-5">
-        <Section id="appearance" title="Appearance" description="Follow your device, or always use light or dark. Remembered on this device.">
-          <div className="max-w-xs"><ThemeSwitch /></div>
-        </Section>
-        <AccountSection email={email} />
+          <div className="mt-5 space-y-5">
+            <Section id="appearance" title="Appearance" description="Follow your device, or always use light or dark. Remembered on this device.">
+              <div className="max-w-xs"><ThemeSwitch /></div>
+            </Section>
+            <AccountSection email={email} />
+          </div>
+        </div>
       </div>
 
       <CardPickerDialog open={picking} onClose={() => setPicking(false)}
