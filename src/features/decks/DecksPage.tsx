@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, FileUp, Plus, Search, Users, X } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { FileUp, Plus, Search, X } from 'lucide-react';
 import type { Deck } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCardData } from '../../contexts/CardDataContext';
@@ -249,9 +249,6 @@ export default function DecksPage() {
           {tabLink('mine', 'Your decks')}
           {tabLink('browse', 'Browse')}
         </div>
-        <Link to="/players" className="ml-auto inline-flex items-center gap-1.5 h-11 text-sm text-muted hover:text-accent">
-          <Users size={16} /><span>Players</span><ArrowRight size={14} />
-        </Link>
       </div>
 
       <div id="decks-panel" role="tabpanel">
