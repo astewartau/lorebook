@@ -10,6 +10,7 @@ import { InkIcons, InkableIcon, RarityIcon } from '../../ui/GameIcons';
 import { CardRulesText, SymbolText } from '../../ui/CardText';
 import { canHaveNormal } from '../../utils/cardDataUtils';
 import { maxCopiesFor } from '../../utils/deckValidation';
+import { AddToDeck } from '../decks';
 
 interface Props {
   cardId: number;
@@ -146,6 +147,8 @@ export function CardDetail({ cardId, list, hrefFor, onClose }: Props) {
               </div>
             </section>
           )}
+
+          {user && <AddToDeck card={card} />}
 
           <section className="space-y-2">
             <h3 className="label">Legality</h3>
