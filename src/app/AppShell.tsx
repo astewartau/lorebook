@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, Layers, LibraryBig, User } from 'lucide-react';
+import { BookOpen, Layers, LibraryBig, User, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Logo } from '../ui/Logo';
 import { AccountMenu, useSignIn } from './AccountMenu';
@@ -13,18 +13,29 @@ const SECTIONS = [
   { to: '/cards', label: 'Cards', icon: Layers },
   { to: '/collection', label: 'Collection', icon: LibraryBig },
   { to: '/decks', label: 'Decks', icon: BookOpen },
+  { to: '/players', label: 'Players', icon: Users },
 ];
 
+/** Profiles belong to Players, except your own, which is "You" on phones. */
+function useSectionActive() {
+  const { pathname } = useLocation();
+  const { user } = useAuth();
+  const own = user && pathname === `/u/${user.id}`;
+  return (to: string) => pathname === to || pathname.startsWith(`${to}/`)
+    || (to === '/players' && pathname.startsWith('/u/') && !own);
+}
+
 function TopBar() {
+  const active = useSectionActive();
   return (
     <header className="sticky top-0 z-40 bg-bg/85 backdrop-blur border-b border-line">
       <div className="mx-auto max-w-[1600px] h-14 px-4 flex items-center gap-6">
         <Logo />
         <nav aria-label="Sections" className="hidden sm:flex items-center gap-1 h-full">
           {SECTIONS.map(({ to, label }) => (
-            <NavLink key={to} to={to}
-              className={({ isActive }) => `relative h-full px-3 inline-flex items-center text-sm font-medium transition-colors ${
-                isActive ? 'text-fg after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-accent-fill after:rounded-full' : 'text-muted hover:text-fg'
+            <NavLink key={to} to={to} aria-current={active(to) ? 'page' : undefined}
+              className={() => `relative h-full px-3 inline-flex items-center text-sm font-medium transition-colors ${
+                active(to) ? 'text-fg after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-accent-fill after:rounded-full' : 'text-muted hover:text-fg'
               }`}>
               {label}
             </NavLink>
@@ -42,12 +53,13 @@ function TopBar() {
 function TabBar() {
   const { user } = useAuth();
   const { openSignIn, signInDialog } = useSignIn();
-  const item = 'flex-1 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium';
+  const active = useSectionActive();
+  const item = 'flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium';
   return (
     <nav aria-label="Sections"
       className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur border-t border-line flex h-16 pb-[env(safe-area-inset-bottom)]">
       {SECTIONS.map(({ to, label, icon: Icon }) => (
-        <NavLink key={to} to={to} className={({ isActive }) => `${item} ${isActive ? 'text-accent' : 'text-muted'}`}>
+        <NavLink key={to} to={to} aria-current={active(to) ? 'page' : undefined} className={() => `${item} ${active(to) ? 'text-accent' : 'text-muted'}`}>
           <Icon size={22} />
           {label}
         </NavLink>
