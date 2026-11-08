@@ -1,21 +1,14 @@
 import { FilterOptions, SortOption } from '../types';
 
-// Default ranges - these will be overridden by actual card data when available
-const DEFAULT_COST_RANGE = { min: 0, max: 10 };
-const DEFAULT_STRENGTH_RANGE = { min: 0, max: 10 };
-const DEFAULT_WILLPOWER_RANGE = { min: 0, max: 10 };
-const DEFAULT_LORE_RANGE = { min: 0, max: 5 };
+// Stat ranges default to unbounded: wider than any card, so they filter
+// nothing and don't count as active. Panels show them clamped to the data.
+const UNBOUNDED = { min: 0, max: 99 };
 
-export const getDefaultFilters = (ranges?: {
-  costRange?: { min: number; max: number };
-  strengthRange?: { min: number; max: number };
-  willpowerRange?: { min: number; max: number };
-  loreRange?: { min: number; max: number };
-}): FilterOptions => {
-  const costRange = ranges?.costRange || DEFAULT_COST_RANGE;
-  const strengthRange = ranges?.strengthRange || DEFAULT_STRENGTH_RANGE;
-  const willpowerRange = ranges?.willpowerRange || DEFAULT_WILLPOWER_RANGE;
-  const loreRange = ranges?.loreRange || DEFAULT_LORE_RANGE;
+export const getDefaultFilters = (_ranges?: unknown): FilterOptions => {
+  const costRange = UNBOUNDED;
+  const strengthRange = UNBOUNDED;
+  const willpowerRange = UNBOUNDED;
+  const loreRange = UNBOUNDED;
 
   return {
     search: '',

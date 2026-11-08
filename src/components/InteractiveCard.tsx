@@ -248,6 +248,15 @@ const InteractiveCard: React.FC<CardProps> = ({
             : 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease-out'
         }}
         onClick={() => onCardClick?.(card)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${card.fullName}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onCardClick?.(card);
+          }
+        }}
         onContextMenu={handleRightClick}
         onMouseMove={handleMouseMove}
         onMouseEnter={handleMouseEnter}

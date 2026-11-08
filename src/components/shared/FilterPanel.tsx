@@ -38,6 +38,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     loreRange
   } = useCardData();
 
+  // Unset ranges are unbounded; show them as the data's full range.
+  const clamp = (v: number, r: { min: number; max: number }) => Math.min(Math.max(v, r.min), r.max);
+  const shown = {
+    strengthMin: clamp(filters.strengthMin, strengthRange),
+    strengthMax: clamp(filters.strengthMax, strengthRange),
+    willpowerMin: clamp(filters.willpowerMin, willpowerRange),
+    willpowerMax: clamp(filters.willpowerMax, willpowerRange),
+    loreMin: clamp(filters.loreMin, loreRange),
+    loreMax: clamp(filters.loreMax, loreRange),
+  };
+
   const {
     toggleColorFilter,
     toggleCostFilter,
@@ -387,9 +398,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         title="Character Stats"
         activeCount={
           // Only count as active if data has loaded (range isn't 0-0) and filter differs from actual range
-          (strengthRange.max > 0 && (filters.strengthMin !== strengthRange.min || filters.strengthMax !== strengthRange.max) ? 1 : 0) +
-          (willpowerRange.max > 0 && (filters.willpowerMin !== willpowerRange.min || filters.willpowerMax !== willpowerRange.max) ? 1 : 0) +
-          (loreRange.max > 0 && (filters.loreMin !== loreRange.min || filters.loreMax !== loreRange.max) ? 1 : 0)
+          (strengthRange.max > 0 && (shown.strengthMin !== strengthRange.min || shown.strengthMax !== strengthRange.max) ? 1 : 0) +
+          (willpowerRange.max > 0 && (shown.willpowerMin !== willpowerRange.min || shown.willpowerMax !== willpowerRange.max) ? 1 : 0) +
+          (loreRange.max > 0 && (shown.loreMin !== loreRange.min || shown.loreMax !== loreRange.max) ? 1 : 0)
         }
         onClear={() => setFilters({
           ...filters,
@@ -408,7 +419,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-lorcana-ink">Strength</span>
               <span className="text-xs text-lorcana-navy">
-                {filters.strengthMin} - {filters.strengthMax}
+                {shown.strengthMin} - {shown.strengthMax}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -416,16 +427,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="number"
                 min={strengthRange.min}
                 max={strengthRange.max}
-                value={filters.strengthMin}
-                onChange={(e) => updateFilter('strengthMin', Math.max(strengthRange.min, Math.min(parseInt(e.target.value) || strengthRange.min, filters.strengthMax)))}
+                value={shown.strengthMin}
+                onChange={(e) => updateFilter('strengthMin', Math.max(strengthRange.min, Math.min(parseInt(e.target.value) || strengthRange.min, shown.strengthMax)))}
                 className="w-16 px-2 py-1 text-sm border-2 border-lorcana-gold rounded-lg focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-center"
               />
               <div className="flex-1 h-1 bg-lorcana-cream rounded-full relative">
                 <div
                   className="absolute h-full bg-lorcana-gold rounded-full"
                   style={{
-                    left: `${((filters.strengthMin - strengthRange.min) / (strengthRange.max - strengthRange.min)) * 100}%`,
-                    right: `${100 - ((filters.strengthMax - strengthRange.min) / (strengthRange.max - strengthRange.min)) * 100}%`
+                    left: `${((shown.strengthMin - strengthRange.min) / (strengthRange.max - strengthRange.min)) * 100}%`,
+                    right: `${100 - ((shown.strengthMax - strengthRange.min) / (strengthRange.max - strengthRange.min)) * 100}%`
                   }}
                 />
               </div>
@@ -433,8 +444,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="number"
                 min={strengthRange.min}
                 max={strengthRange.max}
-                value={filters.strengthMax}
-                onChange={(e) => updateFilter('strengthMax', Math.min(strengthRange.max, Math.max(parseInt(e.target.value) || strengthRange.max, filters.strengthMin)))}
+                value={shown.strengthMax}
+                onChange={(e) => updateFilter('strengthMax', Math.min(strengthRange.max, Math.max(parseInt(e.target.value) || strengthRange.max, shown.strengthMin)))}
                 className="w-16 px-2 py-1 text-sm border-2 border-lorcana-gold rounded-lg focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-center"
               />
             </div>
@@ -445,7 +456,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-lorcana-ink">Willpower</span>
               <span className="text-xs text-lorcana-navy">
-                {filters.willpowerMin} - {filters.willpowerMax}
+                {shown.willpowerMin} - {shown.willpowerMax}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -453,16 +464,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="number"
                 min={willpowerRange.min}
                 max={willpowerRange.max}
-                value={filters.willpowerMin}
-                onChange={(e) => updateFilter('willpowerMin', Math.max(willpowerRange.min, Math.min(parseInt(e.target.value) || willpowerRange.min, filters.willpowerMax)))}
+                value={shown.willpowerMin}
+                onChange={(e) => updateFilter('willpowerMin', Math.max(willpowerRange.min, Math.min(parseInt(e.target.value) || willpowerRange.min, shown.willpowerMax)))}
                 className="w-16 px-2 py-1 text-sm border-2 border-lorcana-gold rounded-lg focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-center"
               />
               <div className="flex-1 h-1 bg-lorcana-cream rounded-full relative">
                 <div
                   className="absolute h-full bg-lorcana-gold rounded-full"
                   style={{
-                    left: `${((filters.willpowerMin - willpowerRange.min) / (willpowerRange.max - willpowerRange.min)) * 100}%`,
-                    right: `${100 - ((filters.willpowerMax - willpowerRange.min) / (willpowerRange.max - willpowerRange.min)) * 100}%`
+                    left: `${((shown.willpowerMin - willpowerRange.min) / (willpowerRange.max - willpowerRange.min)) * 100}%`,
+                    right: `${100 - ((shown.willpowerMax - willpowerRange.min) / (willpowerRange.max - willpowerRange.min)) * 100}%`
                   }}
                 />
               </div>
@@ -470,8 +481,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="number"
                 min={willpowerRange.min}
                 max={willpowerRange.max}
-                value={filters.willpowerMax}
-                onChange={(e) => updateFilter('willpowerMax', Math.min(willpowerRange.max, Math.max(parseInt(e.target.value) || willpowerRange.max, filters.willpowerMin)))}
+                value={shown.willpowerMax}
+                onChange={(e) => updateFilter('willpowerMax', Math.min(willpowerRange.max, Math.max(parseInt(e.target.value) || willpowerRange.max, shown.willpowerMin)))}
                 className="w-16 px-2 py-1 text-sm border-2 border-lorcana-gold rounded-lg focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-center"
               />
             </div>
@@ -482,7 +493,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-lorcana-ink">Lore</span>
               <span className="text-xs text-lorcana-navy">
-                {filters.loreMin} - {filters.loreMax}
+                {shown.loreMin} - {shown.loreMax}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -490,16 +501,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="number"
                 min={loreRange.min}
                 max={loreRange.max}
-                value={filters.loreMin}
-                onChange={(e) => updateFilter('loreMin', Math.max(loreRange.min, Math.min(parseInt(e.target.value) || loreRange.min, filters.loreMax)))}
+                value={shown.loreMin}
+                onChange={(e) => updateFilter('loreMin', Math.max(loreRange.min, Math.min(parseInt(e.target.value) || loreRange.min, shown.loreMax)))}
                 className="w-16 px-2 py-1 text-sm border-2 border-lorcana-gold rounded-lg focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-center"
               />
               <div className="flex-1 h-1 bg-lorcana-cream rounded-full relative">
                 <div
                   className="absolute h-full bg-lorcana-gold rounded-full"
                   style={{
-                    left: `${((filters.loreMin - loreRange.min) / (loreRange.max - loreRange.min)) * 100}%`,
-                    right: `${100 - ((filters.loreMax - loreRange.min) / (loreRange.max - loreRange.min)) * 100}%`
+                    left: `${((shown.loreMin - loreRange.min) / (loreRange.max - loreRange.min)) * 100}%`,
+                    right: `${100 - ((shown.loreMax - loreRange.min) / (loreRange.max - loreRange.min)) * 100}%`
                   }}
                 />
               </div>
@@ -507,8 +518,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="number"
                 min={loreRange.min}
                 max={loreRange.max}
-                value={filters.loreMax}
-                onChange={(e) => updateFilter('loreMax', Math.min(loreRange.max, Math.max(parseInt(e.target.value) || loreRange.max, filters.loreMin)))}
+                value={shown.loreMax}
+                onChange={(e) => updateFilter('loreMax', Math.min(loreRange.max, Math.max(parseInt(e.target.value) || loreRange.max, shown.loreMin)))}
                 className="w-16 px-2 py-1 text-sm border-2 border-lorcana-gold rounded-lg focus:ring-2 focus:ring-lorcana-gold focus:border-lorcana-navy bg-lorcana-cream text-center"
               />
             </div>

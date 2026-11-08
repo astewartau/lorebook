@@ -94,49 +94,6 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
   }, []);
 
   // ================================
-  // 5. SYNC RANGE FILTERS WITH ACTUAL DATA RANGES
-  // ================================
-  // When actual card data ranges load, update filters to use real ranges
-  // This prevents range filters from appearing as "active" with default values
-  useEffect(() => {
-    // Only sync when we have valid ranges (max > 0 means data has loaded)
-    const hasValidRanges = strengthRange?.max > 0 || willpowerRange?.max > 0 ||
-                           loreRange?.max > 0 || costRange?.max > 0;
-
-    if (hasValidRanges) {
-      setFiltersState(prev => {
-        const defaults = getDefaultFilters();
-
-        // Only update a range if the data has loaded for that range (max > 0)
-        // and the filter is still at its default value
-        const updates: Partial<typeof prev> = {};
-
-        if (strengthRange?.max > 0) {
-          if (prev.strengthMin === defaults.strengthMin) updates.strengthMin = strengthRange.min;
-          if (prev.strengthMax === defaults.strengthMax) updates.strengthMax = strengthRange.max;
-        }
-        if (willpowerRange?.max > 0) {
-          if (prev.willpowerMin === defaults.willpowerMin) updates.willpowerMin = willpowerRange.min;
-          if (prev.willpowerMax === defaults.willpowerMax) updates.willpowerMax = willpowerRange.max;
-        }
-        if (loreRange?.max > 0) {
-          if (prev.loreMin === defaults.loreMin) updates.loreMin = loreRange.min;
-          if (prev.loreMax === defaults.loreMax) updates.loreMax = loreRange.max;
-        }
-        if (costRange?.max > 0) {
-          if (prev.costMin === defaults.costMin) updates.costMin = costRange.min;
-          if (prev.costMax === defaults.costMax) updates.costMax = costRange.max;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          return { ...prev, ...updates };
-        }
-        return prev;
-      });
-    }
-  }, [strengthRange, willpowerRange, loreRange, costRange]);
-
-  // ================================
   // 6. COMPUTED VALUES & EFFECTS
   // ================================
   // Dynamic pagination based on viewport and view mode
@@ -157,7 +114,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     return PAGINATION.CARDS_PER_PAGE; // Default 100
   }, [viewMode, windowSize]);
 
-  const { sortedCards, groupedCards, totalCards, activeFiltersCount, contextualOptions } = useMemo(() => {
+  const { sortedCards, groupedCards, totalCards, activeFiltersCount, contextualOptions, infinityMatches } = useMemo(() => {
     const filtered = filterCards(cardData, debouncedSearchTerm, filters, staleCardIds, getCardQuantity);
     const sorted = sortCards(filtered, sortBy);
     const grouped = groupCards(sorted, groupBy, sets);
@@ -166,12 +123,18 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     // Compute contextual filter options based on current filters
     const contextual = computeContextualFilterOptions(cardData, debouncedSearchTerm, filters, getCardQuantity);
 
+    // When Core finds nothing, say whether Infinity would.
+    const infinity = sorted.length === 0 && filters.legality === 'core'
+      ? filterCards(cardData, debouncedSearchTerm, { ...filters, legality: 'infinity' }, staleCardIds, getCardQuantity).length
+      : 0;
+
     return {
       sortedCards: sorted,
       groupedCards: grouped,
       totalCards: sorted.length,
       activeFiltersCount: activeCount,
-      contextualOptions: contextual
+      contextualOptions: contextual,
+      infinityMatches: infinity
     };
   }, [cardData, debouncedSearchTerm, filters, sortBy, groupBy, staleCardIds, getCardQuantity, sets, costRange, strengthRange, willpowerRange, loreRange]);
   
@@ -205,7 +168,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
       });
       
       return newParams;
-    });
+    }, { replace: true });
   }, [setSearchParams]);
 
   // ================================
@@ -361,6 +324,7 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     activeFiltersCount,
     paginatedCards,
     pagination,
-    contextualOptions
+    contextualOptions,
+    infinityMatches
   };
 };

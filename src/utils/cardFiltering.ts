@@ -515,11 +515,13 @@ export const countActiveFilters = (
   const willpowerRange = ranges?.willpowerRange || { min: 0, max: 10 };
   const loreRange = ranges?.loreRange || { min: 0, max: 5 };
 
-  // Only count range filters as active if data has loaded (range max > 0)
-  const costRangeActive = costRange.max > 0 && (filters.costMin !== costRange.min || filters.costMax !== costRange.max);
-  const strengthRangeActive = strengthRange.max > 0 && (filters.strengthMin !== strengthRange.min || filters.strengthMax !== strengthRange.max);
-  const willpowerRangeActive = willpowerRange.max > 0 && (filters.willpowerMin !== willpowerRange.min || filters.willpowerMax !== willpowerRange.max);
-  const loreRangeActive = loreRange.max > 0 && (filters.loreMin !== loreRange.min || filters.loreMax !== loreRange.max);
+  // A range counts only when it narrows the data's range.
+  const narrows = (min: number, max: number, r: { min: number; max: number }) =>
+    r.max > 0 && (min > r.min || max < r.max);
+  const costRangeActive = narrows(filters.costMin, filters.costMax, costRange);
+  const strengthRangeActive = narrows(filters.strengthMin, filters.strengthMax, strengthRange);
+  const willpowerRangeActive = narrows(filters.willpowerMin, filters.willpowerMax, willpowerRange);
+  const loreRangeActive = narrows(filters.loreMin, filters.loreMax, loreRange);
 
   return (
     filters.sets.length +

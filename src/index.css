@@ -102,6 +102,12 @@
     @apply active:scale-95;
   }
 
+  .btn-lorcana-gold {
+    @apply px-4 py-2 bg-lorcana-gold text-lorcana-ink font-semibold rounded-sm transition-all duration-200;
+    @apply hover:bg-opacity-90 hover:shadow-lg;
+    @apply active:scale-95;
+  }
+
   .btn-lorcana-gold-sm {
     @apply px-3 py-1.5 bg-lorcana-gold text-lorcana-ink font-medium rounded-sm transition-all duration-200;
     @apply hover:bg-opacity-90 hover:shadow-lg;

@@ -111,7 +111,8 @@ const CardBrowser: React.FC = () => {
     paginatedCards,
     pagination,
     sortedCards,
-    contextualOptions
+    contextualOptions,
+    infinityMatches
   } = useCardBrowser(allCards);
 
   const handleCardClick = (card: LorcanaCard) => {
@@ -275,6 +276,10 @@ const CardBrowser: React.FC = () => {
           filters={filters}
           sortBy={sortBy}
           onRenderedCardsChange={setRenderedCards}
+          onFiltersChange={setFilters}
+          infinityMatches={infinityMatches}
+          onClearFilters={clearAllFilters}
+          hasActiveFilters={activeFiltersCount > 0 || searchTerm.trim() !== ''}
         />
 
         {/* Filter notification bubble */}
