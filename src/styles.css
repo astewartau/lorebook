@@ -1,6 +1,112 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/fraunces';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Design tokens. Colours are RGB triplets so Tailwind can apply opacity. */
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: 246 244 239;          /* paper */
+    --surface: 255 255 255;
+    --surface-2: 239 235 226;
+    --surface-3: 228 222 208;
+    --border: 222 215 199;
+    --text: 27 24 48;
+    --muted: 95 89 117;
+    --accent: 166 128 44;       /* gold, readable on light */
+    --accent-fill: 217 183 101; /* gold fills and focus */
+    --on-accent: 27 22 10;
+    --danger: 190 38 56;
+    --success: 30 128 76;
+    --shadow: 27 24 48;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --bg: 14 13 23;             /* ink */
+    --surface: 23 21 38;
+    --surface-2: 32 29 52;
+    --surface-3: 44 40 70;
+    --border: 48 44 74;
+    --text: 236 232 246;
+    --muted: 163 157 190;
+    --accent: 226 194 125;
+    --accent-fill: 217 183 101;
+    --on-accent: 27 22 10;
+    --danger: 244 99 116;
+    --success: 74 196 129;
+    --shadow: 0 0 0;
+  }
+
+  html {
+    background: rgb(var(--bg));
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent-fill));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: rgb(var(--accent-fill) / 0.35);
+  }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium
+      transition-colors disabled:opacity-50 disabled:pointer-events-none select-none;
+  }
+  .btn-primary {
+    @apply btn bg-accent-fill text-on-accent hover:brightness-105;
+  }
+  .btn-secondary {
+    @apply btn bg-surface-2 text-fg hover:bg-surface-3;
+  }
+  .btn-ghost {
+    @apply btn text-fg hover:bg-surface-2;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:brightness-110;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-sm rounded-md;
+  }
+  .icon-btn {
+    @apply inline-flex items-center justify-center h-10 w-10 rounded-lg text-muted hover:text-fg hover:bg-surface-2 transition-colors;
+  }
+  .input {
+    @apply h-10 w-full rounded-lg bg-surface border border-line px-3 text-sm text-fg placeholder:text-muted
+      focus:border-accent-fill focus:ring-0 focus:outline-none;
+  }
+  .panel {
+    @apply bg-surface border border-line rounded-xl;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-line bg-surface text-sm text-fg
+      hover:bg-surface-2 transition-colors select-none;
+  }
+  .chip[aria-pressed='true'] {
+    @apply bg-accent-fill/15 border-accent-fill text-fg;
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wide text-muted;
+  }
+}
+
+/* ---- Legacy styles for pages not yet rebuilt. Delete with them. ---- */
 
 @layer base {
   :root {
@@ -11,9 +117,6 @@
     --lorcana-ink: #1a1a1a;
   }
 
-  body {
-    @apply bg-lorcana-cream text-lorcana-ink;
-  }
 }
 
 @layer components {
