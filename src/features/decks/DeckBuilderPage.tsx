@@ -232,7 +232,7 @@ function Builder({ deck }: { deck: Deck }) {
               <button type="button" className="w-full h-14 px-4 flex items-center gap-3 text-left" aria-haspopup="dialog" onClick={() => setDeckOpen(true)}>
                 <span className="font-display text-lg font-semibold tabular-nums">{stats.total}<span className="text-muted text-sm">/60</span></span>
                 <InkRow inks={inks} size={18} />
-                <span className="flex-1 min-w-0 truncate text-sm">{meta.name}</span>
+                <span className="flex-1 min-w-0 truncate text-sm"><span className="hidden min-[420px]:inline">{meta.name}</span></span>
                 <SaveIndicator status={draft.status} />
                 <span className="btn-secondary btn-sm h-9 shrink-0"><ChevronUp size={16} />Deck</span>
               </button>

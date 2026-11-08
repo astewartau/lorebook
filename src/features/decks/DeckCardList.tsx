@@ -27,7 +27,7 @@ export function OwnedMark({ fullName, own }: { fullName: string; own: Ownership 
     );
   }
   return (
-    <span className="w-12 text-right text-xs tabular-nums text-danger whitespace-nowrap" title={`You own ${have} of the ${need} this deck uses (any printing)`}>
+    <span className={`w-12 text-right text-xs tabular-nums whitespace-nowrap ${have === 0 ? 'text-muted' : 'text-accent'}`} title={`You own ${have} of the ${need} this deck uses (any printing)`}>
       <span className="sr-only">Owned </span>{have}/{need}
     </span>
   );
@@ -124,7 +124,7 @@ export function DeckVisualList({ groups, hrefFor, own }: { groups: DeckGroup[]; 
                   </Link>
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                     <span className="h-5 min-w-5 px-1.5 rounded-full bg-surface-2 font-semibold tabular-nums inline-flex items-center justify-center">{quantity}×</span>
-                    {short && own && <span className="text-danger tabular-nums" title="Owned of needed, any printing">{own.owned(card.fullName)}/{own.needed(card.fullName)} owned</span>}
+                    {short && own && <span className="text-accent tabular-nums" title="Owned of needed, any printing">{own.owned(card.fullName)}/{own.needed(card.fullName)} owned</span>}
                   </div>
                 </li>
               );
