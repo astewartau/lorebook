@@ -34,3 +34,6 @@ DATABASE_ACCESS.md
 
 # Vite
 /dist
+
+# Agent worktrees
+/.claude
