@@ -21,7 +21,7 @@ export function ThemeSwitch() {
       {THEMES.map(({ value, label, icon: Icon }) => (
         <button key={value} type="button" role="radio" aria-checked={theme === value} aria-label={label} title={label}
           onClick={() => setTheme(value)}
-          className={`flex-1 h-8 inline-flex items-center justify-center rounded-md text-sm ${theme === value ? 'bg-surface shadow-card text-fg' : 'text-muted hover:text-fg'}`}>
+          className={`flex-1 h-9 inline-flex items-center justify-center rounded-md text-sm ${theme === value ? 'bg-surface shadow-card text-fg' : 'text-muted hover:text-fg'}`}>
           <Icon size={16} />
         </button>
       ))}
