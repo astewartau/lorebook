@@ -65,7 +65,7 @@ const normalizeText = (text: string): string => {
 };
 
 // Check if card matches field search
-const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, value: string): boolean => {
+const rawFieldValue = (card: LorcanaCard, field: string): string | number | boolean | undefined => {
   let cardValue: any;
   
   // Get card field value
@@ -142,19 +142,50 @@ const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, 
       cardValue = abilityTexts.join(' ');
       break;
     default:
-      return false;
+      return undefined;
   }
+  return cardValue;
+};
+
+// Searches run over every card on each keystroke, so each card's normalised
+// text is computed once and kept.
+const normalizedCache = new WeakMap<LorcanaCard, Map<string, string>>();
+
+const normalizedField = (card: LorcanaCard, key: string, compute: () => string): string => {
+  let m = normalizedCache.get(card);
+  if (!m) {
+    m = new Map();
+    normalizedCache.set(card, m);
+  }
+  let v = m.get(key);
+  if (v === undefined) {
+    v = normalizeText(compute());
+    m.set(key, v);
+  }
+  return v;
+};
+
+const KNOWN_FIELDS = new Set([
+  'name', 'type', 'story', 'franchise', 'color', 'ink', 'rarity', 'set', 'version', 'cost', 'strength',
+  'willpower', 'lore', 'inkwell', 'inkable', 'subtype', 'subtypes', 'ability', 'abilities',
+]);
+
+const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, value: string, valueNorm: string): boolean => {
+  if (!KNOWN_FIELDS.has(field)) return false;
+  const cardValue = rawFieldValue(card, field);
   
   // Handle null/undefined values
   if (cardValue === undefined || cardValue === null) {
     return value.toLowerCase() === 'null' || value.toLowerCase() === 'none';
   }
   
+  const text = typeof cardValue === 'string' ? normalizedField(card, 'f:' + field, () => cardValue as string) : '';
+
   // Apply operator
   switch (operator) {
     case ':': // Contains/equals
       if (typeof cardValue === 'string') {
-        return normalizeText(cardValue).includes(normalizeText(value));
+        return text.includes(valueNorm);
       } else if (typeof cardValue === 'number') {
         return cardValue === parseFloat(value);
       } else if (typeof cardValue === 'boolean') {
@@ -164,7 +195,7 @@ const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, 
       
     case '=': // Exact equals
       if (typeof cardValue === 'string') {
-        return normalizeText(cardValue) === normalizeText(value);
+        return text === valueNorm;
       } else if (typeof cardValue === 'number') {
         return cardValue === parseFloat(value);
       } else if (typeof cardValue === 'boolean') {
@@ -187,7 +218,7 @@ const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, 
     case '!=':
     case '!:':
       if (typeof cardValue === 'string') {
-        return !normalizeText(cardValue).includes(normalizeText(value));
+        return !text.includes(valueNorm);
       } else if (typeof cardValue === 'number') {
         return cardValue !== parseFloat(value);
       } else if (typeof cardValue === 'boolean') {
@@ -200,74 +231,57 @@ const matchesFieldSearch = (card: LorcanaCard, field: string, operator: string, 
   }
 };
 
-// Check if card matches text search (smart tokenized search)
-const matchesTextSearch = (card: LorcanaCard, textTokens: string[]): boolean => {
-  if (textTokens.length === 0) return true;
-  
-  // Create searchable content including abilities
-  const searchableTextParts = [
-    card.name,
-    card.version || '',
-    card.story || '',
-    card.type,
-    card.rarity,
-    card.color,
-    ...(card.subtypes || [])
+// Everything plain words are matched against.
+const searchableText = (card: LorcanaCard): string => {
+  const parts: string[] = [
+    card.name, card.version || '', card.story || '', card.type, card.rarity, card.color, ...(card.subtypes || []),
   ];
-  
-  // Add ability text to searchable content
-  if (card.abilities && Array.isArray(card.abilities)) {
-    card.abilities.forEach((ability: any) => {
-      if (ability.name) searchableTextParts.push(ability.name);
-      if (ability.effect) searchableTextParts.push(ability.effect);
-      if (ability.keyword) searchableTextParts.push(ability.keyword);
-    });
+  for (const ability of card.abilities ?? []) {
+    if (ability.name) parts.push(ability.name);
+    if (ability.effect) parts.push(ability.effect);
+    if (ability.keyword) parts.push(ability.keyword);
   }
-  
-  // Add keyword abilities if they exist
-  if ((card as any).keywordAbilities && Array.isArray((card as any).keywordAbilities)) {
-    searchableTextParts.push(...(card as any).keywordAbilities);
-  }
-  
-  // Add full text which includes all card text
-  if ((card as any).fullText) {
-    searchableTextParts.push((card as any).fullText);
-  }
-  
-  const searchableText = searchableTextParts.join(' ');
-  const normalizedContent = normalizeText(searchableText);
-  
-  // All text tokens must be found in the content
-  return textTokens.every(token => 
-    normalizedContent.includes(normalizeText(token))
-  );
+  parts.push(...(card.keywordAbilities ?? []));
+  if (card.fullText) parts.push(card.fullText);
+  return parts.join(' ');
+};
+
+const matchesTextSearch = (card: LorcanaCard, normalizedTokens: string[]): boolean => {
+  if (normalizedTokens.length === 0) return true;
+  const content = normalizedField(card, 'text', () => searchableText(card));
+  return normalizedTokens.every(token => content.includes(token));
+};
+
+interface CompiledQuery {
+  fields: { field: string; operator: string; value: string; valueNorm: string }[];
+  text: string[];
+}
+
+// The same query is matched against every card, so parse it once.
+let lastQuery: string | null = null;
+let lastCompiled: CompiledQuery = { fields: [], text: [] };
+
+const compileQuery = (query: string): CompiledQuery => {
+  if (query === lastQuery) return lastCompiled;
+  const tokens = parseSearchQuery(query);
+  lastCompiled = {
+    fields: tokens.filter(t => t.type === 'field').map(t => ({
+      field: t.field!, operator: t.operator || ':', value: t.value, valueNorm: normalizeText(t.value),
+    })),
+    text: tokens.filter(t => t.type === 'text').map(t => normalizeText(t.value)).filter(Boolean),
+  };
+  lastQuery = query;
+  return lastCompiled;
 };
 
 // Main search function
 export const matchesSmartSearch = (card: LorcanaCard, searchQuery: string): boolean => {
   if (!searchQuery.trim()) return true;
-  
-  const tokens = parseSearchQuery(searchQuery);
-  
-  // Check field searches
-  for (const token of tokens) {
-    if (token.type === 'field') {
-      if (!matchesFieldSearch(card, token.field!, token.operator || ':', token.value)) {
-        return false;
-      }
-    }
+  const q = compileQuery(searchQuery);
+  for (const f of q.fields) {
+    if (!matchesFieldSearch(card, f.field, f.operator, f.value, f.valueNorm)) return false;
   }
-  
-  // Check text searches
-  const textTokens = tokens
-    .filter(token => token.type === 'text')
-    .map(token => token.value);
-    
-  if (!matchesTextSearch(card, textTokens)) {
-    return false;
-  }
-  
-  return true;
+  return matchesTextSearch(card, q.text);
 };
 
 // Extract field searches for display (for potential bubble UI)

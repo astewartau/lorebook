@@ -24,7 +24,6 @@ import LegalNoticeModal from './components/LegalNoticeModal';
 import DataAttributionModal from './components/DataAttributionModal';
 import AvatarEditor from './components/AvatarEditor';
 import { useModal } from './hooks';
-import { useScrollManager } from './hooks/useScrollManager';
 import AuthSection from './components/layout/AuthSection';
 import Navigation from './components/layout/Navigation';
 import DeckEditingSidebar from './components/layout/DeckEditingSidebar';
@@ -33,7 +32,6 @@ import Footer from './components/Footer';
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { navVisible } = useScrollManager();
   const loginModal = useModal();
   const profileModal = useModal();
   const legalModal = useModal();
@@ -271,7 +269,6 @@ function AppContent() {
           {/* Mobile Navigation - scroll responsive */}
           <Navigation
             shouldHideNavigation={shouldHideNavigation}
-            navVisible={navVisible}
           />
           
           {/* Login Modal */}

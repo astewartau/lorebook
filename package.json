@@ -1,36 +1,24 @@
 {
-  "name": "lorcana-manager",
+  "name": "lorebook",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
     "@supabase/supabase-js": "^2.54.0",
     "@tailwindcss/forms": "^0.5.10",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.6.4",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.126",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
-    "@types/react-window": "^1.8.8",
     "@types/uuid": "^10.0.0",
     "lucide-react": "^0.536.0",
     "photoswipe": "^5.4.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.0",
-    "react-scripts": "5.0.1",
-    "react-window": "^2.1.0",
-    "typescript": "^4.9.5",
-    "uuid": "^11.1.0",
-    "web-vitals": "^2.1.4"
+    "uuid": "^11.1.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "CI=false react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "start": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
     "cards": "node scripts/cards.mjs all",
     "cards:build": "node scripts/cards.mjs build",
     "db": "scripts/supabase.sh",
@@ -38,27 +26,20 @@
     "db:stop": "scripts/supabase.sh stop",
     "db:reset": "scripts/supabase.sh db reset && node scripts/cards.mjs sync",
     "db:test": "scripts/supabase.sh test db",
-    "db:types": "scripts/supabase.sh gen types typescript --local > src/lib/database.types.ts"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "db:types": "scripts/supabase.sh gen types typescript --local > src/lib/database.types.ts",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "supabase": "^3.0.0"
-  }
+    "@types/node": "^22.20.5",
+    "@vitejs/plugin-react": "^6.2.1",
+    "autoprefixer": "^10.6.2",
+    "postcss": "^8.5.32",
+    "supabase": "^3.0.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "type": "module"
 }
