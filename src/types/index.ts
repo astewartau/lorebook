@@ -49,14 +49,6 @@ export interface CardAbility {
   fullText?: string;
 }
 
-export interface CollectionCard extends LorcanaCard {
-  quantity: number;
-  foil: boolean;
-}
-
-
-
-
 // Card ID based collection with foil support
 export interface CollectionCardEntry {
   cardId: number; // Unique card ID
@@ -134,56 +126,6 @@ export interface UserProfile {
   createdAt: Date;
   updatedAt: Date;
 }
-
-
-export interface FilterOptions {
-  search: string;
-  legality: 'core' | 'infinity'; // Game format, from each card's legality in the card data
-  sets: string[];
-  colors: string[];
-  colorMatchMode: 'any' | 'only' | 'dual-only'; // Color filtering mode
-  rarities: string[];
-  types: string[];
-  stories: string[];
-  subtypes: string[];
-  costs: number[];
-  costMin: number;
-  costMax: number;
-  strengthMin: number;
-  strengthMax: number;
-  willpowerMin: number;
-  willpowerMax: number;
-  loreMin: number;
-  loreMax: number;
-  inkwellOnly: boolean | null;
-  hasEnchanted: boolean | null;
-  hasSpecial: boolean | null;
-  includeIllumineerQuest: boolean;
-  collectionFilter: 'all' | 'owned' | 'not-owned';
-  cardCountOperator: 'eq' | 'gte' | 'lte' | null;
-  cardCountValue: number;
-  fadeOthers: boolean;
-}
-
-export interface SortOption {
-  field: 'name' | 'cost' | 'rarity' | 'set' | 'number' | 'color' | 'type' | 'story' | 'strength' | 'willpower' | 'lore';
-  direction: 'asc' | 'desc';
-}
-
-export interface DeckFilterOptions {
-  colors: string[];
-  tags: string[];
-  format: 'any' | 'core' | 'infinity';
-  franchiseFilters: FranchiseFilter[];
-}
-
-export interface FranchiseFilter {
-  story: string;
-  minPercent: number;
-}
-
-export type DeckViewMode = 'grid' | 'table';
-export type DeckSortMode = 'newest' | 'updated' | 'name' | 'tag';
 
 export interface CardDatabase {
   metadata: {

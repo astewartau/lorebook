@@ -33,15 +33,14 @@ export function parseTags(input: string): string[] {
  * Known tag categories with display labels and color schemes.
  * Tags use the format "category:value" (e.g., "franchise:frozen", "class:aggro").
  */
-const TAG_CATEGORIES: Record<string, { label: string; bg: string; text: string; hoverBg: string }> = {
-  franchise: { label: 'Franchise', bg: 'bg-amber-100', text: 'text-amber-800', hoverBg: 'hover:bg-amber-200' },
-  class:     { label: 'Class',     bg: 'bg-purple-100', text: 'text-purple-800', hoverBg: 'hover:bg-purple-200' },
-  format:    { label: 'Format',    bg: 'bg-green-100', text: 'text-green-800', hoverBg: 'hover:bg-green-200' },
-  archetype: { label: 'Archetype', bg: 'bg-rose-100', text: 'text-rose-800', hoverBg: 'hover:bg-rose-200' },
-  color:     { label: 'Color',     bg: 'bg-sky-100', text: 'text-sky-800', hoverBg: 'hover:bg-sky-200' },
+const TAG_CATEGORIES: Record<string, { label: string }> = {
+  franchise: { label: 'Franchise' },
+  class: { label: 'Class' },
+  format: { label: 'Format' },
+  archetype: { label: 'Archetype' },
+  color: { label: 'Color' },
 };
 
-const DEFAULT_CATEGORY = { label: '', bg: 'bg-lorcana-navy', text: 'text-lorcana-gold', hoverBg: 'hover:bg-lorcana-navy/80' };
 
 /** Extract the category prefix from a tag, or null if none. */
 export function getTagCategory(tag: string): string | null {
@@ -58,12 +57,6 @@ export function getTagDisplayName(tag: string): string {
   return tag.slice(category.length + 1);
 }
 
-/** Get the category style for a tag. */
-export function getTagStyle(tag: string): { label: string; bg: string; text: string; hoverBg: string } {
-  const category = getTagCategory(tag);
-  if (!category) return DEFAULT_CATEGORY;
-  return TAG_CATEGORIES[category];
-}
 
 /** Get all known category prefixes for autocomplete hints. */
 export function getKnownCategories(): string[] {
