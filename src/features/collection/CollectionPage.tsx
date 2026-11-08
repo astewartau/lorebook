@@ -63,7 +63,7 @@ function SetRow({ set, cards, quantity }: { set: SetInfo; cards: LorcanaCard[]; 
     <li>
       <Link to={`/collection/sets/${set.code}`} className="group panel p-4 flex flex-col gap-3 h-full hover:border-muted/60 hover:shadow-card transition-shadow">
         <div className="flex items-center gap-3 min-h-14">
-          <div className="w-28 h-14 shrink-0 flex items-center">
+          <div className="w-24 sm:w-28 h-14 shrink-0 flex items-center justify-center">
             <SetMark code={set.code} name={set.name} className="h-14" />
           </div>
           <div className="min-w-0 flex-1">
@@ -244,7 +244,7 @@ export default function CollectionPage() {
             </span>
           </button>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {custom.map(b => <BinderCard key={b.id} binder={b} />)}
           </ul>
         )}
@@ -259,7 +259,7 @@ export default function CollectionPage() {
 
       <section aria-labelledby="sets-h" className="mt-10">
         <h2 id="sets-h" className="font-display text-xl font-semibold mb-3">Sets</h2>
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {sets.map(s => <SetRow key={s.code} set={s} cards={cardsBySet.get(s.code) ?? []} quantity={getCardQuantity} />)}
         </ul>
         <p className="mt-3 text-xs text-muted">Completion counts each set’s numbered cards; promos are left out.</p>

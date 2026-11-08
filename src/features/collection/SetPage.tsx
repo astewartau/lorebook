@@ -156,14 +156,12 @@ export default function SetPage() {
           { value: 'binder', label: <><BookOpen size={16} />Binder</> },
           { value: 'grid', label: <><LayoutGrid size={16} />Grid</> },
         ]} />
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none]">
-          <Segmented<OwnedFilter> label="Show" value={show} onChange={v => { setPage(0); update({ show: v === 'all' ? null : v }); }} options={[
+        <Segmented<OwnedFilter> stretch label="Show" value={show} onChange={v => { setPage(0); update({ show: v === 'all' ? null : v }); }} options={[
             { value: 'all', label: <>All <span className="text-muted tabular-nums">{counts.all}</span></> },
             { value: 'owned', label: <>Owned <span className="text-muted tabular-nums">{counts.owned}</span></> },
             { value: 'missing', label: <>Missing <span className="text-muted tabular-nums">{counts.missing}</span></> },
-            { value: 'foil', label: <><Sparkles size={14} className="text-amber-400" />Foil <span className="text-muted tabular-nums">{counts.foil}</span></> },
+            { value: 'foil', label: <><Sparkles size={14} className="text-amber-400 hidden sm:block" />Foil <span className="text-muted tabular-nums">{counts.foil}</span></> },
           ]} />
-        </div>
         {view === 'grid' && (
           <div className="sm:ml-auto">
             <Segmented<Finish> label="Adding" value={finish} onChange={setFinish} options={[

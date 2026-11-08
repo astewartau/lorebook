@@ -114,17 +114,19 @@ export function ShareControl({ isPublic, busy, binderId, onChange, what = 'binde
 }
 
 /** A two-or-more option segmented control. */
-export function Segmented<T extends string>({ label, value, options, onChange }: {
+export function Segmented<T extends string>({ label, value, options, onChange, stretch }: {
   label: string;
   value: T;
   options: { value: T; label: ReactNode; title?: string }[];
   onChange: (v: T) => void;
+  /** Fill the width on phones. */
+  stretch?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex p-1 gap-1 bg-surface-2 rounded-lg shrink-0">
+    <div role="radiogroup" aria-label={label} className={`flex p-1 gap-1 bg-surface-2 rounded-lg ${stretch ? 'w-full sm:w-auto' : 'shrink-0'}`}>
       {options.map(o => (
         <button key={o.value} type="button" role="radio" aria-checked={value === o.value} title={o.title} onClick={() => onChange(o.value)}
-          className={`h-8 px-3 rounded-md text-sm font-medium inline-flex items-center gap-1.5 whitespace-nowrap ${value === o.value ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg'}`}>
+          className={`h-8 rounded-md text-sm font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap ${stretch ? 'flex-1 sm:flex-none px-1.5 sm:px-3' : 'px-3'} ${value === o.value ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg'}`}>
           {o.label}
         </button>
       ))}
