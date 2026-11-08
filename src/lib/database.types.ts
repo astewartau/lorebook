@@ -221,14 +221,14 @@ isOneToOne: false
                   ]
                 },"decks": {
                   Row: {
-                    "avatar": Json | null,"created_at": string,"description": string | null,"id": string,"is_public": boolean,"name": string,"owner_id": string,"tags": (string)[],"updated_at": string,"version": number
+                    "avatar": Json | null,"created_at": string,"description": string | null,"guide": string | null,"id": string,"is_public": boolean,"name": string,"owner_id": string,"tags": (string)[],"updated_at": string,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar"?: Json | null,"created_at"?: string,"description"?: string | null,"id"?: string,"is_public"?: boolean,"name": string,"owner_id": string,"tags"?: (string)[],"updated_at"?: string,"version"?: number
+                    "avatar"?: Json | null,"created_at"?: string,"description"?: string | null,"guide"?: string | null,"id"?: string,"is_public"?: boolean,"name": string,"owner_id": string,"tags"?: (string)[],"updated_at"?: string,"version"?: number
                   }
                   Update: {
-                    "avatar"?: Json | null,"created_at"?: string,"description"?: string | null,"id"?: string,"is_public"?: boolean,"name"?: string,"owner_id"?: string,"tags"?: (string)[],"updated_at"?: string,"version"?: number
+                    "avatar"?: Json | null,"created_at"?: string,"description"?: string | null,"guide"?: string | null,"id"?: string,"is_public"?: boolean,"name"?: string,"owner_id"?: string,"tags"?: (string)[],"updated_at"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -290,7 +290,7 @@ isOneToOne: false
           Views: {
             "deck_details": {
                   Row: {
-                    "avatar": Json | null,"card_count": number | null,"cards": Json | null,"created_at": string,"description": string | null,"id": string,"inks": (string)[] | null,"is_public": boolean,"name": string,"owner_id": string,"owner_name": string | null,"tags": (string)[],"updated_at": string,"version": number
+                    "avatar": Json | null,"card_count": number | null,"cards": Json | null,"created_at": string,"description": string | null,"guide": string | null,"id": string,"inks": (string)[] | null,"is_public": boolean,"name": string,"owner_id": string,"owner_name": string | null,"tags": (string)[],"updated_at": string,"version": number
                   }
                   ComputedFields: never
                   Relationships: [
@@ -356,6 +356,7 @@ isOneToOne: false
 "cards": Json | null,
 "created_at": string,
 "description": string | null,
+"guide": string | null,
 "id": string,
 "inks": (string)[] | null,
 "is_public": boolean,

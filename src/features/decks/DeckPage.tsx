@@ -12,6 +12,7 @@ import { useSignIn } from '../../app/AccountMenu';
 import { PageLoading, PageMessage } from '../../ui/PageState';
 import { Menu, MenuItem, MenuSeparator } from '../../ui/Menu';
 import { CardDetail } from '../cards/CardDetail';
+import { DeckGuide } from './DeckGuide';
 import { useOwnership } from '../cards/useOwnership';
 import {
   checkDeck, countsByName, deckInks, deckLines, deckStats, groupByKind, missingSummary, ownershipNeeds, relativeDate,
@@ -187,6 +188,8 @@ export default function DeckPage() {
           ))}
         </ul>
       )}
+
+      <DeckGuide deck={deck} mine={mine} cardHref={hrefFor} />
 
       {total === 0 ? (
         <PageMessage title="No cards yet" action={mine ? <Link to={`/decks/${deck.id}/edit`} className="btn-primary"><Pencil size={17} />Add cards</Link> : undefined}>

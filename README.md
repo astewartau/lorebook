@@ -16,6 +16,8 @@ npm run cards                  # fetch LorcanaJSON, build public/data, load the 
 npm start                      # http://localhost:3000
 ```
 
+`npm run seed:demo` creates a demo account (`demo@lorebook.test`, password `lorebook-demo`) with a collection, decks with guides, binders and a pending household invite; run it again to reset it.
+
 Local sign-up needs no email confirmation. Mail the stack sends (password resets) shows up in Mailpit at http://localhost:54324.
 
 ## Database
