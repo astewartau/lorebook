@@ -8,7 +8,8 @@ interface AuthContextType {
   loading: boolean
   signInWithGoogle: () => Promise<{ error: AuthError | null }>
   signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signUpWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  /** needsConfirmation: the account exists but the email must be confirmed before signing in. */
+  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<{ error: AuthError | null; needsConfirmation: boolean }>
   signOut: () => Promise<{ error: AuthError | null }>
   resetPasswordForEmail: (email: string) => Promise<{ error: AuthError | null }>
   updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>
@@ -68,12 +69,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return { error }
   }
 
-  const signUpWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUpWithEmail = async (email: string, password: string, displayName?: string) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
-      password
+      password,
+      options: displayName ? { data: { display_name: displayName } } : undefined,
     })
-    return { error }
+    return { error, needsConfirmation: !error && !data.session }
   }
 
   const signOut = async () => {
