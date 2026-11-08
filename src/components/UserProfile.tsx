@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Calendar, Edit3, Eye, Book } from 'lucide-react';
-import { UserProfile, Deck } from '../types';
+import { UserProfile, Deck, CustomBinder } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { useDeck } from '../contexts/DeckContext';
 import { useProfile } from '../contexts/ProfileContext';
 import UserAvatarButton from './UserAvatarButton';
 import ProfileEditModal from './ProfileEditModal';
 import PublishedDeckCard from './PublishedDeckCard';
-import { supabase, TABLES, UserBinder } from '../lib/supabase';
+import * as api from '../lib/api';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -18,11 +17,10 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { publicDecks, loadPublicDecks } = useDeck();
   const { loadUserProfile } = useProfile();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userDecks, setUserDecks] = useState<Deck[]>([]);
-  const [userBinders, setUserBinders] = useState<UserBinder[]>([]);
+  const [userBinders, setUserBinders] = useState<CustomBinder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
@@ -35,45 +33,20 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
     }
   }, [userId, loadUserProfile]);
 
-  // Load user's public decks when userId changes (only if not already loaded)
+  // This user's public decks and binders, queried by owner on the server.
   useEffect(() => {
-    if (userId && publicDecks.length === 0) {
-      loadPublicDecks();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!userId) return;
+    let cancelled = false;
+    Promise.all([
+      api.searchPublicDecks({ ownerId: userId, limit: 100 }),
+      api.getUserBinders(userId, { publicOnly: true }),
+    ]).then(([decks, binders]) => {
+      if (cancelled) return;
+      setUserDecks(decks);
+      setUserBinders(binders);
+    }).catch(error => console.error('Loading profile content failed:', error));
+    return () => { cancelled = true; };
   }, [userId]);
-
-  // Filter user decks when publicDecks changes
-  useEffect(() => {
-    if (userId && publicDecks.length > 0) {
-      const userPublicDecks = publicDecks.filter(deck => deck.userId === userId);
-      setUserDecks(userPublicDecks);
-    }
-  }, [userId, publicDecks]);
-
-  // Load user's public binders
-  useEffect(() => {
-    if (userId) {
-      loadUserBinders(userId);
-    }
-  }, [userId]);
-
-  const loadUserBinders = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from(TABLES.USER_BINDERS)
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUserBinders(data || []);
-    } catch (error) {
-      console.error('Error loading user binders:', error);
-      setUserBinders([]);
-    }
-  };
 
   if (loading) {
     return (
@@ -282,7 +255,7 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                       <h3 className="font-bold text-lorcana-ink truncate">{binder.name}</h3>
                       <div className="flex items-center space-x-1 text-xs text-lorcana-navy bg-lorcana-purple/20 px-2 py-1 rounded-sm">
                         <Book size={12} />
-                        <span>{binder.binder_type === 'set' ? 'Set' : 'Custom'}</span>
+                        <span>{binder.kind === 'set' ? 'Set' : 'Custom'}</span>
                       </div>
                     </div>
 
@@ -290,14 +263,14 @@ const UserProfileComponent: React.FC<UserProfileProps> = ({ onBack }) => {
                       <p className="text-sm text-lorcana-navy mb-3 line-clamp-2">{binder.description}</p>
                     )}
 
-                    {binder.set_code && (
+                    {binder.setCode && (
                       <div className="text-xs text-lorcana-purple mb-4">
-                        Set: {binder.set_code.toUpperCase()}
+                        Set: {binder.setCode.toUpperCase()}
                       </div>
                     )}
 
                     <div className="text-xs text-lorcana-purple mb-4">
-                      Published {new Date(binder.created_at).toLocaleDateString()}
+                      Published {binder.createdAt.toLocaleDateString()}
                     </div>
 
                     <button

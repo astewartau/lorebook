@@ -29,7 +29,7 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   const { loadUserProfile } = useProfile();
   const { getCardQuantity } = useCollection();
   const { allCards, sets } = useCardData();
-  const { currentDeck, decks, publicDecks, setCurrentDeck, startEditingDeck, getDeckSummary, loadPublicDecks, addCardToDeck, removeCardFromDeck, updateCardQuantity, updateDeck } = useDeck();
+  const { currentDeck, decks, fetchDeck, setCurrentDeck, startEditingDeck, getDeckSummary, addCardToDeck, removeCardFromDeck, updateCardQuantity, updateDeck } = useDeck();
   const [authorDisplayName, setAuthorDisplayName] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [sortBy, setSortBy] = useState<'cost' | 'type' | 'color' | 'set' | 'story'>('set');
@@ -60,23 +60,19 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
     }
   }, [currentDeck, user, loadUserProfile]);
   
-  // Load public decks if not authenticated (only once)
+  // Load the deck in the URL: one of yours, or a public deck fetched by id.
+  const [deckMissing, setDeckMissing] = useState(false);
   useEffect(() => {
-    if (!user && deckId && publicDecks.length === 0) {
-      loadPublicDecks();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Only when auth state changes, not deckId
-
-  // Load deck from URL parameter (check both user decks and public decks)
-  useEffect(() => {
-    if (deckId) {
-      const deck = decks.find(d => d.id === deckId) || publicDecks.find(d => d.id === deckId);
-      if (deck) {
-        setCurrentDeck(deck);
-      }
-    }
-  }, [deckId, decks, publicDecks, setCurrentDeck]);
+    if (!deckId) return;
+    let cancelled = false;
+    setDeckMissing(false);
+    fetchDeck(deckId).then(deck => {
+      if (cancelled) return;
+      if (deck) setCurrentDeck(deck);
+      else setDeckMissing(true);
+    });
+    return () => { cancelled = true; };
+  }, [deckId, decks, fetchDeck, setCurrentDeck]);
 
   // Look up actual card data and combine with quantities and collection info
   type CardWithQuantity = LorcanaCard & {
@@ -321,11 +317,18 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
   }, [printSortedCards, printGroupBy, sets]);
 
   // Now handle early returns after all hooks
-  if (!currentDeck) {
+  if (!currentDeck || (deckId && currentDeck.id !== deckId)) {
+    if (!deckMissing) {
+      return (
+        <div className="flex items-center justify-center h-96">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-lorcana-gold" aria-label="Loading deck"></div>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-lorcana-ink mb-2">No deck selected</h2>
+          <h2 className="text-xl font-semibold text-lorcana-ink mb-2">This deck doesn't exist or isn't public</h2>
           <button
             onClick={onBack}
             className="btn-lorcana-navy"

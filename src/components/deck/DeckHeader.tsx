@@ -189,7 +189,7 @@ const DeckHeader: React.FC<DeckHeaderProps> = ({
             className="flex items-center space-x-1 text-sm text-lorcana-gold hover:text-lorcana-navy hover:underline transition-colors"
           >
             <User size={14} />
-            <span>{authorDisplayName || deck.authorEmail || 'Unknown Author'}</span>
+            <span>{authorDisplayName || deck.ownerName || 'Unknown Author'}</span>
           </button>
         </div>
       )}

@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, AlertTriangle, Share2, Package, Upload, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCardData } from '../contexts/CardDataContext';
 import { useModal } from '../hooks';
-import { supabase, TABLES } from '../lib/supabase';
+import { useBinder } from '../contexts/BinderContext';
 import { EmptyCollectionState } from './EmptyCollectionState';
 import { SetSummaryCard } from './SetSummaryCard';
 
@@ -38,39 +38,13 @@ const Collection: React.FC<CollectionProps> = ({
   const { getCardQuantity } = useCollection();
   const { allCards, sets } = useCardData();
   const publishModal = useModal<{code: string, name: string}>();
-  const [publishedBinders, setPublishedBinders] = useState<Set<string>>(new Set());
+  const { publishedSets: publishedBinders, setSetBinderPublic } = useBinder();
   const [isLoading, setIsLoading] = useState(false);
-
-  // Load published binders on mount
-  useEffect(() => {
-    if (user) {
-      loadPublishedBinders();
-    }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadPublishedBinders = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from(TABLES.USER_BINDERS)
-        .select('set_code')
-        .eq('user_id', user.id)
-        .eq('is_public', true);
-
-      if (error) throw error;
-
-      const publishedSetCodes = new Set(data?.map(binder => binder.set_code) || []);
-      setPublishedBinders(publishedSetCodes);
-    } catch (error) {
-      console.error('Error loading published binders:', error);
-    }
-  };
 
   // Calculate set summaries
   const setSummaries = useMemo((): SetSummary[] => {
     return sets
-      .filter(set => set.number <= 13)
+      .filter(set => allCards.some(card => card.setCode === set.code))
       .map(set => {
       // Get all cards in this set - each card is individual now
       const setCards = allCards.filter(card => card.setCode === set.code);
@@ -134,53 +108,9 @@ const Collection: React.FC<CollectionProps> = ({
 
   const handleConfirmPublish = async () => {
     if (!user || !publishModal.data) return;
-    
     setIsLoading(true);
     try {
-      const { code: setCode, name: setName } = publishModal.data;
-      
-      // Check if this binder is already published
-      const { data: existingBinder, error: checkError } = await supabase
-        .from(TABLES.USER_BINDERS)
-        .select('id, is_public')
-        .eq('user_id', user.id)
-        .eq('set_code', setCode)
-        .eq('binder_type', 'set')
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-
-      if (existingBinder) {
-        if (!existingBinder.is_public) {
-          // Update existing binder to make it public
-          const { error: updateError } = await supabase
-            .from(TABLES.USER_BINDERS)
-            .update({ is_public: true })
-            .eq('id', existingBinder.id);
-
-          if (updateError) throw updateError;
-        }
-      } else {
-        // Create new published binder
-        const { error: insertError } = await supabase
-          .from(TABLES.USER_BINDERS)
-          .insert({
-            user_id: user.id,
-            name: setName,
-            description: `My ${setName} collection binder`,
-            binder_type: 'set',
-            set_code: setCode,
-            cards: [],
-            is_public: true
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      // Update local state
-      setPublishedBinders(prev => new Set([...Array.from(prev), setCode]));
+      await setSetBinderPublic(publishModal.data.code, publishModal.data.name, true);
       publishModal.close();
     } catch (error) {
       console.error('Error publishing binder:', error);
@@ -191,24 +121,9 @@ const Collection: React.FC<CollectionProps> = ({
 
   const handleUnpublish = async (setCode: string) => {
     if (!user) return;
-    
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from(TABLES.USER_BINDERS)
-        .update({ is_public: false })
-        .eq('user_id', user.id)
-        .eq('set_code', setCode)
-        .eq('binder_type', 'set');
-
-      if (error) throw error;
-
-      // Update local state
-      setPublishedBinders(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(setCode);
-        return newSet;
-      });
+      await setSetBinderPublic(setCode, '', false);
     } catch (error) {
       console.error('Error unpublishing binder:', error);
     } finally {

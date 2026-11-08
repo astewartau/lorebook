@@ -13,18 +13,37 @@ export interface LorcanaCard {
   willpower?: number;
   lore?: number;
   inkwell: boolean;
-  abilities?: any[];
+  colors?: string[];
+  moveCost?: number;
+  abilities?: CardAbility[];
+  keywordAbilities?: string[];
+  effects?: string[];
+  fullText?: string;
   flavorText?: string;
   artists?: string[];
   images: {
     full: string;
     thumbnail: string;
-    foilMask?: string;
   };
   story?: string;
   subtypes?: string[];
   foilTypes?: string[];
   promoGrouping?: string;
+  variant?: string;
+  /** Names this card also counts as (e.g. Flotsam & Jetsam). */
+  names?: string[];
+  /** Overrides the 4-copy limit: absent means 4, null means any number. */
+  maxCopiesInDeck?: number | null;
+  legal: { core: boolean; infinity: boolean };
+}
+
+export interface CardAbility {
+  type: string;
+  name?: string;
+  effect?: string;
+  keyword?: string;
+  keywordValue?: string;
+  fullText?: string;
 }
 
 export interface CollectionCard extends LorcanaCard {
@@ -56,9 +75,12 @@ export interface CustomBinder {
   id: string;
   name: string;
   description?: string;
+  kind: 'set' | 'custom';
+  setCode?: string;
   cards: BinderCardEntry[];
   isPublic: boolean;
   userId: string;
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,7 +95,8 @@ export interface Deck {
   updatedAt: Date;
   isPublic?: boolean;
   userId?: string;
-  authorEmail?: string;
+  ownerName?: string;
+  version?: number;
   avatar?: {
     cardId: number;
     cropData: {
@@ -96,16 +119,15 @@ export interface DeckSummary {
 }
 
 export interface UserProfile {
-  id: string;
   userId: string;
   displayName: string;
   fullName?: string;
   location?: string;
   bio?: string;
-  avatarUrl?: string;
   avatarCardId?: number;
   avatarCropData?: { x: number; y: number; scale: number };
   isPublic: boolean;
+  activeCollectionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -113,7 +135,7 @@ export interface UserProfile {
 
 export interface FilterOptions {
   search: string;
-  legality: 'core' | 'infinity'; // Game format - core constructed (see CORE_CONSTRUCTED_LEGAL_SETS) or infinity (all sets)
+  legality: 'core' | 'infinity'; // Game format, from each card's legality in the card data
   sets: string[];
   colors: string[];
   colorMatchMode: 'any' | 'only' | 'dual-only'; // Color filtering mode
@@ -173,6 +195,7 @@ export interface CardDatabase {
     type: string;
     number: number;
     name: string;
+    legal: { core: boolean; infinity: boolean };
   }>;
   cards: LorcanaCard[];
 }

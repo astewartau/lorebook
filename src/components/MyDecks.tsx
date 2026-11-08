@@ -314,7 +314,7 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
             <PublishedDeckCard
               key={deck.id}
               deck={deck}
-              authorName={deckProfiles[deck.userId!] || deck.authorEmail || 'Unknown'}
+              authorName={deckProfiles[deck.userId!] || deck.ownerName || 'Unknown'}
               onView={() => onViewDeck(deck.id)}
               onDuplicate={() => handleDuplicateDeck(deck.id)}
               onViewProfile={handleViewProfile}

@@ -7,7 +7,8 @@ import { useBinder } from '../contexts/BinderContext';
 import { useCollection } from '../contexts/CollectionContext';
 import CardImage from './CardImage';
 import ContextMenu from './ContextMenu';
-import { DECK_RULES } from '../constants';
+import { copiesByName, maxCopiesFor } from '../utils/deckValidation';
+import { useCardData } from '../contexts/CardDataContext';
 import { canHaveNormal } from '../utils/cardDataUtils';
 
 interface CardProps {
@@ -27,6 +28,7 @@ const InteractiveCard: React.FC<CardProps> = ({
   const { isEditingDeck, currentDeck, addCardToDeck, removeCardFromDeck, updateCardQuantity, createDeckAndStartEditing } = useDeck();
   const { binders, addCardToBinder } = useBinder();
   const { getCardQuantity } = useCollection();
+  const { cardsById } = useCardData();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [transform, setTransform] = useState('');
   const [isHovered, setIsHovered] = useState(false);
@@ -42,11 +44,7 @@ const InteractiveCard: React.FC<CardProps> = ({
   
   const handleAddToDeck = () => {
     if (currentDeck) {
-      const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
-      const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
-      if (deckQuantity < maxCopies && totalCards < DECK_RULES.MAX_CARDS) {
-        addCardToDeck(card);
-      }
+      addCardToDeck(card);
     }
   };
   
@@ -63,10 +61,7 @@ const InteractiveCard: React.FC<CardProps> = ({
   
   const canAddToDeck = () => {
     if (!currentDeck) return false;
-    const totalCards = currentDeck.cards.reduce((sum, c) => sum + c.quantity, 0);
-    const maxCopies = (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') ? 99 : DECK_RULES.MAX_COPIES_PER_CARD;
-    
-    return deckQuantity < maxCopies && totalCards < DECK_RULES.MAX_CARDS;
+    return copiesByName(currentDeck.cards, cardsById, card.fullName) < maxCopiesFor(card);
   };
 
   const handleRightClick = (e: React.MouseEvent) => {

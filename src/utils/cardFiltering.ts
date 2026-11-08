@@ -2,15 +2,10 @@ import { LorcanaCard, FilterOptions, SortOption } from '../types';
 import { rarityOrder } from '../utils/cardDataUtils';
 import { matchesSmartSearch } from './smartSearch';
 
-// Core Constructed legal sets (sets 9-13 since the 2026-07-17 rotation)
-// This should be updated when new sets are released
-export const CORE_CONSTRUCTED_LEGAL_SETS = ['9', '10', '11', '12', '13'];
-
-// Helper function to check if a card is legal in the selected format
-const matchesLegality = (card: LorcanaCard, legality: 'core' | 'infinity'): boolean => {
-  if (legality === 'infinity') return true;
-  return CORE_CONSTRUCTED_LEGAL_SETS.includes(card.setCode);
-};
+// Legality comes from the card data (LorcanaJSON's allowedInFormats), which
+// follows rotations, reprints and bans.
+const matchesLegality = (card: LorcanaCard, legality: 'core' | 'infinity'): boolean =>
+  legality === 'infinity' ? card.legal.infinity : card.legal.core;
 
 // Helper function to check if a card matches search criteria
 const matchesSearchFilter = (card: LorcanaCard, searchTerm: string): boolean => {

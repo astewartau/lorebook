@@ -1,12 +1,21 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { CollectionCardEntry } from '../types';
-import { supabase, UserCollection, TABLES } from '../lib/supabase';
+import * as api from '../lib/api';
 import { useAuth } from './AuthContext';
 import { useCardData } from './CardDataContext';
-import { getCollectionTarget } from '../utils/collectionGroupHelper';
+import { useProfile } from './ProfileContext';
 import { exportCollectionToCSV } from '../utils/collectionExport';
 
+export type SyncStatus = 'idle' | 'loading' | 'saving' | 'error';
+
+interface Quantity {
+  normal: number;
+  foil: number;
+}
+
 interface CollectionContextType {
+  /** The active collection (yours, or a household's you joined). */
+  collectionId: string | null;
   collection: CollectionCardEntry[];
   getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number };
   addCardToCollection: (cardId: number, quantityNormal?: number, quantityFoil?: number) => void;
@@ -16,518 +25,312 @@ interface CollectionContextType {
   uniqueCards: number;
   exportCollection: () => string;
   exportCollectionCSV: () => string;
-  importCollection: (data: string) => boolean;
+  importCollection: (data: string) => Promise<boolean>;
   importCollectionDirect: (cards: CollectionCardEntry[]) => Promise<boolean>;
   clearCollection: () => Promise<void>;
   reloadCollection: () => Promise<void>;
-  syncStatus: 'idle' | 'loading' | 'error' | 'offline';
+  syncStatus: SyncStatus;
+  /** Number of cards with changes not yet saved. */
+  pendingChanges: number;
 }
 
 const CollectionContext = createContext<CollectionContextType | undefined>(undefined);
 
-interface CollectionProviderProps {
-  children: ReactNode;
+const FLUSH_DELAY_MS = 800;
+const MAX_RETRY_MS = 60_000;
+const REFRESH_AFTER_HIDDEN_MS = 30_000;
+const ZERO: Quantity = { normal: 0, foil: 0 };
+
+// Unsent changes survive a closed tab: they are kept in localStorage per
+// collection and sent on the next load.
+const outboxKey = (collectionId: string) => `lorebook-outbox:${collectionId}`;
+
+function loadOutbox(collectionId: string): Map<number, Quantity> {
+  try {
+    const raw = localStorage.getItem(outboxKey(collectionId));
+    if (raw) return new Map(JSON.parse(raw) as [number, Quantity][]);
+  } catch {
+    // Unavailable or corrupt storage: start empty.
+  }
+  return new Map();
 }
 
-export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children }) => {
-  // ================================
-  // STATE MANAGEMENT
-  // ================================
-  const { user, session } = useAuth();
+function saveOutbox(collectionId: string, outbox: Map<number, Quantity>) {
+  try {
+    if (outbox.size) localStorage.setItem(outboxKey(collectionId), JSON.stringify(Array.from(outbox)));
+    else localStorage.removeItem(outboxKey(collectionId));
+  } catch {
+    // Storage full or blocked: the in-memory outbox still works.
+  }
+}
+
+function addDelta(outbox: Map<number, Quantity>, cardId: number, d: Quantity) {
+  const prev = outbox.get(cardId) ?? ZERO;
+  const next = { normal: prev.normal + d.normal, foil: prev.foil + d.foil };
+  if (next.normal === 0 && next.foil === 0) outbox.delete(cardId);
+  else outbox.set(cardId, next);
+}
+
+export const CollectionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const { userProfile } = useProfile();
   const { allCards } = useCardData();
-  const [collection, setCollection] = useState<CollectionCardEntry[]>([]);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'error' | 'offline'>('idle');
-  
-  // Batch sync state
-  const [pendingUpdates, setPendingUpdates] = useState<Map<number, {quantityNormal: number, quantityFoil: number}>>(new Map());
-  const [syncTimeout, setSyncTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isCurrentlySyncing, setIsCurrentlySyncing] = useState(false);
+  const collectionId = user ? userProfile?.activeCollectionId ?? null : null;
 
-  // ================================
-  // DATA LOADING & GROUP MANAGEMENT
-  // ================================
-  
-  // Load collection data when user changes
-  useEffect(() => {
-    if (user && session) {
-      loadCollectionFromSupabase();
-    } else {
-      // Clear collection when not authenticated
-      setCollection([]);
+  const [quantities, setQuantities] = useState<ReadonlyMap<number, Quantity>>(new Map());
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [pendingChanges, setPendingChanges] = useState(0);
+
+  // Refs hold the latest values for the sync loop, which runs outside renders.
+  const quantitiesRef = useRef<Map<number, Quantity>>(new Map());
+  const outboxRef = useRef<Map<number, Quantity>>(new Map());
+  const collectionIdRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryMsRef = useRef(2000);
+  const hiddenAtRef = useRef<number | null>(null);
+
+  const publish = useCallback(() => {
+    setQuantities(new Map(quantitiesRef.current));
+    setPendingChanges(outboxRef.current.size);
+  }, []);
+
+  const flush = useCallback(async () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, session]);
+    const cid = collectionIdRef.current;
+    if (!cid || inFlightRef.current || outboxRef.current.size === 0) return;
 
-  const loadCollectionFromSupabase = async () => {
-    if (!user) return;
-    
-    setSyncStatus('loading');
+    const batch = outboxRef.current;
+    outboxRef.current = new Map();
+    inFlightRef.current = true;
+    setSyncStatus('saving');
+
     try {
-      // Get target user ID (group owner if in group, self otherwise)
-      const { targetUserId } = await getCollectionTarget(user.id);
-
-      let data, error;
-
-      // Load the target user's collection using pagination to handle Supabase limits
-      console.log(`[CollectionContext] Loading collection for user: ${targetUserId}`);
-
-      let allData: UserCollection[] = [];
-      let hasMore = true;
-      let offset = 0;
-      const PAGE_SIZE = 1000;
-
-      while (hasMore) {
-        console.log(`[CollectionContext] Fetching page at offset ${offset}`);
-
-        const result = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .select('*')
-          .eq('user_id', targetUserId)
-          .range(offset, offset + PAGE_SIZE - 1);
-
-        if (result.error) {
-          error = result.error;
-          break;
-        }
-
-        const pageData = result.data || [];
-        allData = allData.concat(pageData);
-
-        console.log(`[CollectionContext] Page result: ${pageData.length} rows`);
-
-        // If we got fewer rows than the page size, we've reached the end
-        hasMore = pageData.length === PAGE_SIZE;
-        offset += PAGE_SIZE;
+      const result = await api.adjustCollection(cid, Array.from(batch, ([cardId, d]) => ({ cardId, ...d })));
+      if (collectionIdRef.current !== cid) return;
+      // Server values, plus anything changed locally since the batch left.
+      for (const r of result) {
+        const pending = outboxRef.current.get(r.cardId) ?? ZERO;
+        const normal = Math.max(0, r.quantityNormal + pending.normal);
+        const foil = Math.max(0, r.quantityFoil + pending.foil);
+        if (normal || foil) quantitiesRef.current.set(r.cardId, { normal, foil });
+        else quantitiesRef.current.delete(r.cardId);
       }
-
-      data = allData;
-
-      console.log(`[CollectionContext] Total collection loaded:`, {
-        totalRows: data?.length || 0,
-        hasError: !!error,
-        errorMessage: error?.message
-      });
-
-      if (error) {
+      saveOutbox(cid, outboxRef.current);
+      retryMsRef.current = 2000;
+      setSyncStatus('idle');
+      publish();
+    } catch (error) {
+      console.error('Saving collection changes failed:', error);
+      if (collectionIdRef.current === cid) {
+        batch.forEach((d, cardId) => addDelta(outboxRef.current, cardId, d));
+        saveOutbox(cid, outboxRef.current);
         setSyncStatus('error');
-        setCollection([]);
-      } else {
-        
-        // Convert database format to internal format
-        const converted = (data || []).map((item: UserCollection) => ({
-          cardId: item.card_id,
-          quantityNormal: item.quantity_normal || 0,
-          quantityFoil: item.quantity_foil || 0
-        }));
-
-        console.log(`[CollectionContext] Converted ${converted.length} collection entries`);
-        console.log(`[CollectionContext] Unique cards: ${new Set(converted.map(c => c.cardId)).size}`);
-
-        setCollection(converted);
-        setSyncStatus('idle');
+        const wait = retryMsRef.current;
+        retryMsRef.current = Math.min(wait * 2, MAX_RETRY_MS);
+        timerRef.current = setTimeout(flush, wait);
       }
-    } catch (error) {
-      setSyncStatus('offline');
-      setCollection([]);
+    } finally {
+      inFlightRef.current = false;
+      if (outboxRef.current.size && !timerRef.current && collectionIdRef.current === cid) {
+        timerRef.current = setTimeout(flush, FLUSH_DELAY_MS);
+      }
     }
-  };
+  }, [publish]);
 
-  // ================================
-  // DATABASE SYNC LOGIC
-  // ================================
-  
-  // Batch sync all pending updates
-  const syncBatchToSupabase = async (updatesToSync?: Map<number, {quantityNormal: number, quantityFoil: number}>) => {
-    const updates = updatesToSync || pendingUpdates;
-    if (!user || updates.size === 0) {
-      return;
-    }
+  const scheduleFlush = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(flush, FLUSH_DELAY_MS);
+  }, [flush]);
+
+  const load = useCallback(async () => {
+    const cid = collectionIdRef.current;
+    if (!cid) return;
     setSyncStatus('loading');
     try {
-      // Get target user ID (group owner if in group, self otherwise)
-      const { targetUserId, groupId: userGroupId } = await getCollectionTarget(user.id);
-
-      const updateEntries = Array.from(updates.entries());
-      
-      const upserts = [];
-      const deletes = [];
-      
-      // Separate upserts from deletes
-      for (const [cardId, {quantityNormal, quantityFoil}] of updateEntries) {
-        if (quantityNormal <= 0 && quantityFoil <= 0) {
-          deletes.push(cardId);
-        } else {
-          // Always save to the target user's collection (owner if in group, self if not)
-          upserts.push({
-            user_id: targetUserId,
-            card_id: cardId,
-            quantity_normal: quantityNormal,
-            quantity_foil: quantityFoil,
-            group_id: userGroupId // Set group_id if in group context
-          });
-        }
-      }
-      
-      
-      // Batch upsert to user_collections table
-      if (upserts.length > 0) {
-        const { error } = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .upsert(upserts, { onConflict: 'user_id,card_id' });
-          
-        if (error) {
-          setSyncStatus('error');
-          return;
-        }
-      }
-      
-      // Batch delete from user_collections table  
-      if (deletes.length > 0) {
-        const { error } = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .delete()
-          .eq('user_id', targetUserId)
-          .in('card_id', deletes);
-          
-        if (error) {
-          setSyncStatus('error');
-          return;
-        }
-      }
-      
-      // Updates already cleared by timer callback
-      setSyncStatus('idle');
-      setIsCurrentlySyncing(false); // Allow new syncs
-      
-    } catch (error) {
-      setSyncStatus('offline');
-      setIsCurrentlySyncing(false); // Allow new syncs after error
-    }
-  };
-
-  // Queue a card update for batching
-  const queueCardUpdate = (cardId: number, quantityNormal: number, quantityFoil: number) => {
-    if (!user) {
-      return;
-    }
-    
-    // Add to pending updates
-    setPendingUpdates(prev => {
-      const newMap = new Map(prev);
-      newMap.set(cardId, { quantityNormal, quantityFoil });
-      return newMap;
-    });
-    
-    // Reset the debounce timer
-    if (syncTimeout) {
-      clearTimeout(syncTimeout);
-    }
-    const timeout = setTimeout(() => {
-      // Use callback to get current state, not closure
-      setPendingUpdates(currentUpdates => {
-        if (currentUpdates.size > 0 && !isCurrentlySyncing) {
-          setIsCurrentlySyncing(true);
-          // Pass the current updates directly to avoid closure issues
-          syncBatchToSupabase(currentUpdates);
-          // Clear the pending updates immediately to prevent other timers from running
-          return new Map();
-        } else {
-          return currentUpdates;
-        }
+      const rows = await api.getCollectionCards(cid);
+      if (collectionIdRef.current !== cid) return;
+      const map = new Map<number, Quantity>();
+      for (const r of rows) map.set(r.cardId, { normal: r.quantityNormal, foil: r.quantityFoil });
+      // Unsaved local changes stay on top of what the server has.
+      outboxRef.current.forEach((d, cardId) => {
+        const q = map.get(cardId) ?? ZERO;
+        const next = { normal: Math.max(0, q.normal + d.normal), foil: Math.max(0, q.foil + d.foil) };
+        if (next.normal || next.foil) map.set(cardId, next);
+        else map.delete(cardId);
       });
-    }, 2000); // 2 second debounce
-    setSyncTimeout(timeout);
-  };
-
-  // ================================
-  // COLLECTION CRUD OPERATIONS
-  // ================================
-  
-  const getCardQuantity = (cardId: number): { normal: number; foil: number; total: number } => {
-    const card = collection.find(c => c.cardId === cardId);
-    return {
-      normal: card?.quantityNormal || 0,
-      foil: card?.quantityFoil || 0,
-      total: (card?.quantityNormal || 0) + (card?.quantityFoil || 0)
-    };
-  };
-
-  const addCardToCollection = (cardId: number, quantityNormal: number = 1, quantityFoil: number = 0) => {
-    setCollection(prev => {
-      const existingIndex = prev.findIndex(c => c.cardId === cardId);
-      let newCollection;
-      
-      if (existingIndex >= 0) {
-        // Update existing card
-        newCollection = [...prev];
-        newCollection[existingIndex] = {
-          ...newCollection[existingIndex],
-          quantityNormal: newCollection[existingIndex].quantityNormal + quantityNormal,
-          quantityFoil: newCollection[existingIndex].quantityFoil + quantityFoil
-        };
-      } else {
-        // Add new card
-        newCollection = [...prev, { cardId, quantityNormal, quantityFoil }];
-      }
-      
-      // Queue for batch sync
-      const currentQuantities = getCardQuantity(cardId);
-      queueCardUpdate(
-        cardId, 
-        currentQuantities.normal + quantityNormal,
-        currentQuantities.foil + quantityFoil
-      );
-      
-      return newCollection;
-    });
-  };
-
-  const removeCardFromCollection = (cardId: number, quantityNormal: number = 1, quantityFoil: number = 0) => {
-    setCollection(prev => {
-      const existingIndex = prev.findIndex(c => c.cardId === cardId);
-      
-      if (existingIndex >= 0) {
-        const newNormal = Math.max(0, prev[existingIndex].quantityNormal - quantityNormal);
-        const newFoil = Math.max(0, prev[existingIndex].quantityFoil - quantityFoil);
-        
-        let newCollection;
-        if (newNormal <= 0 && newFoil <= 0) {
-          // Remove card entirely
-          newCollection = prev.filter(c => c.cardId !== cardId);
-        } else {
-          // Update quantities
-          newCollection = [...prev];
-          newCollection[existingIndex] = {
-            ...newCollection[existingIndex],
-            quantityNormal: newNormal,
-            quantityFoil: newFoil
-          };
-        }
-        
-        // Queue for batch sync
-        queueCardUpdate(cardId, newNormal, newFoil);
-        
-        return newCollection;
-      }
-      
-      return prev;
-    });
-  };
-
-  const setCardQuantity = (cardId: number, quantityNormal: number, quantityFoil: number) => {
-    setCollection(prev => {
-      let newCollection;
-      const existingIndex = prev.findIndex(c => c.cardId === cardId);
-      
-      if (quantityNormal <= 0 && quantityFoil <= 0) {
-        // Remove card
-        newCollection = prev.filter(c => c.cardId !== cardId);
-      } else if (existingIndex >= 0) {
-        // Update existing card
-        newCollection = [...prev];
-        newCollection[existingIndex] = { cardId, quantityNormal, quantityFoil };
-      } else {
-        // Add new card
-        newCollection = [...prev, { cardId, quantityNormal, quantityFoil }];
-      }
-      
-      // Queue for batch sync
-      queueCardUpdate(cardId, quantityNormal, quantityFoil);
-      
-      return newCollection;
-    });
-  };
-
-  const totalCards = collection.reduce((sum, card) => sum + card.quantityNormal + card.quantityFoil, 0);
-  const uniqueCards = collection.length;
-
-  // ================================
-  // IMPORT/EXPORT OPERATIONS
-  // ================================
-  
-  const exportCollection = (): string => {
-    const exportData = {
-      version: '2.0', // New version with foil support
-      timestamp: new Date().toISOString(),
-      cards: collection.map(card => ({
-        cardId: card.cardId,
-        normal: card.quantityNormal,
-        foil: card.quantityFoil
-      }))
-    };
-    return JSON.stringify(exportData, null, 2);
-  };
-
-  const exportCollectionCSV = (): string => {
-    return exportCollectionToCSV(collection, allCards);
-  };
-
-  const importCollection = (data: string): boolean => {
-    try {
-      const parsed = JSON.parse(data);
-      
-      if (parsed.version === '2.0' && Array.isArray(parsed.cards)) {
-        // Import new format with foil support
-        const importedCards = parsed.cards.map((card: any) => ({
-          cardId: card.cardId,
-          quantityNormal: card.normal || 0,
-          quantityFoil: card.foil || 0
-        }));
-        
-        setCollection(importedCards);
-        
-        // Queue all cards for batch sync
-        importedCards.forEach((card: CollectionCardEntry) => {
-          queueCardUpdate(card.cardId, card.quantityNormal, card.quantityFoil);
-        });
-        
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
-      return false;
-    }
-  };
-
-  // Direct import for bulk operations (bypasses batching)
-  const importCollectionDirect = async (cards: CollectionCardEntry[]): Promise<boolean> => {
-    if (!user) {
-      return false;
-    }
-
-    setSyncStatus('loading');
-
-    try {
-      // Get target user ID (group owner if in group, self otherwise)
-      const { targetUserId, groupId: userGroupId } = await getCollectionTarget(user.id);
-
-      // Convert to database format
-      const upserts = cards.map(card => ({
-        user_id: targetUserId,
-        card_id: card.cardId,
-        quantity_normal: card.quantityNormal,
-        quantity_foil: card.quantityFoil,
-        group_id: userGroupId // Set group_id if in group context
-      }));
-
-      // Check for duplicates
-      const cardIdCounts = new Map<number, number>();
-      const duplicates: number[] = [];
-      
-      upserts.forEach(item => {
-        const count = cardIdCounts.get(item.card_id) || 0;
-        cardIdCounts.set(item.card_id, count + 1);
-        if (count > 0) {
-          duplicates.push(item.card_id);
-        }
-      });
-      
-      if (duplicates.length > 0) {
-        const uniqueDuplicates = Array.from(new Set(duplicates));
-        console.error('DUPLICATE CARD IDs FOUND IN IMPORT:', uniqueDuplicates);
-        console.error('Duplicate details:');
-        uniqueDuplicates.forEach(cardId => {
-          const duplicateRows = cards.filter(c => c.cardId === cardId);
-          console.error(`Card ID ${cardId} appears ${duplicateRows.length} times:`, duplicateRows);
-        });
-      }
-
-      // Batch the upserts to handle large collections (Supabase has limits on bulk operations)
-      const BATCH_SIZE = 1000;
-      const batches = [];
-
-      for (let i = 0; i < upserts.length; i += BATCH_SIZE) {
-        batches.push(upserts.slice(i, i + BATCH_SIZE));
-      }
-
-      console.log(`Processing ${upserts.length} cards in ${batches.length} batches of ${BATCH_SIZE}`);
-
-      // Process each batch
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        console.log(`Processing batch ${i + 1}/${batches.length} (${batch.length} cards)`);
-
-        const { error } = await supabase
-          .from(TABLES.USER_COLLECTIONS)
-          .upsert(batch, { onConflict: 'user_id,card_id' });
-
-        if (error) {
-          console.error(`Database upsert error in batch ${i + 1}:`, error);
-          setSyncStatus('error');
-          return false;
-        }
-      }
-
-      console.log('All batches processed successfully');
-
-      // Update local state
-      setCollection(cards);
+      quantitiesRef.current = map;
       setSyncStatus('idle');
-      
+      publish();
+      if (outboxRef.current.size) scheduleFlush();
+    } catch (error) {
+      console.error('Loading collection failed:', error);
+      if (collectionIdRef.current === cid) setSyncStatus('error');
+    }
+  }, [publish, scheduleFlush]);
+
+  // Switch collections: send what is pending for the old one, start the new one.
+  useEffect(() => {
+    collectionIdRef.current = collectionId;
+    quantitiesRef.current = new Map();
+    outboxRef.current = collectionId ? loadOutbox(collectionId) : new Map();
+    retryMsRef.current = 2000;
+    publish();
+    if (collectionId) load();
+    else setSyncStatus('idle');
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      const cid = collectionIdRef.current;
+      const pending = outboxRef.current;
+      if (cid && pending.size) {
+        saveOutbox(cid, pending);
+        api.adjustCollection(cid, Array.from(pending, ([cardId, d]) => ({ cardId, ...d })))
+          .then(() => saveOutbox(cid, new Map()))
+          .catch(() => { /* kept in localStorage; sent on next load */ });
+      }
+    };
+  }, [collectionId, load, publish]);
+
+  // Send changes when the tab is hidden; pick up other devices' changes on return.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        flush();
+      } else if (hiddenAtRef.current && Date.now() - hiddenAtRef.current > REFRESH_AFTER_HIDDEN_MS) {
+        hiddenAtRef.current = null;
+        if (!inFlightRef.current) load();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [flush, load]);
+
+  // Warn before closing with unsent changes (they are also kept in localStorage).
+  useEffect(() => {
+    if (!pendingChanges) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [pendingChanges]);
+
+  const change = useCallback((cardId: number, target: (q: Quantity) => Quantity) => {
+    const cid = collectionIdRef.current;
+    if (!cid) return;
+    const current = quantitiesRef.current.get(cardId) ?? ZERO;
+    const t = target(current);
+    const next = { normal: Math.max(0, t.normal), foil: Math.max(0, t.foil) };
+    const delta = { normal: next.normal - current.normal, foil: next.foil - current.foil };
+    if (!delta.normal && !delta.foil) return;
+    if (next.normal || next.foil) quantitiesRef.current.set(cardId, next);
+    else quantitiesRef.current.delete(cardId);
+    addDelta(outboxRef.current, cardId, delta);
+    saveOutbox(cid, outboxRef.current);
+    publish();
+    scheduleFlush();
+  }, [publish, scheduleFlush]);
+
+  const addCardToCollection = useCallback((cardId: number, n = 1, f = 0) =>
+    change(cardId, q => ({ normal: q.normal + n, foil: q.foil + f })), [change]);
+  const removeCardFromCollection = useCallback((cardId: number, n = 1, f = 0) =>
+    change(cardId, q => ({ normal: q.normal - n, foil: q.foil - f })), [change]);
+  const setCardQuantity = useCallback((cardId: number, normal: number, foil: number) =>
+    change(cardId, () => ({ normal, foil })), [change]);
+
+  const getCardQuantity = useCallback((cardId: number) => {
+    const q = quantities.get(cardId) ?? ZERO;
+    return { normal: q.normal, foil: q.foil, total: q.normal + q.foil };
+  }, [quantities]);
+
+  const collection = useMemo<CollectionCardEntry[]>(
+    () => Array.from(quantities, ([cardId, q]) => ({ cardId, quantityNormal: q.normal, quantityFoil: q.foil })),
+    [quantities]
+  );
+
+  const replaceAll = useCallback(async (cards: CollectionCardEntry[]) => {
+    const cid = collectionIdRef.current;
+    if (!cid) return false;
+    setSyncStatus('saving');
+    try {
+      // Send pending edits first so the replacement is the last word.
+      await flush();
+      while (inFlightRef.current) await new Promise(r => setTimeout(r, 50));
+      await api.replaceCollection(cid, cards);
+      outboxRef.current = new Map();
+      saveOutbox(cid, outboxRef.current);
+      await load();
       return true;
-
     } catch (error) {
+      console.error('Replacing collection failed:', error);
       setSyncStatus('error');
       return false;
     }
-  };
+  }, [flush, load]);
 
-  const clearCollection = async () => {
-    if (!user) return;
-    
-    setSyncStatus('loading');
+  const exportCollection = useCallback(() => JSON.stringify({
+    version: '2.0',
+    timestamp: new Date().toISOString(),
+    cards: collection.map(c => ({ cardId: c.cardId, normal: c.quantityNormal, foil: c.quantityFoil })),
+  }, null, 2), [collection]);
 
+  const exportCollectionCSV = useCallback(() => exportCollectionToCSV(collection, allCards), [collection, allCards]);
+
+  const importCollection = useCallback(async (data: string) => {
     try {
-      // Get target user ID (group owner if in group, self otherwise)
-      const { targetUserId } = await getCollectionTarget(user.id);
-
-      // Clear from database first
-      const { error } = await supabase
-        .from(TABLES.USER_COLLECTIONS)
-        .delete()
-        .eq('user_id', targetUserId);
-
-      if (error) {
-        setSyncStatus('error');
-        return;
-      }
-
-      // Only clear local state if database deletion succeeded
-      setCollection([]);
-      setSyncStatus('idle');
-      
-    } catch (error) {
-      setSyncStatus('offline');
+      const parsed = JSON.parse(data);
+      if (parsed.version !== '2.0' || !Array.isArray(parsed.cards)) return false;
+      return await replaceAll(parsed.cards.map((c: { cardId: number; normal?: number; foil?: number }) => ({
+        cardId: c.cardId,
+        quantityNormal: c.normal || 0,
+        quantityFoil: c.foil || 0,
+      })));
+    } catch {
+      return false;
     }
-  };
+  }, [replaceAll]);
 
-  // ================================
-  // CONTEXT PROVIDER SETUP
-  // ================================
-  
-  const value: CollectionContextType = {
-    collection,
-    getCardQuantity,
-    addCardToCollection,
-    removeCardFromCollection,
-    setCardQuantity,
-    totalCards,
-    uniqueCards,
-    exportCollection,
-    exportCollectionCSV,
-    importCollection,
-    importCollectionDirect,
-    clearCollection,
-    reloadCollection: loadCollectionFromSupabase,
-    syncStatus,
-  };
+  const clearCollection = useCallback(async () => {
+    await replaceAll([]);
+  }, [replaceAll]);
 
-  return (
-    <CollectionContext.Provider value={value}>
-      {children}
-    </CollectionContext.Provider>
-  );
+  const value = useMemo<CollectionContextType>(() => {
+    let totalCards = 0;
+    quantities.forEach(q => { totalCards += q.normal + q.foil; });
+    return {
+      collectionId,
+      collection,
+      getCardQuantity,
+      addCardToCollection,
+      removeCardFromCollection,
+      setCardQuantity,
+      totalCards,
+      uniqueCards: quantities.size,
+      exportCollection,
+      exportCollectionCSV,
+      importCollection,
+      importCollectionDirect: replaceAll,
+      clearCollection,
+      reloadCollection: load,
+      syncStatus,
+      pendingChanges,
+    };
+  }, [collectionId, collection, quantities, getCardQuantity, addCardToCollection, removeCardFromCollection,
+    setCardQuantity, exportCollection, exportCollectionCSV, importCollection, replaceAll, clearCollection,
+    load, syncStatus, pendingChanges]);
+
+  return <CollectionContext.Provider value={value}>{children}</CollectionContext.Provider>;
 };
 
 export const useCollection = () => {

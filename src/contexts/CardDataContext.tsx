@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { LorcanaCard, CardDatabase } from '../types';
 import { cardDataService } from '../services/cardDataService';
 import * as cardDataUtils from '../utils/cardDataUtils';
 
 interface CardDataContextType {
   allCards: LorcanaCard[];
+  cardsById: ReadonlyMap<number, LorcanaCard>;
+  getCard: (id: number) => LorcanaCard | undefined;
   sets: Array<{ code: string; name: string; number: number }>;
   setsObject: CardDatabase['sets'];
   isLoading: boolean;
@@ -34,86 +36,57 @@ export const useCardData = () => {
   return context;
 };
 
-interface CardDataProviderProps {
-  children: ReactNode;
-}
+const EMPTY_SETS: CardDatabase['sets'] = {};
 
-export const CardDataProvider: React.FC<CardDataProviderProps> = ({ children }) => {
-  const [allCards, setAllCards] = useState<LorcanaCard[]>([]);
-  const [sets, setSets] = useState<CardDatabase['sets']>({});
+export const CardDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [data, setData] = useState<CardDatabase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCardData = async () => {
+  const load = useCallback(async (refresh: boolean) => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      const data = await cardDataService.getCardData();
-      setAllCards(data.cards);
-      setSets(data.sets);
+      setData(await (refresh ? cardDataService.refreshCardData() : cardDataService.getCardData()));
     } catch (err) {
-      console.error('Failed to load card data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load card data');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const refreshCardData = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const data = await cardDataService.refreshCardData();
-      setAllCards(data.cards);
-      setSets(data.sets);
-    } catch (err) {
-      console.error('Failed to refresh card data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to refresh card data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCardData();
   }, []);
 
-  // Compute derived data using useMemo for performance
-  const setsArray = useMemo(() => cardDataUtils.getSetsFromDatabase({ sets, cards: allCards, metadata: { formatVersion: '', generatedOn: '', language: 'en' } }), [sets, allCards]);
-  const rarities = useMemo(() => cardDataUtils.getRarities(allCards), [allCards]);
-  const colors = useMemo(() => cardDataUtils.getColors(allCards), [allCards]);
-  const cardTypes = useMemo(() => cardDataUtils.getCardTypes(allCards), [allCards]);
-  const stories = useMemo(() => cardDataUtils.getStories(allCards), [allCards]);
-  const subtypes = useMemo(() => cardDataUtils.getSubtypes(allCards), [allCards]);
-  const costs = useMemo(() => cardDataUtils.getCosts(allCards), [allCards]);
-  const strengthRange = useMemo(() => cardDataUtils.getStrengthRange(allCards), [allCards]);
-  const willpowerRange = useMemo(() => cardDataUtils.getWillpowerRange(allCards), [allCards]);
-  const loreRange = useMemo(() => cardDataUtils.getLoreRange(allCards), [allCards]);
-  const costRange = useMemo(() => cardDataUtils.getCostRange(allCards), [allCards]);
+  useEffect(() => {
+    load(false);
+  }, [load]);
 
-  return (
-    <CardDataContext.Provider value={{
+  const refreshCardData = useCallback(() => load(true), [load]);
+
+  const value = useMemo<CardDataContextType>(() => {
+    const allCards = data?.cards ?? [];
+    const setsObject = data?.sets ?? EMPTY_SETS;
+    const cardsById = new Map(allCards.map(c => [c.id, c]));
+    return {
       allCards,
-      sets: setsArray,
-      setsObject: sets,
+      cardsById,
+      getCard: (id: number) => cardsById.get(id),
+      sets: cardDataUtils.getSetsFromDatabase({ sets: setsObject, cards: allCards, metadata: { formatVersion: '', generatedOn: '', language: 'en' } }),
+      setsObject,
       isLoading,
       error,
       refreshCardData,
       rarityOrder: cardDataUtils.rarityOrder,
-      rarities,
-      colors,
-      cardTypes,
-      stories,
-      subtypes,
-      costs,
-      strengthRange,
-      willpowerRange,
-      loreRange,
-      costRange
-    }}>
-      {children}
-    </CardDataContext.Provider>
-  );
+      rarities: cardDataUtils.getRarities(allCards),
+      colors: cardDataUtils.getColors(allCards),
+      cardTypes: cardDataUtils.getCardTypes(allCards),
+      stories: cardDataUtils.getStories(allCards),
+      subtypes: cardDataUtils.getSubtypes(allCards),
+      costs: cardDataUtils.getCosts(allCards),
+      strengthRange: cardDataUtils.getStrengthRange(allCards),
+      willpowerRange: cardDataUtils.getWillpowerRange(allCards),
+      loreRange: cardDataUtils.getLoreRange(allCards),
+      costRange: cardDataUtils.getCostRange(allCards),
+    };
+  }, [data, isLoading, error, refreshCardData]);
+
+  return <CardDataContext.Provider value={value}>{children}</CardDataContext.Provider>;
 };
