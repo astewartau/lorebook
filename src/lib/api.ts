@@ -226,6 +226,39 @@ export async function getPendingInvites(filter: { collectionId?: string; invitee
   }));
 }
 
+export interface ReceivedInvite {
+  id: string;
+  collectionId: string;
+  collectionName: string;
+  inviterName: string;
+  createdAt: Date;
+}
+
+/**
+ * Pending invitations to join someone's collection. Invitees can't read the
+ * collection or (private) inviter profile, so the names come from the
+ * invitation's notification.
+ */
+export async function getMyInvites(userId: string): Promise<ReceivedInvite[]> {
+  const rows = check(await supabase.from('collection_invites').select('*')
+    .eq('invitee_id', userId).eq('status', 'pending').order('created_at', { ascending: false }));
+  if (!rows.length) return [];
+  const notes = check(await supabase.from('notifications').select('data')
+    .eq('user_id', userId).eq('kind', 'collection_invite'));
+  const names = new Map<string, { collection_name?: string; inviter_name?: string }>();
+  for (const n of notes) {
+    const d = n.data as { invite_id?: string; collection_name?: string; inviter_name?: string } | null;
+    if (d?.invite_id) names.set(d.invite_id, d);
+  }
+  return rows.map(r => ({
+    id: r.id,
+    collectionId: r.collection_id,
+    collectionName: names.get(r.id)?.collection_name ?? 'A shared collection',
+    inviterName: names.get(r.id)?.inviter_name ?? 'Someone',
+    createdAt: new Date(r.created_at),
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Notifications
 // ---------------------------------------------------------------------------

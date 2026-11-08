@@ -21,5 +21,6 @@ export const keys = {
   binderView: (binderId: string) => ['binders', 'view', binderId] as const,
   collectionInfo: (collectionId: string) => ['collection', 'info', collectionId] as const,
   invites: (filter: object) => ['invites', filter] as const,
+  myInvites: (userId: string) => ['invites', 'mine', userId] as const,
   notifications: () => ['notifications'] as const,
 };
