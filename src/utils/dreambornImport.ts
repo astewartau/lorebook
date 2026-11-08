@@ -70,7 +70,7 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   }
 
   // Try both tab and comma as separators
-  let separator = '\t';
+  let separator: string;
   if (lines[0].includes('\t') && lines[0].split('\t').length >= 9) {
     separator = '\t';
   } else if (lines[0].includes(',') && lines[0].split(',').length >= 9) {
@@ -139,9 +139,7 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
       const count = parseInt(countStr) || 0;
       if (count > 0) rows.push(row as DreambornCSVRow);
     } catch (error) {
-      console.error(`Error processing row ${i + 1}:`, error);
-      console.error(`Row content: "${line}"`);
-      throw new Error(`Failed to process row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to process row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
     }
   }
   
@@ -175,7 +173,7 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCa
     return null;
   }
 
-  let matches: LorcanaCard[] = [];
+  let matches: LorcanaCard[];
 
   // Handle promo cards (detected from card number like "8/P2" or set like "P1")
   if (promoGroup || setStr.match(/^(P[123]|C[12]|D23)$/)) {

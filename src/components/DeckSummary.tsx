@@ -125,11 +125,12 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         case 'type':
           if (a.type !== b.type) return a.type.localeCompare(b.type);
           return a.name.localeCompare(b.name);
-        case 'color':
+        case 'color': {
           const colorA = a.color || 'None';
           const colorB = b.color || 'None';
           if (colorA !== colorB) return colorA.localeCompare(colorB);
           return a.name.localeCompare(b.name);
+        }
         case 'set':
           if (a.setCode !== b.setCode) {
             const aNum = parseInt(a.setCode);
@@ -141,11 +142,12 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
           }
           if (a.number !== b.number) return a.number - b.number;
           return a.name.localeCompare(b.name);
-        case 'story':
+        case 'story': {
           const storyA = a.story || 'Unknown';
           const storyB = b.story || 'Unknown';
           if (storyA !== storyB) return storyA.localeCompare(storyB);
           return a.name.localeCompare(b.name);
+        }
         default:
           return a.name.localeCompare(b.name);
       }
@@ -166,10 +168,11 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         case 'color':
           groupKey = card.color || 'None';
           break;
-        case 'set':
+        case 'set': {
           const setInfo = sets.find(s => s.code === card.setCode);
           groupKey = setInfo?.name || `Set ${card.setCode}`;
           break;
+        }
         case 'story':
           groupKey = card.story || 'Unknown';
           break;
@@ -289,10 +292,11 @@ const DeckSummary: React.FC<DeckSummaryProps> = ({ onBack, onEditDeck }) => {
         case 'cost': groupKey = `${card.cost} Cost`; break;
         case 'type': groupKey = card.type; break;
         case 'color': groupKey = card.color || 'None'; break;
-        case 'set':
+        case 'set': {
           const setInfo = sets.find(s => s.code === card.setCode);
           groupKey = setInfo?.name || `Set ${card.setCode}`;
           break;
+        }
         case 'story': groupKey = card.story || 'Unknown'; break;
         default: groupKey = 'All Cards';
       }

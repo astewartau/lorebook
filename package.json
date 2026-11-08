@@ -4,16 +4,11 @@
   "private": true,
   "dependencies": {
     "@supabase/supabase-js": "^2.54.0",
-    "@tailwindcss/forms": "^0.5.10",
-    "@types/react": "^19.1.9",
-    "@types/react-dom": "^19.1.7",
-    "@types/uuid": "^10.0.0",
     "lucide-react": "^0.536.0",
     "photoswipe": "^5.4.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.8.0",
-    "uuid": "^11.1.0"
+    "react-router-dom": "^7.8.0"
   },
   "scripts": {
     "start": "vite",
@@ -28,16 +23,25 @@
     "db:test": "scripts/supabase.sh test db",
     "db:types": "scripts/supabase.sh gen types typescript --local > src/lib/database.types.ts",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/forms": "^0.5.10",
     "@types/node": "^22.20.5",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^6.2.1",
     "autoprefixer": "^10.6.2",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "postcss": "^8.5.32",
     "supabase": "^3.0.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
   },

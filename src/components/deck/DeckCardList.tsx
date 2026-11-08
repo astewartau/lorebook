@@ -82,10 +82,11 @@ const DeckCardList: React.FC<DeckCardListProps> = ({
         case 'color':
           groupKey = card.color || 'None';
           break;
-        case 'set':
+        case 'set': {
           const setInfo = sets.find(s => s.code === card.setCode);
           groupKey = setInfo?.name || `Set ${card.setCode}`;
           break;
+        }
         case 'story':
           groupKey = card.story || 'Unknown';
           break;
