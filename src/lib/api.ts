@@ -54,8 +54,11 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
   return row ? toProfile(row) : null;
 }
 
-export type ProfileUpdate = Partial<Pick<UserProfile,
-  'displayName' | 'fullName' | 'location' | 'bio' | 'avatarCardId' | 'avatarCropData' | 'isPublic'>>;
+/** Empty strings clear text fields; null clears the avatar. */
+export type ProfileUpdate = Partial<Pick<UserProfile, 'displayName' | 'fullName' | 'location' | 'bio' | 'isPublic'>> & {
+  avatarCardId?: number | null;
+  avatarCropData?: UserProfile['avatarCropData'] | null;
+};
 
 export async function updateProfile(userId: string, update: ProfileUpdate): Promise<UserProfile> {
   const row: Partial<Tables<'profiles'>> = {};
@@ -79,6 +82,17 @@ export async function searchProfiles(term: string, limit = 100): Promise<UserPro
   }
   const rows = check(await query.order('display_name').limit(limit));
   return rows.map(toProfile);
+}
+
+/**
+ * For pages opened from an email link (sign-in, password reset). The client
+ * exchanges the link's code for a session as it starts; this waits for that
+ * and reports whether it worked. Safe to call more than once.
+ */
+export async function finishEmailLink(): Promise<{ signedIn: boolean; error: string | null }> {
+  const { error } = await supabase.auth.initialize();
+  const { data } = await supabase.auth.getSession();
+  return { signedIn: !!data.session, error: error?.message ?? null };
 }
 
 // ---------------------------------------------------------------------------
