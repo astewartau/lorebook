@@ -28,7 +28,7 @@ export function DeckTile({ deck }: { deck: Deck }) {
     <Link to={`/decks/${deck.id}`} className="group panel overflow-hidden flex flex-col hover:border-accent-fill/60 hover:shadow-card transition">
       <Banner cardId={s.bannerCardId} />
       <div className="p-3.5 flex-1 flex flex-col gap-2">
-        <h3 className="font-display text-lg font-semibold leading-snug line-clamp-2 group-hover:text-accent">{deck.name}</h3>
+        <h3 className="font-display text-lg font-semibold leading-snug line-clamp-2 break-words group-hover:text-accent">{deck.name}</h3>
         <div className="mt-auto flex items-center justify-between gap-2 text-sm text-muted">
           <span className="inline-flex items-center gap-1" aria-label={s.inks.length ? `Inks: ${s.inks.join(', ')}` : 'No inks yet'}>
             {s.inks.length ? s.inks.map(i => <InkIcon key={i} ink={i} size={20} />) : '—'}
@@ -50,7 +50,7 @@ export function BinderTile({ binder }: { binder: CustomBinder }) {
     <Link to={`/b/${binder.id}`} className="group panel overflow-hidden flex flex-col hover:border-accent-fill/60 hover:shadow-card transition">
       <Banner cardId={bannerId} />
       <div className="p-3.5 flex-1 flex flex-col gap-1">
-        <h3 className="font-display text-lg font-semibold leading-snug line-clamp-2 group-hover:text-accent">{binder.name}</h3>
+        <h3 className="font-display text-lg font-semibold leading-snug line-clamp-2 break-words group-hover:text-accent">{binder.name}</h3>
         <p className="text-sm text-muted truncate">{kind}{binder.kind === 'custom' && <> · {plural(cards, 'card')}</>}</p>
       </div>
     </Link>

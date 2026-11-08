@@ -68,7 +68,7 @@ function SearchInput({ value, onChange, label, placeholder }: { value: string; o
 
 function InkFilter({ value, onChange, hint }: { value: string[]; onChange: (v: string[]) => void; hint: string }) {
   return (
-    <div role="group" aria-label={hint} className="flex items-center gap-1 shrink-0">
+    <div role="group" aria-label={hint} className="flex items-center justify-between sm:justify-start gap-1 w-full sm:w-auto shrink-0">
       {INK_ORDER.map(ink => {
         const on = value.includes(ink);
         return (
@@ -87,7 +87,7 @@ function TagSelect({ tags, value, onChange }: { tags: string[]; value: string; o
   if (!tags.length && !value) return null;
   const list = value && !tags.includes(value) ? [value, ...tags] : tags;
   return (
-    <select aria-label="Tag" className="input h-10 w-auto max-w-[12rem] pr-8 bg-surface" value={value} onChange={e => onChange(e.target.value)}>
+    <select aria-label="Tag" className="input h-10 w-full sm:w-auto sm:max-w-[12rem] pr-8 bg-surface" value={value} onChange={e => onChange(e.target.value)}>
       <option value="">Any tag</option>
       {list.map(t => <option key={t} value={t}>{t}</option>)}
     </select>
@@ -121,10 +121,12 @@ function YourDecks({ p, actions }: { p: ReturnType<typeof useDeckParams>; action
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <SearchInput value={p.q} onChange={q => p.set({ q })} label="Search your decks" placeholder="Search your decks" />
           <InkFilter value={p.inks} onChange={inks => p.set({ ink: inks })} hint="Decks using these inks" />
-          <TagSelect tags={tags} value={p.tag} onChange={tag => p.set({ tag })} />
-          <select aria-label="Sort by" className="input h-10 w-auto pr-8 bg-surface" value={p.sort} onChange={e => p.set({ sort: e.target.value === 'updated' ? null : e.target.value })}>
-            {SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+            <TagSelect tags={tags} value={p.tag} onChange={tag => p.set({ tag })} />
+            <select aria-label="Sort by" className="input h-10 w-full sm:w-auto pr-8 bg-surface" value={p.sort} onChange={e => p.set({ sort: e.target.value === 'updated' ? null : e.target.value })}>
+              {SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
         </div>
         <p className="text-sm text-muted mb-3" aria-live="polite">
           {filtering ? `${shown.length} of ${decks.length} decks` : `${decks.length} deck${decks.length === 1 ? '' : 's'}`}
@@ -234,7 +236,7 @@ export default function DecksPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 pb-12">
-      <header className="pt-6 sm:pt-8 flex flex-wrap items-end gap-x-6 gap-y-3">
+      <header className="pt-6 sm:pt-8 flex flex-col sm:flex-row sm:items-end gap-x-6 gap-y-4">
         <div className="flex-1 min-w-0">
           <h1 className="font-display text-3xl font-semibold">Decks</h1>
           <p className="text-muted mt-1">Build, check and share your decks, or borrow ideas from other players.</p>
