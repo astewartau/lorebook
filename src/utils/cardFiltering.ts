@@ -194,7 +194,7 @@ export const sortCards = (cards: LorcanaCard[], sortBy: SortOption): LorcanaCard
         aValue = rarityOrder.indexOf(a.rarity);
         bValue = rarityOrder.indexOf(b.rarity);
         break;
-      case 'set':
+      case 'set': {
         // Parse setCode as number for proper numeric sorting (e.g., "10" > "9")
         // Handle special codes like "Q1", "Q2" by checking if they're numeric
         const aSetNum = isNaN(parseInt(a.setCode)) ? a.setCode : parseInt(a.setCode);
@@ -211,6 +211,7 @@ export const sortCards = (cards: LorcanaCard[], sortBy: SortOption): LorcanaCard
           bValue = bSetNum;
         }
         break;
+      }
       case 'number':
         aValue = a.number;
         bValue = b.number;
@@ -268,13 +269,14 @@ export const groupCards = (
   const groupedCards: Record<string, LorcanaCard[]> = {};
 
   cards.forEach(card => {
-    let groupKey = '';
+    let groupKey: string;
 
     switch (groupBy) {
-      case 'set':
+      case 'set': {
         const setInfo = sets?.find(s => s.code === card.setCode);
         groupKey = setInfo?.name || card.setCode;
         break;
+      }
       case 'color':
         groupKey = card.color || 'No Ink Color';
         break;

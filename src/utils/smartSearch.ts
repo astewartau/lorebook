@@ -114,7 +114,7 @@ const rawFieldValue = (card: LorcanaCard, field: string): string | number | bool
       cardValue = (card.subtypes || []).join(' ');
       break;
     case 'ability':
-    case 'abilities':
+    case 'abilities': {
       // Search through all ability text, names, and keywords
       const abilityTexts: string[] = [];
       
@@ -141,6 +141,7 @@ const rawFieldValue = (card: LorcanaCard, field: string): string | number | bool
       
       cardValue = abilityTexts.join(' ');
       break;
+    }
     default:
       return undefined;
   }

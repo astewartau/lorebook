@@ -48,7 +48,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
   useEffect(() => {
     // Simple implementation like the working example
 
-    let lightbox = new PhotoSwipeLightbox({
+    const lightbox = new PhotoSwipeLightbox({
       // Use dataSource instead of gallery selector - this prevents pre-loading all images
       dataSource: [],
       pswpModule: () => import('photoswipe'),
@@ -339,7 +339,7 @@ const CardPhotoSwipe: React.FC<CardPhotoSwipeProps> = ({
       lightbox.destroy();
       lightboxRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [galleryID, hasControls]); // Recreate when entering/exiting deck editing mode
 
   useEffect(() => {
