@@ -33,7 +33,8 @@ $$;
 -- Sign-up creates a profile, a collection and an owner membership.
 select is((select display_name from public.profiles where user_id = '00000000-0000-0000-0000-00000000000a'), 'Alice', 'display name from metadata');
 select is((select display_name from public.profiles where user_id = '00000000-0000-0000-0000-00000000000b'), 'bob', 'display name from email');
-select is((select count(*)::int from public.collections), 3, 'one collection per user');
+select is((select count(*)::int from public.collections where owner_id in (
+  '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000c')), 3, 'one collection per user');
 select ok((select active_collection_id is not null from public.profiles where user_id = '00000000-0000-0000-0000-00000000000c'), 'active collection set');
 
 create temp table ids as
@@ -103,7 +104,7 @@ select pg_temp.as_admin();
 insert into public.collection_cards (collection_id, card_id, normal) values ((select alice_col from ids), 900003, 1);
 select pg_temp.as_anon();
 select is(
-  (select jsonb_array_length(public.get_binder_view((select id from public.binders limit 1)) -> 'owned')),
+  (select jsonb_array_length(public.get_binder_view((select id from public.binders where owner_id = '00000000-0000-0000-0000-00000000000a' and set_code = 'T')) -> 'owned')),
   2, 'binder shows only set T cards (not set U)'
 );
 select is((select count(*)::int from public.collection_cards), 0, 'anonymous users read no collection rows');
