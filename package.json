@@ -37,7 +37,8 @@
     "db:start": "scripts/supabase.sh start",
     "db:stop": "scripts/supabase.sh stop",
     "db:reset": "scripts/supabase.sh db reset && node scripts/cards.mjs sync",
-    "db:test": "scripts/supabase.sh test db"
+    "db:test": "scripts/supabase.sh test db",
+    "db:types": "scripts/supabase.sh gen types typescript --local > src/lib/database.types.ts"
   },
   "eslintConfig": {
     "extends": [

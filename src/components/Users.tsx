@@ -65,7 +65,7 @@ const Users: React.FC<UsersProps> = ({ onViewProfile }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {displayProfiles.map(profile => (
                 <div 
-                  key={profile.id} 
+                  key={profile.userId} 
                   className="card-lorcana p-6 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1 art-deco-corner-sm"
                   onClick={() => onViewProfile(profile.userId)}
                 >

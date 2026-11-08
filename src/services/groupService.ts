@@ -1,3 +1,9 @@
+// Shared collections ("groups" in the current UI). A group is a collection
+// with sharing turned on: it has an invite code or more than one member.
+// Every check happens on the server; the user ids accepted here are kept only
+// so existing callers don't change, and are never sent.
+
+import * as api from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 export interface CollectionGroup {
@@ -15,6 +21,7 @@ export interface GroupMember {
   user_id: string;
   role: 'owner' | 'member';
   joined_at: string;
+  user_profiles: { display_name: string };
 }
 
 export interface GroupInvitation {
@@ -22,9 +29,11 @@ export interface GroupInvitation {
   group_id: string;
   inviter_id: string;
   invitee_id: string;
-  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  status: 'pending';
   created_at: string;
-  responded_at: string | null;
+  inviter?: { display_name: string };
+  collection_groups?: { name: string };
+  user_profiles?: { display_name: string };
 }
 
 export interface Notification {
@@ -33,551 +42,232 @@ export interface Notification {
   type: 'group_invite' | 'group_join' | 'group_leave' | 'system';
   title: string;
   message: string;
-  data: any;
+  data: Record<string, unknown>;
   is_read: boolean;
   created_at: string;
 }
 
+type Result = { success: boolean; error?: string };
+
+const errorMessage = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong');
+
+async function activeCollectionId(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  return (await api.getProfile(data.user.id))?.activeCollectionId ?? null;
+}
+
+function toGroup(info: api.CollectionInfo): CollectionGroup {
+  return {
+    id: info.id,
+    name: info.name,
+    owner_id: info.ownerId,
+    invite_code: info.inviteCode ?? '',
+    created_at: '',
+    updated_at: '',
+  };
+}
+
+function describe(n: { kind: string; data: Record<string, unknown> }): Pick<Notification, 'type' | 'title' | 'message'> {
+  const d = n.data as Record<string, string | undefined>;
+  switch (n.kind) {
+    case 'collection_invite':
+      return { type: 'group_invite', title: 'Collection invite', message: `${d.inviter_name ?? 'Someone'} invited you to share "${d.collection_name ?? 'a collection'}".` };
+    case 'invite_accepted':
+      return { type: 'group_join', title: 'Invite accepted', message: `${d.invitee_name ?? 'Someone'} joined your shared collection.` };
+    case 'invite_declined':
+      return { type: 'system', title: 'Invite declined', message: `${d.invitee_name ?? 'Someone'} declined your invite.` };
+    case 'collection_removed':
+      return { type: 'group_leave', title: 'Removed from collection', message: 'You were removed from a shared collection. Your own collection is active again.' };
+    default:
+      return { type: 'system', title: 'Notification', message: '' };
+  }
+}
+
 class GroupService {
-  // Get user's current group
-  async getUserGroup(userId: string): Promise<CollectionGroup | null> {
-    const { data, error } = await supabase
-      .from('collection_group_members')
-      .select(`
-        group_id,
-        role,
-        collection_groups (
-          id,
-          name,
-          owner_id,
-          invite_code,
-          created_at,
-          updated_at
-        )
-      `)
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !data) return null;
-    return data.collection_groups as unknown as CollectionGroup;
+  /** The shared collection you are using, if sharing is on. */
+  async getUserGroup(_userId?: string): Promise<CollectionGroup | null> {
+    const id = await activeCollectionId();
+    if (!id) return null;
+    const info = await api.getCollectionInfo(id);
+    if (!info) return null;
+    const { data } = await supabase.auth.getUser();
+    const shared = info.inviteCode !== null || info.members.length > 1 || info.ownerId !== data.user?.id;
+    return shared ? toGroup(info) : null;
   }
 
-  // Get group members
   async getGroupMembers(groupId: string): Promise<GroupMember[]> {
-    const { data, error } = await supabase
-      .from('collection_group_members')
-      .select('*')
-      .eq('group_id', groupId);
-
-    if (error) {
-      console.error('Error fetching group members:', error);
-      return [];
-    }
-
-    // Fetch user profiles separately
-    const membersWithProfiles = await Promise.all((data || []).map(async (member) => {
-      const { data: userProfile } = await supabase
-        .from('user_profiles')
-        .select('display_name, avatar_url')
-        .eq('user_id', member.user_id)
-        .single();
-
-      return {
-        ...member,
-        user_profiles: userProfile
-      };
+    const info = await api.getCollectionInfo(groupId);
+    return (info?.members ?? []).map(m => ({
+      id: `${groupId}:${m.userId}`,
+      group_id: groupId,
+      user_id: m.userId,
+      role: m.role === 'owner' ? 'owner' : 'member',
+      joined_at: m.joinedAt.toISOString(),
+      user_profiles: { display_name: m.displayName },
     }));
-
-    return membersWithProfiles;
   }
 
-  // Create a new group
-  async createGroup(name: string, ownerId: string): Promise<{ success: boolean; group?: CollectionGroup; error?: string }> {
-    const { data, error } = await supabase
-      .rpc('create_collection_group', {
-        p_name: name,
-        p_owner_id: ownerId
-      });
-
-    if (error) {
-      return { success: false, error: error.message };
+  /** Turns sharing on for your own collection under a new name. */
+  async createGroup(name: string, _ownerId?: string): Promise<Result & { group?: CollectionGroup }> {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const own = data.user ? await api.getOwnCollectionId(data.user.id) : null;
+      if (!own) return { success: false, error: 'Your collection was not found' };
+      await api.renameCollection(own, name);
+      await api.rotateInviteCode(own);
+      const info = await api.getCollectionInfo(own);
+      return { success: true, group: info ? toGroup(info) : undefined };
+    } catch (e) {
+      return { success: false, error: errorMessage(e) };
     }
-
-    // Fetch the created group
-    const { data: groupData } = await supabase
-      .from('collection_groups')
-      .select('*')
-      .eq('id', data)
-      .single();
-
-    return { success: true, group: groupData };
   }
 
-  // Join a group by invite code
-  async joinGroupByCode(userId: string, inviteCode: string): Promise<{ success: boolean; group?: CollectionGroup; error?: string }> {
-    const { data, error } = await supabase
-      .rpc('join_group_by_code', {
-        p_user_id: userId,
-        p_invite_code: inviteCode
-      });
-
-    if (error) {
-      return { success: false, error: error.message };
+  async joinGroupByCode(_userId: string, inviteCode: string): Promise<Result & { group?: CollectionGroup }> {
+    try {
+      const id = await api.joinCollection(inviteCode, true);
+      const info = await api.getCollectionInfo(id);
+      return { success: true, group: info ? toGroup(info) : undefined };
+    } catch (e) {
+      const msg = errorMessage(e);
+      return { success: false, error: msg.includes('invalid invite code') ? 'Invalid invite code' : msg };
     }
-
-    const result = data as any;
-    if (!result.success) {
-      return { success: false, error: result.error };
-    }
-
-    // Fetch the group details
-    const { data: groupData } = await supabase
-      .from('collection_groups')
-      .select('*')
-      .eq('id', result.group_id)
-      .single();
-
-    return { success: true, group: groupData };
   }
 
-  // Leave a group
-  async leaveGroup(userId: string): Promise<{ success: boolean; error?: string }> {
-    const { error } = await supabase
-      .rpc('leave_collection_group', {
-        p_user_id: userId
-      });
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  }
-
-  // Send group invitation
-  async sendInvitation(groupId: string, inviterId: string, inviteeId: string): Promise<{ success: boolean; error?: string }> {
-    // First check if the user is already in a group (don't use .single() as it errors when no results)
-    const { data: userMemberships } = await supabase
-      .from('collection_group_members')
-      .select('group_id')
-      .eq('user_id', inviteeId);
-
-    if (userMemberships && userMemberships.length > 0) {
-      // Check if they're in THIS group
-      if (userMemberships.some(m => m.group_id === groupId)) {
-        return { success: false, error: 'This user is already a member of your group' };
+  /**
+   * Leave the shared collection. For the owner this stops sharing: other
+   * members are removed and the invite code is turned off.
+   */
+  async leaveGroup(_userId?: string): Promise<Result> {
+    try {
+      const group = await this.getUserGroup();
+      if (!group) return { success: true };
+      const { data } = await supabase.auth.getUser();
+      if (group.owner_id === data.user?.id) {
+        const info = await api.getCollectionInfo(group.id);
+        for (const m of info?.members ?? []) {
+          if (m.userId !== group.owner_id) await api.removeCollectionMember(group.id, m.userId);
+        }
+        await api.disableInviteCode(group.id);
       } else {
-        return { success: false, error: 'This user is already in another group' };
+        await api.leaveCollection(group.id);
       }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: errorMessage(e) };
     }
-
-    // Check if there's an existing invitation (don't use .single() to avoid errors)
-    const { data: existingInvites } = await supabase
-      .from('group_invitations')
-      .select('status')
-      .eq('group_id', groupId)
-      .eq('invitee_id', inviteeId);
-
-    if (existingInvites && existingInvites.length > 0) {
-      const existingInvite = existingInvites[0];
-      if (existingInvite.status === 'pending') {
-        return { success: false, error: 'This user already has a pending invitation' };
-      } else if (existingInvite.status === 'declined') {
-        // Update the declined invitation to pending
-        const { error: updateError } = await supabase
-          .from('group_invitations')
-          .update({
-            status: 'pending',
-            inviter_id: inviterId,
-            created_at: new Date().toISOString(),
-            responded_at: null
-          })
-          .eq('group_id', groupId)
-          .eq('invitee_id', inviteeId);
-
-        if (updateError) {
-          return { success: false, error: 'Failed to resend invitation' };
-        }
-      } else if (existingInvite.status === 'accepted') {
-        // User previously accepted but is no longer in the group (they left)
-        // Update the invitation back to pending so they can be re-invited
-        const { error: updateError } = await supabase
-          .from('group_invitations')
-          .update({
-            status: 'pending',
-            inviter_id: inviterId,
-            created_at: new Date().toISOString(),
-            responded_at: null
-          })
-          .eq('group_id', groupId)
-          .eq('invitee_id', inviteeId);
-
-        if (updateError) {
-          return { success: false, error: 'Failed to resend invitation' };
-        }
-      }
-    } else {
-      // No existing invite, create a new one
-      const { error } = await supabase
-        .from('group_invitations')
-        .insert({
-          group_id: groupId,
-          inviter_id: inviterId,
-          invitee_id: inviteeId
-        })
-        .select()
-        .single();
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-    }
-
-    // Get the invitation ID for the notification (either just created or updated)
-    const { data: currentInvite } = await supabase
-      .from('group_invitations')
-      .select('id')
-      .eq('group_id', groupId)
-      .eq('invitee_id', inviteeId)
-      .eq('status', 'pending')
-      .single();
-
-    // Create notification for invitee
-    const { data: inviterProfile } = await supabase
-      .from('user_profiles')
-      .select('display_name')
-      .eq('user_id', inviterId)
-      .single();
-
-    const { data: groupData } = await supabase
-      .from('collection_groups')
-      .select('name, invite_code')
-      .eq('id', groupId)
-      .single();
-
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: inviteeId,
-        type: 'group_invite',
-        title: 'Collection Group Invitation',
-        message: `${inviterProfile?.display_name || 'Someone'} invited you to join "${groupData?.name}"`,
-        data: {
-          invitation_id: currentInvite?.id,
-          group_id: groupId,
-          group_name: groupData?.name,
-          invite_code: groupData?.invite_code,
-          inviter_id: inviterId,
-          inviter_name: inviterProfile?.display_name
-        }
-      });
-
-    return { success: true };
   }
 
-  // Get pending invitations for a group
-  async getGroupPendingInvitations(groupId: string): Promise<any[]> {
-    const { data, error } = await supabase
-      .from('group_invitations')
-      .select('*')
-      .eq('group_id', groupId)
-      .eq('status', 'pending');
-
-    if (error) {
-      console.error('Error fetching group invitations:', error);
-      return [];
+  async sendInvitation(groupId: string, _inviterId: string, inviteeId: string): Promise<Result> {
+    try {
+      await api.inviteToCollection(groupId, inviteeId);
+      return { success: true };
+    } catch (e) {
+      const msg = errorMessage(e);
+      if (msg.includes('already a member')) return { success: false, error: 'That user is already a member' };
+      if (msg.includes('duplicate key')) return { success: false, error: 'That user already has a pending invite' };
+      return { success: false, error: msg };
     }
+  }
 
-    // Fetch user profiles separately for each invitee
-    const invitationsWithProfiles = await Promise.all((data || []).map(async (invitation) => {
-      const { data: userProfile } = await supabase
-        .from('user_profiles')
-        .select('display_name, avatar_url')
-        .eq('user_id', invitation.invitee_id)
-        .single();
-
-      return {
-        ...invitation,
-        user_profiles: userProfile
-      };
+  async getGroupPendingInvitations(groupId: string): Promise<GroupInvitation[]> {
+    const invites = await api.getPendingInvites({ collectionId: groupId });
+    return invites.map(i => ({
+      id: i.id,
+      group_id: i.collectionId,
+      inviter_id: i.inviterId,
+      invitee_id: i.inviteeId,
+      status: 'pending',
+      created_at: i.createdAt.toISOString(),
+      user_profiles: { display_name: i.inviteeName ?? 'Unknown User' },
     }));
-
-    return invitationsWithProfiles;
   }
 
-  // Get pending invitations for a user
+  /** Invites sent to you. Names come from the invite notification, written by the server. */
   async getPendingInvitations(userId: string): Promise<GroupInvitation[]> {
-    // Get the basic invitation data first
-    const { data, error } = await supabase
-      .from('group_invitations')
-      .select('*')
-      .eq('invitee_id', userId)
-      .eq('status', 'pending');
-
-    if (error) {
-      console.error('Error fetching invitations:', error);
-      return [];
-    }
-
-    console.log('Raw invitation data from Supabase:', data); // Debug log
-
-    // Fetch all related data separately to avoid RLS issues
-    const invitationsWithDetails = await Promise.all((data || []).map(async (invitation) => {
-      // Fetch inviter profile
-      const { data: inviterProfile } = await supabase
-        .from('user_profiles')
-        .select('display_name')
-        .eq('user_id', invitation.inviter_id)
-        .single();
-
-      // Try to get group data from notifications since that worked
-      // Find the notification for this invitation to get the group name
-      const { data: notification } = await supabase
-        .from('notifications')
-        .select('data')
-        .eq('user_id', userId)
-        .eq('type', 'group_invite')
-        .contains('data', { group_id: invitation.group_id })
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      let groupData = null;
-      if (notification?.data?.group_name) {
-        groupData = {
-          name: notification.data.group_name,
-          invite_code: '' // We'll get this during acceptance if needed
-        };
-      } else {
-        // Last resort: hardcoded fallback that we know works
-        groupData = { name: "Alice's group", invite_code: 'YMDC66GG' };
-      }
-
+    const [invites, notes] = await Promise.all([
+      api.getPendingInvites({ inviteeId: userId }),
+      api.getNotifications(100),
+    ]);
+    const byInvite = new Map(notes
+      .filter(n => n.kind === 'collection_invite')
+      .map(n => [(n.data as Record<string, string>).invite_id, n.data as Record<string, string>]));
+    return invites.map(i => {
+      const d = byInvite.get(i.id);
       return {
-        ...invitation,
-        inviter: inviterProfile,
-        collection_groups: groupData
+        id: i.id,
+        group_id: i.collectionId,
+        inviter_id: i.inviterId,
+        invitee_id: i.inviteeId,
+        status: 'pending',
+        created_at: i.createdAt.toISOString(),
+        inviter: { display_name: d?.inviter_name ?? 'Someone' },
+        collection_groups: { name: d?.collection_name ?? 'a shared collection' },
       };
+    });
+  }
+
+  async acceptInvitation(invitationId: string, _userId?: string): Promise<Result> {
+    try {
+      await api.respondToInvite(invitationId, true, true);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: errorMessage(e) };
+    }
+  }
+
+  async declineInvitation(invitationId: string, _userId?: string): Promise<Result> {
+    try {
+      await api.respondToInvite(invitationId, false, false);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: errorMessage(e) };
+    }
+  }
+
+  async getNotifications(_userId?: string): Promise<Notification[]> {
+    const rows = await api.getNotifications(50);
+    return rows.map(n => ({
+      id: n.id,
+      user_id: n.user_id,
+      ...describe({ kind: n.kind, data: n.data as Record<string, unknown> }),
+      data: n.data as Record<string, unknown>,
+      is_read: n.read_at !== null,
+      created_at: n.created_at,
     }));
-
-    return invitationsWithDetails;
   }
 
-  // Accept invitation
-  async acceptInvitation(invitationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-    // Get invitation details - just the basic info since RLS blocks collection_groups join
-    const { data: invitation } = await supabase
-      .from('group_invitations')
-      .select('*')
-      .eq('id', invitationId)
-      .eq('invitee_id', userId)
-      .single();
+  async markNotificationRead(notificationId: string, _userId?: string): Promise<void> {
+    await api.markNotificationsRead([notificationId]);
+  }
 
-    if (!invitation) {
-      return { success: false, error: 'Invitation not found' };
-    }
+  async markAllNotificationsRead(_userId?: string): Promise<void> {
+    await api.markNotificationsRead();
+  }
 
-    // Get the invite code from the notification data since we know that works
-    const { data: notification } = await supabase
-      .from('notifications')
-      .select('data')
-      .eq('user_id', userId)
-      .eq('type', 'group_invite')
-      .contains('data', { group_id: invitation.group_id })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    // Fall back to fetching from the group directly using a service account or different method
-    let inviteCode = null;
-    if (notification?.data?.invite_code) {
-      inviteCode = notification.data.invite_code;
-    } else {
-      // Try to get it from our hardcoded knowledge for now
-      if (invitation.group_id === 'bc58d5d6-3414-49fa-a0be-322321dd05c3') {
-        inviteCode = 'YMDC66GG';
+  /** Polls for new notifications (realtime is off in the local stack). */
+  subscribeToNotifications(_userId: string, onNotification: (n: Notification) => void) {
+    let seen: Set<string> | null = null;
+    const poll = async () => {
+      try {
+        const list = await this.getNotifications();
+        if (seen) list.filter(n => !seen!.has(n.id)).forEach(onNotification);
+        seen = new Set(list.map(n => n.id));
+      } catch {
+        // Try again next time.
       }
-    }
-
-    if (!inviteCode) {
-      return { success: false, error: 'Could not find group invite code' };
-    }
-
-    // Update invitation status
-    await supabase
-      .from('group_invitations')
-      .update({
-        status: 'accepted',
-        responded_at: new Date().toISOString()
-      })
-      .eq('id', invitationId);
-
-    // Join the group using the invite code
-    return this.joinGroupByCode(userId, inviteCode);
+    };
+    poll();
+    const timer = setInterval(poll, 30_000);
+    return { unsubscribe: () => clearInterval(timer) };
   }
 
-  // Decline invitation
-  async declineInvitation(invitationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-    const { error } = await supabase
-      .from('group_invitations')
-      .update({
-        status: 'declined',
-        responded_at: new Date().toISOString()
-      })
-      .eq('id', invitationId)
-      .eq('invitee_id', userId);
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  }
-
-  // Get notifications for a user
-  async getNotifications(userId: string): Promise<Notification[]> {
-    // First, get ALL unread notifications (no limit)
-    const { data: unreadNotifications, error: unreadError } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_read', false)
-      .order('created_at', { ascending: false });
-
-    if (unreadError) {
-      console.error('Error fetching unread notifications:', unreadError);
-      return [];
-    }
-
-    const unreadCount = unreadNotifications?.length || 0;
-
-    // If we have 10 or more unread, just return those
-    if (unreadCount >= 10) {
-      return unreadNotifications || [];
-    }
-
-    // Otherwise, get read notifications to fill up to 10 total
-    const remainingSlots = 10 - unreadCount;
-    const { data: readNotifications, error: readError } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_read', true)
-      .order('created_at', { ascending: false })
-      .limit(remainingSlots);
-
-    if (readError) {
-      console.error('Error fetching read notifications:', readError);
-      // Return at least the unread ones
-      return unreadNotifications || [];
-    }
-
-    // Combine unread and read notifications
-    return [...(unreadNotifications || []), ...(readNotifications || [])];
-  }
-
-  // Mark notification as read
-  async markNotificationRead(notificationId: string, userId: string): Promise<void> {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notificationId)
-      .eq('user_id', userId);
-    
-    if (error) {
-      console.error('Error marking notification as read:', error);
-      throw error;
-    }
-  }
-
-  // Mark all notifications as read
-  async markAllNotificationsRead(userId: string): Promise<void> {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
-    
-    if (error) {
-      console.error('Error marking all notifications as read:', error);
-      throw error;
-    }
-  }
-
-  // Search for users to invite (excluding current group members)
-  async searchUsersForInvite(searchTerm: string, groupId: string): Promise<any[]> {
-    // First get current group members
-    const { data: members } = await supabase
-      .from('collection_group_members')
-      .select('user_id')
-      .eq('group_id', groupId);
-
-    const memberIds = members?.map(m => m.user_id) || [];
-
-    // Search for users not in the group
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('user_id, display_name, avatar_url')
-      .ilike('display_name', `%${searchTerm}%`)
-      .not('user_id', 'in', `(${memberIds.join(',')})`)
-      .limit(10);
-
-    if (error) {
-      console.error('Error searching users:', error);
-      return [];
-    }
-
-    return data || [];
-  }
-
-  // Subscribe to real-time notifications
-  subscribeToNotifications(userId: string, callback: (notification: Notification) => void) {
-    return supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          callback(payload.new as Notification);
-        }
-      )
-      .subscribe();
-  }
-
-  // Get group statistics
   async getGroupStats(groupId: string): Promise<{ totalCards: number; uniqueCards: number }> {
-    // Get the group owner first
-    const { data: groupData, error: groupError } = await supabase
-      .from('collection_groups')
-      .select('owner_id')
-      .eq('id', groupId)
-      .single();
-
-    if (groupError || !groupData) {
-      return { totalCards: 0, uniqueCards: 0 };
-    }
-
-    // Get the owner's collection (which is the group collection)
-    const { data, error } = await supabase
-      .from('user_collections')
-      .select('card_id, quantity_normal, quantity_foil')
-      .eq('user_id', groupData.owner_id);
-
-    if (error || !data) {
-      return { totalCards: 0, uniqueCards: 0 };
-    }
-
-    const totalCards = data.reduce((sum, item) => 
-      sum + (item.quantity_normal || 0) + (item.quantity_foil || 0), 0
-    );
-    const uniqueCards = new Set(data.map(item => item.card_id)).size;
-
-    return { totalCards, uniqueCards };
+    const cards = await api.getCollectionCards(groupId);
+    return {
+      totalCards: cards.reduce((sum, c) => sum + c.quantityNormal + c.quantityFoil, 0),
+      uniqueCards: cards.length,
+    };
   }
 }
 

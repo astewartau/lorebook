@@ -1,46 +1,37 @@
-# Getting Started with Create React App 
+# Lorebook
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A Disney Lorcana collection and deck manager: browse cards, track a collection (normal and foil, shared with a household if you like), build decks, and share binders and decks.
 
-## Available Scripts
+React and TypeScript on the front, Supabase (Postgres with row level security) behind it.
 
-In the project directory, you can run:
+## Running it locally
 
-### `npm start`
+Needs Node and either Docker or rootless podman (the scripts use podman's socket when Docker isn't installed).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```bash
+npm install
+cp .env.example .env.local     # local stack keys; change the host to reach it from another machine
+npm run db:start               # local Supabase: Postgres, auth, API
+npm run cards                  # fetch LorcanaJSON, build public/data, load the card catalogue
+npm start                      # http://localhost:3000
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Local sign-up needs no email confirmation. Mail the stack sends (password resets) shows up in Mailpit at http://localhost:54324.
 
-### `npm test`
+## Database
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+The schema lives in `supabase/migrations`. To change it, add a migration, then:
 
-### `npm run build`
+```bash
+npm run db:reset    # rebuild the local database from the migrations and reload the cards
+npm run db:test     # row level security and function tests (supabase/tests)
+npm run db:types    # regenerate src/lib/database.types.ts
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+All database access in the app goes through `src/lib/api.ts`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Card data
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+`npm run cards` downloads LorcanaJSON, keeps only the fields the app uses and writes a content-hashed file to `public/data/`, plus the small catalogue table the database needs. Neither is committed. Run it again when a new set comes out. Card legality (Core, Infinity) comes from the data, so rotations and bans need no code change.
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+Card data comes from [LorcanaJSON](https://lorcanajson.org) and is used under Ravensburger's Community Code Policy. Lorebook is not affiliated with or endorsed by Disney or Ravensburger.

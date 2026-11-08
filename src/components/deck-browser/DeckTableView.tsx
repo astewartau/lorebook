@@ -2,7 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { MoreHorizontal, Edit, Eye, Copy, Trash2, Globe, GlobeLock } from 'lucide-react';
 import { Deck, DeckSummary, LorcanaCard } from '../../types';
 import { COLOR_ICONS } from '../../constants/icons';
-import { CORE_CONSTRUCTED_LEGAL_SETS } from '../../utils/cardFiltering';
+import { toLookup } from '../../utils/deckValidation';
 import { TagPills } from '../deck/TagPill';
 import AvatarImage from '../AvatarImage';
 
@@ -70,10 +70,8 @@ const DeckTableRow = memo<DeckTableRowProps>(({
   const cardCount = summary?.cardCount ?? deck.cards.reduce((s, c) => s + c.quantity, 0);
 
   // Determine format by checking if all cards are core-legal
-  const isCoreLegal = deck.cards.every(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
-    return card ? CORE_CONSTRUCTED_LEGAL_SETS.includes(card.setCode) : false;
-  });
+  const lookup = toLookup(allCards);
+  const isCoreLegal = deck.cards.every(entry => lookup.get(entry.cardId)?.legal.core ?? false);
 
   return (
     <tr
@@ -253,7 +251,7 @@ const DeckTableView: React.FC<DeckTableViewProps> = ({
               summary={isMyDeck ? getDeckSummary(deck.id) : null}
               allCards={allCards}
               isMyDeck={isMyDeck}
-              authorName={!isMyDeck ? (deckProfiles?.[deck.userId!] || deck.authorEmail || 'Unknown') : undefined}
+              authorName={!isMyDeck ? (deckProfiles?.[deck.userId!] || deck.ownerName || 'Unknown') : undefined}
               onView={() => onView(deck.id)}
               onEdit={onEdit ? () => onEdit(deck.id) : undefined}
               onDuplicate={onDuplicate ? () => onDuplicate(deck.id) : undefined}

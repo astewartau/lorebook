@@ -1,5 +1,5 @@
 import { Deck, LorcanaCard } from '../types';
-import { CORE_CONSTRUCTED_LEGAL_SETS } from './cardFiltering';
+import { toLookup } from './deckValidation';
 
 export function getDeckColors(deck: Deck, allCards: LorcanaCard[]): string[] {
   const colors = new Set<string>();
@@ -35,11 +35,8 @@ export function getDeckFranchiseBreakdown(deck: Deck, allCards: LorcanaCard[]): 
 
 export function isDeckFormatLegal(deck: Deck, allCards: LorcanaCard[], format: 'any' | 'core' | 'infinity'): boolean {
   if (format === 'any' || format === 'infinity') return true;
-  return deck.cards.every(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
-    if (!card) return false;
-    return CORE_CONSTRUCTED_LEGAL_SETS.includes(card.setCode);
-  });
+  const lookup = toLookup(allCards);
+  return deck.cards.every(entry => lookup.get(entry.cardId)?.legal.core ?? false);
 }
 
 export function getAvailableDeckStories(decks: Deck[], allCards: LorcanaCard[]): string[] {

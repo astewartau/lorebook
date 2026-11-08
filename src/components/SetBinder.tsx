@@ -8,7 +8,7 @@ import { useCardData } from '../contexts/CardDataContext';
 import CardPhotoSwipe from './CardPhotoSwipe';
 import BinderCardSlot from './binder/BinderCardSlot';
 import { LorcanaCard } from '../types';
-import { supabase, TABLES, UserBinder } from '../lib/supabase';
+import * as api from '../lib/api';
 
 const SetBinder: React.FC = () => {
   const { setCode, binderId, customBinderId } = useParams<{ setCode?: string; binderId?: string; customBinderId?: string }>();
@@ -20,9 +20,9 @@ const SetBinder: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  const [publishedBinder, setPublishedBinder] = useState<UserBinder | null>(null);
-  const [publishedBinderOwner, setPublishedBinderOwner] = useState<any>(null);
-  const [ownerCollectionData, setOwnerCollectionData] = useState<any[]>([]);
+  const [binderView, setBinderView] = useState<api.BinderView | null>(null);
+  const publishedBinder = binderView?.binder ?? null;
+  const publishedBinderOwner = binderView?.owner ?? null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -94,136 +94,40 @@ const SetBinder: React.FC = () => {
 
   const loadPublishedBinder = async () => {
     if (!binderId) return;
-    
     setLoading(true);
+    setError(null);
     try {
-      // Load binder data
-      const { data: binderData, error: binderError } = await supabase
-        .from(TABLES.USER_BINDERS)
-        .select('*')
-        .eq('id', binderId)
-        .eq('is_public', true)
-        .single();
-
-      if (binderError) throw binderError;
-      setPublishedBinder(binderData);
-
-      // Load owner profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from(TABLES.USER_PROFILES)
-        .select('display_name, user_id')
-        .eq('user_id', binderData.user_id)
-        .single();
-
-      if (profileError) throw profileError;
-      setPublishedBinderOwner(profileData);
-
-      // Check if the binder publisher is currently in a group
-      const { data: memberData, error: memberError } = await supabase
-        .from('collection_group_members')
-        .select('group_id, role')
-        .eq('user_id', binderData.user_id)
-        .single();
-
-      // Check for membership query errors
-      if (memberError && memberError.code !== 'PGRST116') {
-        // PGRST116 is "not found" which is expected for non-group users
-        console.error('Error checking group membership:', memberError);
-        throw new Error(`Could not verify group membership: ${memberError.message}`);
+      const view = await api.getBinderView(binderId);
+      if (!view) {
+        setError('This binder does not exist or is not shared.');
       }
-
-      let targetUserId = binderData.user_id; // Default to publisher's collection
-      let collectionSource = 'personal';
-      let groupOwnerId = null;
-
-      if (memberData?.group_id) {
-        // Publisher is in a group - get the group owner
-        const { data: groupData, error: groupError } = await supabase
-          .from('collection_groups')
-          .select('owner_id')
-          .eq('id', memberData.group_id)
-          .single();
-
-        if (groupError) {
-          console.error('Error fetching group data:', groupError);
-          throw new Error(`Could not load group information: ${groupError.message}`);
-        }
-
-        if (!groupData?.owner_id) {
-          throw new Error('Group exists but has no owner');
-        }
-
-        groupOwnerId = groupData.owner_id;
-        targetUserId = groupOwnerId;
-        collectionSource = 'group';
-        console.log(`[SetBinder] Publisher is in group ${memberData.group_id}, loading owner's collection (${groupOwnerId})`);
-      } else {
-        console.log(`[SetBinder] Publisher not in group, loading personal collection (${binderData.user_id})`);
-      }
-
-      // Load the appropriate collection data
-      // Note: Adding limit to handle large collections (Supabase default is 1000 rows)
-      const { data: collectionData, error: collectionError } = await supabase
-        .from(TABLES.USER_COLLECTIONS)
-        .select('*')
-        .eq('user_id', targetUserId)
-        .limit(10000);
-
-      if (collectionError) {
-        console.error('Collection data error:', collectionError);
-        throw new Error(`Could not load collection data for ${collectionSource} collection: ${collectionError.message}`);
-      }
-
-      // Verify we got collection data when we expected it
-      if (!collectionData || collectionData.length === 0) {
-        console.warn(`[SetBinder] No collection data found for ${collectionSource} collection (user: ${targetUserId})`);
-        // This is not necessarily an error - user might have empty collection
-      }
-      
-      // Store the collection data
-      setOwnerCollectionData(collectionData || []);
-      console.log(`[SetBinder] Loaded ${(collectionData || []).length} collection items from ${collectionSource} collection`);
-      
-      // Debug: Show structure of first few collection items
-      if (collectionData && collectionData.length > 0) {
-        console.log('[SetBinder] Sample collection data:', collectionData.slice(0, 3));
-      }
-
-    } catch (error) {
-      console.error('Error loading published binder:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(`Could not load binder: ${errorMessage}`);
+      setBinderView(view);
+    } catch (err) {
+      setError(`Could not load binder: ${err instanceof Error ? err.message : 'unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to get card quantity from owner's collection data
+  // Shared binders show their owner's quantities; your own binders show yours.
+  const ownerQuantities = useMemo(
+    () => new Map((binderView?.owned ?? []).map(o => [o.cardId, o])),
+    [binderView]
+  );
+
   const getOwnerCardQuantity = useCallback((cardId: number) => {
-    // Only use owner collection data if this is a published binder AND we have the data loaded
-    if (binderId && publishedBinder && ownerCollectionData.length > 0) {
-      // For published binders, use the owner's collection data
-      const ownerCard = ownerCollectionData.find(c => c.card_id === cardId);
-      const quantity = ownerCard?.quantity_total || 0;
-      
-      // Debug first few cards
-      if (cardId <= 5) {
-        console.log(`[Debug] Card ${cardId}: ownerCard =`, ownerCard, `quantity = ${quantity}`);
-      }
-      
-      return {
-        total: quantity,
-        foil: ownerCard?.quantity_foil || 0,
-        nonFoil: ownerCard?.quantity_normal || 0
-      };
-    } else {
-      // For personal binders or when data is still loading, use current user's collection
-      return getCardQuantity(cardId);
+    if (binderId) {
+      const q = ownerQuantities.get(cardId);
+      const normal = q?.quantityNormal ?? 0;
+      const foil = q?.quantityFoil ?? 0;
+      return { total: normal + foil, foil, nonFoil: normal };
     }
-  }, [binderId, publishedBinder, ownerCollectionData, getCardQuantity]);
+    const own = getCardQuantity(cardId);
+    return { total: own.total, foil: own.foil, nonFoil: own.normal };
+  }, [binderId, ownerQuantities, getCardQuantity]);
 
   // Determine the actual setCode to use (from URL param or from published binder)
-  const effectiveSetCode = setCode || publishedBinder?.set_code;
+  const effectiveSetCode = setCode || publishedBinder?.setCode;
   const setData = effectiveSetCode ? sets.find(set => set.code === effectiveSetCode) : null;
 
   // Build card list: custom binder uses its own card entries, set binder uses set cards
@@ -462,7 +366,7 @@ const SetBinder: React.FC = () => {
                           </>
                         ) : publishedBinder && publishedBinderOwner ? (
                           <>
-                            {publishedBinderOwner.display_name}'s Collection • Set {setData!.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
+                            {publishedBinderOwner.displayName}'s Collection • Set {setData!.number} • {ownedCount}/{setCards.length} cards ({completionPercentage.toFixed(1)}%)
                           </>
                         ) : (
                           <>

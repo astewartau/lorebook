@@ -327,24 +327,24 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <ProfileProvider>
-        <CardDataProvider>
-          <CollectionProvider>
-            <DeckProvider>
-            <BinderProvider>
-              <ToastProvider>
-                <Router>
-                  <AppContent />
-                  <ToastContainer />
-                </Router>
-              </ToastProvider>
-            </BinderProvider>
-            </DeckProvider>
-          </CollectionProvider>
-        </CardDataProvider>
-      </ProfileProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <ProfileProvider>
+          <CardDataProvider>
+            <CollectionProvider>
+              <DeckProvider>
+                <BinderProvider>
+                  <Router>
+                    <AppContent />
+                    <ToastContainer />
+                  </Router>
+                </BinderProvider>
+              </DeckProvider>
+            </CollectionProvider>
+          </CardDataProvider>
+        </ProfileProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

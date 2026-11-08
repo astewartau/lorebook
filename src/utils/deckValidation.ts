@@ -1,119 +1,119 @@
-import { Deck, LorcanaCard } from '../types';
+import { Deck, DeckCardEntry, LorcanaCard } from '../types';
 import { DECK_RULES } from '../constants';
 
 export interface DeckValidationResult {
   isValid: boolean;
+  /** Valid and every card is legal in Core. */
+  coreLegal: boolean;
+  /** Full names of cards that are not legal in Core. */
+  notCoreLegal: string[];
   errors: string[];
   warnings: string[];
 }
 
-export const validateDeck = (deck: Deck, allCards: LorcanaCard[]): DeckValidationResult => {
+type CardLookup = ReadonlyMap<number, LorcanaCard>;
+
+const lookups = new WeakMap<LorcanaCard[], CardLookup>();
+
+/** Accepts the card list or an id map; maps for arrays are built once and cached. */
+export function toLookup(cards: LorcanaCard[] | CardLookup): CardLookup {
+  if (!Array.isArray(cards)) return cards as CardLookup;
+  let map = lookups.get(cards);
+  if (!map) {
+    map = new Map(cards.map(c => [c.id, c]));
+    lookups.set(cards, map);
+  }
+  return map;
+}
+
+/** Copies of a card allowed in a deck, counted across every printing with the same full name. */
+export function maxCopiesFor(card: LorcanaCard): number {
+  if (card.maxCopiesInDeck === null) return Infinity;
+  return card.maxCopiesInDeck ?? DECK_RULES.MAX_COPIES_PER_CARD;
+}
+
+/** Copies in the deck sharing this full name (all printings, sets and promos). */
+export function copiesByName(entries: DeckCardEntry[], cards: LorcanaCard[] | CardLookup, fullName: string): number {
+  const lookup = toLookup(cards);
+  let n = 0;
+  for (const e of entries) if (lookup.get(e.cardId)?.fullName === fullName) n += e.quantity;
+  return n;
+}
+
+export const inksOf = (card: LorcanaCard): string[] =>
+  card.colors ?? (card.color ? card.color.split('-') : []);
+
+export const validateDeck = (deck: Deck, allCards: LorcanaCard[] | CardLookup): DeckValidationResult => {
+  const lookup = toLookup(allCards);
   const errors: string[] = [];
   const warnings: string[] = [];
-  
+
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
-  
-  // Rule 1: Deck must have at least the minimum number of cards
   if (totalCards < DECK_RULES.MIN_CARDS) {
     errors.push(`Deck needs ${DECK_RULES.MIN_CARDS - totalCards} more cards (currently ${totalCards}/${DECK_RULES.MIN_CARDS} minimum)`);
   }
-  
-  // Rule 2: No more than maximum copies of any card (with special exceptions)
-  const overLimitCards = deck.cards.filter(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
-    if (!card) return false;
-    
-    // Special case: Dalmatian Puppy - Tail Wagger can have up to 99 copies
-    if (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') {
-      return entry.quantity > 99;
+
+  if (deck.cards.some(c => c.quantity <= 0)) {
+    errors.push('Deck contains cards with invalid quantities');
+  }
+
+  const byName = new Map<string, { card: LorcanaCard; count: number }>();
+  const unknown: number[] = [];
+  const inks = new Set<string>();
+  const notCore = new Set<string>();
+  let inkwellCount = 0;
+
+  for (const entry of deck.cards) {
+    const card = lookup.get(entry.cardId);
+    if (!card) {
+      unknown.push(entry.cardId);
+      continue;
     }
-    // Standard 4-copy limit for all other cards
-    return entry.quantity > DECK_RULES.MAX_COPIES_PER_CARD;
+    const named = byName.get(card.fullName);
+    byName.set(card.fullName, { card, count: (named?.count ?? 0) + entry.quantity });
+    inksOf(card).forEach(ink => inks.add(ink));
+    if (!card.legal.core) notCore.add(card.fullName);
+    if (card.inkwell) inkwellCount += entry.quantity;
+  }
+
+  if (unknown.length) {
+    errors.push(`Deck contains ${unknown.length} card${unknown.length === 1 ? '' : 's'} not in the card database`);
+  }
+
+  byName.forEach(({ card, count }, fullName) => {
+    const max = maxCopiesFor(card);
+    if (count > max) errors.push(`"${fullName}" exceeds its ${max}-copy limit (${count} copies)`);
   });
-  
-  if (overLimitCards.length > 0) {
-    overLimitCards.forEach(entry => {
-      const card = allCards.find(c => c.id === entry.cardId);
-      if (!card) return;
-      
-      // Special error message for Dalmatian Puppy
-      if (card.name === 'Dalmatian Puppy' && card.version === 'Tail Wagger') {
-        errors.push(`"${card.name} - ${card.version}" exceeds 99-copy limit (${entry.quantity} copies)`);
-      } else {
-        errors.push(`"${card.name}" exceeds ${DECK_RULES.MAX_COPIES_PER_CARD}-copy limit (${entry.quantity} copies)`);
-      }
-    });
+
+  // Dual-ink cards count as both inks, so this also covers them.
+  if (inks.size > 2) {
+    errors.push(`Deck has more than 2 inks (${Array.from(inks).sort().join(', ')})`);
   }
-  
-  // Rule 3: Cards with quantity <= 0 (shouldn't happen but safety check)
-  const invalidQuantityCards = deck.cards.filter(card => card.quantity <= 0);
-  if (invalidQuantityCards.length > 0) {
-    errors.push(`Deck contains cards with invalid quantities`);
+
+  if (notCore.size && errors.length === 0) {
+    warnings.push(`Not legal in Core: ${notCore.size} card${notCore.size === 1 ? '' : 's'} (Infinity only)`);
   }
-  
-  // Rule 4: Check ink color restrictions (max 2 colors in competitive play)
-  const allColors = deck.cards.map(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
-    return card?.color || '';
-  }).filter(color => color !== '');
-  const baseColors = new Set<string>();
-  
-  // Extract base colors from both single and dual-ink cards
-  allColors.forEach(color => {
-    if (color.includes('-')) {
-      // Dual-ink card: split and add both colors
-      const [color1, color2] = color.split('-');
-      baseColors.add(color1);
-      baseColors.add(color2);
-    } else {
-      // Single-ink card
-      baseColors.add(color);
-    }
-  });
-  
-  // Check if deck has more than 2 base colors
-  if (baseColors.size > 2) {
-    errors.push(`Deck has more than 2 ink colors (${baseColors.size} colors: ${Array.from(baseColors).join(', ')})`);
+
+  if (totalCards > 0 && inkwellCount < 12) {
+    warnings.push(`Only ${inkwellCount} inkable cards. Consider adding more (recommended: 12-15 or more).`);
   }
-  
-  // Validate dual-ink cards only use the deck's base colors
-  const baseColorArray = Array.from(baseColors);
-  const invalidDualInks = allColors.filter(color => {
-    if (!color.includes('-')) return false; // Skip single-ink cards
-    const [color1, color2] = color.split('-');
-    return !baseColorArray.includes(color1) || !baseColorArray.includes(color2);
-  });
-  
-  if (invalidDualInks.length > 0) {
-    errors.push(`Deck contains dual-ink cards with colors not in the deck's base colors`);
-  }
-  
-  // Rule 5: Check for sufficient inkwell cards (recommended: at least 12-15)
-  const inkwellCards = deck.cards.filter(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
-    return card?.inkwell;
-  });
-  const inkwellCount = inkwellCards.reduce((sum, entry) => sum + entry.quantity, 0);
-  if (inkwellCount < 12) {
-    warnings.push(`Only ${inkwellCount} inkwell cards. Consider adding more (recommended: 12-15).`);
-  } else if (inkwellCount > 20) {
-    warnings.push(`${inkwellCount} inkwell cards might be too many. Consider reducing (recommended: 12-15).`);
-  }
-  
+
   return {
     isValid: errors.length === 0,
+    coreLegal: errors.length === 0 && notCore.size === 0,
+    notCoreLegal: Array.from(notCore).sort(),
     errors,
-    warnings
+    warnings,
   };
 };
 
-export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
+export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[] | CardLookup) => {
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   
   // Cost distribution
   const costDistribution: Record<number, number> = {};
   deck.cards.forEach(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
+    const card = toLookup(allCards).get(entry.cardId);
     if (card) {
       costDistribution[card.cost] = (costDistribution[card.cost] || 0) + entry.quantity;
     }
@@ -122,7 +122,7 @@ export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   // Ink color distribution
   const inkDistribution: Record<string, number> = {};
   deck.cards.forEach(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
+    const card = toLookup(allCards).get(entry.cardId);
     const color = card?.color || 'None';
     inkDistribution[color] = (inkDistribution[color] || 0) + entry.quantity;
   });
@@ -130,7 +130,7 @@ export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   // Type distribution
   const typeDistribution: Record<string, number> = {};
   deck.cards.forEach(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
+    const card = toLookup(allCards).get(entry.cardId);
     if (card) {
       typeDistribution[card.type] = (typeDistribution[card.type] || 0) + entry.quantity;
     }
@@ -139,7 +139,7 @@ export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   // Rarity distribution
   const rarityDistribution: Record<string, number> = {};
   deck.cards.forEach(entry => {
-    const card = allCards.find(c => c.id === entry.cardId);
+    const card = toLookup(allCards).get(entry.cardId);
     if (card) {
       rarityDistribution[card.rarity] = (rarityDistribution[card.rarity] || 0) + entry.quantity;
     }
@@ -148,7 +148,7 @@ export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   // Average cost
   const averageCost = totalCards > 0 
     ? deck.cards.reduce((sum, entry) => {
-        const card = allCards.find(c => c.id === entry.cardId);
+        const card = toLookup(allCards).get(entry.cardId);
         return sum + ((card?.cost || 0) * entry.quantity);
       }, 0) / totalCards
     : 0;
@@ -156,7 +156,7 @@ export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   // Inkwell count
   const inkwellCount = deck.cards
     .filter(entry => {
-      const card = allCards.find(c => c.id === entry.cardId);
+      const card = toLookup(allCards).get(entry.cardId);
       return card?.inkwell;
     })
     .reduce((sum, entry) => sum + entry.quantity, 0);
@@ -185,7 +185,7 @@ export const getDeckStatistics = (deck: Deck, allCards: LorcanaCard[]) => {
   };
 };
 
-export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck, allCards: LorcanaCard[]) => {
+export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck, allCards: LorcanaCard[] | CardLookup) => {
   const changes: Array<{
     type: 'added' | 'removed' | 'modified';
     cardName: string;
@@ -199,7 +199,7 @@ export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck, allCards: Lorc
   // Check for added and modified cards
   newDeck.cards.forEach(newEntry => {
     const oldEntry = oldCardMap.get(newEntry.cardId);
-    const card = allCards.find(c => c.id === newEntry.cardId);
+    const card = toLookup(allCards).get(newEntry.cardId);
     const cardName = card?.fullName || 'Unknown Card';
     
     if (!oldEntry) {
@@ -221,7 +221,7 @@ export const compareDeckVersions = (oldDeck: Deck, newDeck: Deck, allCards: Lorc
   // Check for removed cards
   oldDeck.cards.forEach(oldEntry => {
     if (!newCardMap.has(oldEntry.cardId)) {
-      const card = allCards.find(c => c.id === oldEntry.cardId);
+      const card = toLookup(allCards).get(oldEntry.cardId);
       const cardName = card?.fullName || 'Unknown Card';
       changes.push({
         type: 'removed',
@@ -252,17 +252,7 @@ export const generateDeckHash = (deck: Deck): string => {
   return hash.toString(36);
 };
 
-export const isLegalFormat = (deck: Deck, allCards: LorcanaCard[], format: 'standard' | 'unlimited' = 'standard'): boolean => {
-  // For now, we'll just implement basic validation
-  // In the future, this could check against banned/restricted lists for different formats
-
-  const validation = validateDeck(deck, allCards);
-  if (!validation.isValid) return false;
-  
-  if (format === 'standard') {
-    // Add standard format specific rules here
-    // For example, checking set legality, banned cards, etc.
-  }
-  
-  return true;
+export const isLegalFormat = (deck: Deck, allCards: LorcanaCard[] | CardLookup, format: 'core' | 'infinity' = 'core'): boolean => {
+  const v = validateDeck(deck, allCards);
+  return format === 'core' ? v.coreLegal : v.isValid;
 };

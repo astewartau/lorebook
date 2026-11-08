@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, User, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 
 interface UserSearchResult {
   id: string;
   user_id: string;
   displayName: string;
   fullName?: string;
-  avatarUrl?: string;
   isPublic: boolean;
 }
 
@@ -17,38 +16,15 @@ interface UserSearchInputProps {
   excludeUserIds?: string[];
 }
 
-// Search users from Supabase
 const searchUsers = async (searchTerm: string, excludeUserIds: string[]): Promise<UserSearchResult[]> => {
   if (searchTerm.trim().length < 2) return [];
-  
   try {
-    let query = supabase
-      .from('user_profiles')
-      .select('id, user_id, display_name, full_name, avatar_url, is_public')
-      .or(`display_name.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
-      .eq('is_public', true)
-      .limit(5);
-
-    // Exclude users if provided
-    if (excludeUserIds.length > 0) {
-      query = query.not('user_id', 'in', `(${excludeUserIds.join(',')})`);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error searching users:', error);
-      return [];
-    }
-
-    return (data || []).map(user => ({
-      id: user.id,
-      user_id: user.user_id,
-      displayName: user.display_name,
-      fullName: user.full_name,
-      avatarUrl: user.avatar_url,
-      isPublic: user.is_public
-    }));
+    const exclude = new Set(excludeUserIds);
+    const profiles = await api.searchProfiles(searchTerm, 10);
+    return profiles
+      .filter(p => !exclude.has(p.userId))
+      .slice(0, 5)
+      .map(p => ({ id: p.userId, user_id: p.userId, displayName: p.displayName, fullName: p.fullName, isPublic: p.isPublic }));
   } catch (error) {
     console.error('Error searching users:', error);
     return [];
@@ -193,15 +169,7 @@ const UserSearchInput: React.FC<UserSearchInputProps> = ({
             >
               {/* Avatar placeholder */}
               <div className="w-8 h-8 bg-lorcana-gold/20 rounded-full flex items-center justify-center flex-shrink-0">
-                {user.avatarUrl ? (
-                  <img 
-                    src={user.avatarUrl} 
-                    alt={user.displayName}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <User size={16} className="text-lorcana-gold" />
-                )}
+                <User size={16} className="text-lorcana-gold" />
               </div>
               
               {/* User info */}
