@@ -4,34 +4,63 @@ import { Printer } from 'lucide-react';
 import type { Deck } from '../../types';
 import { useCardData } from '../../contexts/CardDataContext';
 import { Dialog } from '../../ui/Dialog';
-import { deckLines, groupByKind, totalCards } from './deckLogic';
+import { CURVE_MAX, deckInks, deckLines, deckStats, groupByKind, totalCards } from './deckLogic';
+import { validateDeck } from '../../utils/deckValidation';
 import { Segmented } from './DeckBits';
 
 type Layout = 'proxies' | 'list' | 'images';
 
-// Print-only styles: the app and any open dialog are hidden, only #print-root prints.
+// Print-only styles: the app and any open dialog are hidden, only #print-root
+// prints, always black on white whatever the screen theme.
 const PRINT_CSS = `
 @media print {
-  @page { margin: 8mm; }
+  @page { margin: 10mm; }
+  :root { color-scheme: light !important; }
+  html, body { background: #fff !important; color: #111 !important; }
   body > *:not(#print-root) { display: none !important; }
-  #print-root { display: block !important; color: #000; font-family: 'Inter Variable', system-ui, sans-serif; }
+  #print-root { display: block !important; width: 100%; color: #111; background: #fff;
+    font-family: 'Inter Variable', system-ui, sans-serif; font-size: 10pt; line-height: 1.35;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #print-root * { box-sizing: border-box; }
+
   .lp-proxies { display: grid; grid-template-columns: repeat(3, 63mm); grid-auto-rows: 88mm; justify-content: center; }
   .lp-proxies.gap { gap: 1mm; }
   .lp-proxies img { width: 63mm; height: 88mm; object-fit: cover; display: block; break-inside: avoid; }
   .lp-proxies.lines img { outline: 0.2mm solid #999; }
-  .lp-head { border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 12px; }
-  .lp-head h1 { font-size: 20px; margin: 0; }
-  .lp-head p { font-size: 11px; margin: 2px 0 0; color: #444; }
-  .lp-list { columns: 2; column-gap: 24px; font-size: 11px; }
-  .lp-group { break-inside: avoid; margin-bottom: 10px; }
-  .lp-group h2 { font-size: 12px; margin: 0 0 3px; border-bottom: 1px solid #ccc; }
-  .lp-row { display: flex; gap: 8px; padding: 1px 0; }
-  .lp-row b { width: 18px; text-align: right; }
-  .lp-row span { color: #777; margin-left: auto; white-space: nowrap; }
-  .lp-images { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .lp-images figure { margin: 0; break-inside: avoid; text-align: center; font-size: 10px; font-weight: 600; }
-  .lp-images img { width: 100%; border-radius: 3px; display: block; }
-  .lp-foot { margin-top: 12px; font-size: 9px; color: #888; text-align: center; }
+
+  .lp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 8mm;
+    border-bottom: 0.6mm solid #111; padding-bottom: 3mm; margin-bottom: 5mm; }
+  .lp-head h1 { font-family: 'Fraunces Variable', Georgia, serif; font-size: 22pt; font-weight: 600; line-height: 1.1; margin: 0; }
+  .lp-head .meta { margin-top: 1.5mm; color: #444; font-size: 9.5pt; }
+  .lp-head .total { text-align: right; white-space: nowrap; }
+  .lp-head .total b { display: block; font-size: 20pt; line-height: 1; }
+  .lp-head .total span { font-size: 8.5pt; color: #555; text-transform: uppercase; letter-spacing: .06em; }
+
+  .lp-list { column-count: 2; column-gap: 9mm; }
+  .lp-group { break-inside: avoid; margin: 0 0 5mm; }
+  .lp-group h2 { display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: #333; margin: 0 0 1.5mm; padding-bottom: 1mm; border-bottom: 0.3mm solid #bbb; }
+  .lp-row { display: grid; grid-template-columns: 6mm 6mm 1fr auto; align-items: baseline; column-gap: 2mm;
+    padding: 0.9mm 0; border-bottom: 0.2mm solid #eee; break-inside: avoid; }
+  .lp-row .q { font-weight: 700; text-align: right; }
+  .lp-row .c { justify-self: center; width: 5mm; height: 5mm; border: 0.3mm solid #666; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 7.5pt; font-weight: 600; }
+  .lp-row .n { min-width: 0; }
+  .lp-row .n b { font-weight: 600; }
+  .lp-row .n i { font-style: normal; color: #555; }
+  .lp-row .s { color: #777; font-size: 8pt; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .lp-summary { display: flex; flex-wrap: wrap; gap: 2mm 7mm; margin-top: 2mm; padding-top: 3mm; border-top: 0.3mm solid #bbb;
+    font-size: 8.5pt; color: #333; }
+  .lp-summary b { font-weight: 600; color: #111; }
+  .lp-foot { margin-top: 6mm; font-size: 7.5pt; color: #888; text-align: center; }
+
+  .lp-images { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3mm; }
+  .lp-images figure { position: relative; margin: 0; break-inside: avoid; }
+  .lp-images img { width: 100%; aspect-ratio: 367 / 512; object-fit: cover; border-radius: 2mm; display: block; }
+  .lp-images figcaption { position: absolute; left: 50%; bottom: 2mm; transform: translateX(-50%);
+    background: #111; color: #fff; font-size: 10pt; font-weight: 700; padding: 0.6mm 2.6mm; border-radius: 99px;
+    border: 0.4mm solid #fff; }
 }`;
 
 function preload(urls: string[]) {
@@ -64,10 +93,23 @@ export function PrintDialog({ deck, open, onClose }: { deck: Deck; open: boolean
 
   const printRoot = typeof document !== 'undefined' ? document.getElementById('print-root') : null;
 
+  const inks = useMemo(() => deckInks(deck.cards, cardsById), [deck.cards, cardsById]);
+  const stats = useMemo(() => deckStats(groups.flatMap(g => g.lines)), [groups]);
+  const legality = useMemo(() => {
+    const v = validateDeck(deck, cardsById);
+    return v.coreLegal ? 'Core legal' : v.isValid ? 'Infinity only' : 'Not yet legal';
+  }, [deck, cardsById]);
+  const printed = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
   const head = (
     <div className="lp-head">
-      <h1>{deck.name}</h1>
-      <p>{total} cards{deck.ownerName ? ` · by ${deck.ownerName}` : ''}</p>
+      <div>
+        <h1>{deck.name}</h1>
+        <div className="meta">
+          {[inks.join(' / '), legality, deck.ownerName ? `by ${deck.ownerName}` : null, printed].filter(Boolean).join('  ·  ')}
+        </div>
+      </div>
+      <div className="total"><b>{total}</b><span>cards</span></div>
     </div>
   );
 
@@ -84,13 +126,23 @@ export function PrintDialog({ deck, open, onClose }: { deck: Deck; open: boolean
           {head}
           <div className="lp-list">
             {groups.map(g => (
-              <div key={g.kind} className="lp-group">
-                <h2>{g.label} ({g.count})</h2>
+              <section key={g.kind} className="lp-group">
+                <h2><span>{g.label}</span><span>{g.count}</span></h2>
                 {g.lines.map(l => (
-                  <div key={l.card.id} className="lp-row"><b>{l.quantity}</b>{l.card.fullName}<span>{l.card.setCode} #{l.card.number} · {l.card.cost}</span></div>
+                  <div key={l.card.id} className="lp-row">
+                    <span className="q">{l.quantity}</span>
+                    <span className="c">{l.card.cost}</span>
+                    <span className="n"><b>{l.card.name}</b>{l.card.version && <i> – {l.card.version}</i>}</span>
+                    <span className="s">{l.card.setCode}·{l.card.number}</span>
+                  </div>
                 ))}
-              </div>
+              </section>
             ))}
+          </div>
+          <div className="lp-summary">
+            <span><b>Curve</b> {stats.curve.map(c => `${c.cost === CURVE_MAX ? `${c.cost}+` : c.cost}: ${c.inkable + c.uninkable}`).join('   ')}</span>
+            <span><b>Inkable</b> {stats.curve.reduce((n, c) => n + c.inkable, 0)} of {total}</span>
+            <span><b>Inks</b> {stats.inks.map(i => `${i.ink} ${i.count}`).join(', ')}</span>
           </div>
           <p className="lp-foot">Printed from Lorebook</p>
         </>
@@ -100,9 +152,10 @@ export function PrintDialog({ deck, open, onClose }: { deck: Deck; open: boolean
           {head}
           <div className="lp-images">
             {groups.flatMap(g => g.lines).map(l => (
-              <figure key={l.card.id}><img src={l.card.images.full} alt={l.card.fullName} /><figcaption>{l.quantity}×</figcaption></figure>
+              <figure key={l.card.id}><img src={l.card.images.full} alt={l.card.fullName} /><figcaption>×{l.quantity}</figcaption></figure>
             ))}
           </div>
+          <p className="lp-foot">Printed from Lorebook</p>
         </>
       )}
     </>
@@ -139,8 +192,8 @@ export function PrintDialog({ deck, open, onClose }: { deck: Deck; open: boolean
               </div>
             </>
           )}
-          {layout === 'list' && <p className="text-sm text-muted">A two-column list grouped by type, with set numbers, for deck registration or sleeving.</p>}
-          {layout === 'images' && <p className="text-sm text-muted">One picture per different card with its quantity, five to a row.</p>}
+          {layout === 'list' && <p className="text-sm text-muted">A tidy two-column list grouped by type, with cost and set numbers, plus the curve. Good for deck registration.</p>}
+          {layout === 'images' && <p className="text-sm text-muted">One picture of each different card with its quantity, five to a row.</p>}
         </div>
       </Dialog>
       {open && printRoot && createPortal(content, printRoot)}
