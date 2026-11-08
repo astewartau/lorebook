@@ -18,6 +18,7 @@ export const keys = {
   deck: (deckId: string) => ['decks', 'one', deckId] as const,
   publicDecks: (q: object) => ['decks', 'public', q] as const,
   binders: (userId: string) => ['binders', userId] as const,
+  publicBinders: (userId: string) => ['binders', userId, 'public'] as const,
   binderView: (binderId: string) => ['binders', 'view', binderId] as const,
   collectionInfo: (collectionId: string) => ['collection', 'info', collectionId] as const,
   invites: (filter: object) => ['invites', filter] as const,
