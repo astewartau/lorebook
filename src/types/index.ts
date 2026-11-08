@@ -1,3 +1,5 @@
+export type Ink = 'Amber' | 'Amethyst' | 'Emerald' | 'Ruby' | 'Sapphire' | 'Steel';
+
 export interface LorcanaCard {
   id: number;
   name: string;
@@ -6,7 +8,8 @@ export interface LorcanaCard {
   setCode: string;
   number: number;
   rarity: 'Common' | 'Uncommon' | 'Rare' | 'Super Rare' | 'Legendary' | 'Enchanted' | 'Special';
-  color: 'Amber' | 'Amethyst' | 'Emerald' | 'Ruby' | 'Sapphire' | 'Steel' | '';
+  /** One ink, two joined by '-' for dual-ink cards, or '' for none. */
+  color: Ink | `${Ink}-${Ink}` | '';
   cost: number;
   type: 'Character' | 'Action' | 'Item' | 'Song' | 'Location';
   strength?: number;

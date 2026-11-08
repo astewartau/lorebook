@@ -124,10 +124,7 @@ export const filterCards = (
 ): LorcanaCard[] => {
   return cards.filter(card => {
     // If this card is in our stale cards set, always include it
-    if (staleCardIds.has(card.id)) {
-      console.log('Including stale card:', card.name);
-      return true;
-    }
+    if (staleCardIds.has(card.id)) return true;
     
     const matchesSearch = matchesSearchFilter(card, searchTerm);
     const matchesLegalFormat = matchesLegality(card, filters.legality);
@@ -427,67 +424,79 @@ const filterCardsExcluding = (
   });
 };
 
-// Helper to count occurrences
-const countBy = <T>(items: T[], keyFn: (item: T) => string | string[]): Record<string, number> => {
-  const counts: Record<string, number> = {};
-  items.forEach(item => {
-    const keys = keyFn(item);
-    const keyArray = Array.isArray(keys) ? keys : [keys];
-    keyArray.forEach(key => {
-      if (key) {
-        counts[key] = (counts[key] || 0) + 1;
-      }
-    });
-  });
-  return counts;
-};
+type Facet = 'sets' | 'colors' | 'rarities' | 'types' | 'stories' | 'subtypes' | 'costs';
+const FACETS: Facet[] = ['sets', 'colors', 'rarities', 'types', 'stories', 'subtypes', 'costs'];
 
-// Compute contextual options for each filter category
+const inksOfCard = (c: LorcanaCard): string[] => (c.color ? c.color.split('-') : []);
+
+// Compute contextual options for each filter category: the options of one
+// category are counted over cards that pass every OTHER filter. One pass:
+// a card failing no category counts everywhere, a card failing exactly one
+// category counts only there, and a card failing two or more counts nowhere.
 export const computeContextualFilterOptions = (
   allCards: LorcanaCard[],
   searchTerm: string,
   filters: FilterOptions,
   getCardQuantity: (cardId: number) => { normal: number; foil: number; total: number }
 ): ContextualFilterOptions => {
-  // For each filter, compute available options by filtering with all OTHER filters applied
-  const setsFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'sets', getCardQuantity);
-  const colorsFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'colors', getCardQuantity);
-  const raritiesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'rarities', getCardQuantity);
-  const typesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'types', getCardQuantity);
-  const storiesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'stories', getCardQuantity);
-  const subtypesFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'subtypes', getCardQuantity);
-  const costsFiltered = filterCardsExcluding(allCards, searchTerm, filters, 'costs', getCardQuantity);
+  const counts: Record<Facet, Record<string, number>> = {
+    sets: {}, colors: {}, rarities: {}, types: {}, stories: {}, subtypes: {}, costs: {},
+  };
+  const add = (facet: Facet, keys: string[]) => {
+    for (const k of keys) if (k) counts[facet][k] = (counts[facet][k] || 0) + 1;
+  };
+  const keysFor = (facet: Facet, c: LorcanaCard): string[] => {
+    switch (facet) {
+      case 'sets': return [c.setCode];
+      case 'colors': return inksOfCard(c);
+      case 'rarities': return [c.rarity];
+      case 'types': return [c.type];
+      case 'stories': return c.story ? [c.story] : [];
+      case 'subtypes': return c.subtypes ?? [];
+      case 'costs': return [String(c.cost)];
+    }
+  };
 
-  // Compute counts for each filter option
-  const setCounts = countBy(setsFiltered, c => c.setCode);
-  const colorCounts = countBy(colorsFiltered, c =>
-    c.color ? (c.color.includes('-') ? c.color.split('-') : [c.color]) : []
+  // Everything that isn't a category filter must pass.
+  const base = filterCardsExcluding(
+    allCards, searchTerm,
+    { ...filters, sets: [], colors: [], rarities: [], types: [], stories: [], subtypes: [], costs: [] },
+    'colors', getCardQuantity
   );
-  const rarityCounts = countBy(raritiesFiltered, c => c.rarity);
-  const typeCounts = countBy(typesFiltered, c => c.type);
-  const storyCounts = countBy(storiesFiltered, c => c.story || '');
-  const subtypeCounts = countBy(subtypesFiltered, c => c.subtypes || []);
-  const costCountsRaw = countBy(costsFiltered, c => String(c.cost));
+
+  for (const card of base) {
+    const isQuest = card.color === '';
+    const fails: Facet[] = [];
+    if (filters.sets.length && !filters.sets.includes(card.setCode)) fails.push('sets');
+    if (!isQuest && !matchesColorFilter(card, filters)) fails.push('colors');
+    if (filters.rarities.length && !filters.rarities.includes(card.rarity)) fails.push('rarities');
+    if (filters.types.length && !filters.types.includes(card.type)) fails.push('types');
+    if (filters.stories.length && !(card.story && filters.stories.includes(card.story))) fails.push('stories');
+    if (filters.subtypes.length && !(card.subtypes && card.subtypes.some(st => filters.subtypes.includes(st)))) fails.push('subtypes');
+    if (filters.costs.length && !filters.costs.includes(card.cost)) fails.push('costs');
+
+    if (fails.length === 0) FACETS.forEach(f => add(f, keysFor(f, card)));
+    else if (fails.length === 1) add(fails[0], keysFor(fails[0], card));
+  }
+
   const costCounts: Record<number, number> = {};
-  Object.entries(costCountsRaw).forEach(([k, v]) => { costCounts[parseInt(k)] = v; });
+  Object.entries(counts.costs).forEach(([k, v]) => { costCounts[parseInt(k)] = v; });
 
   return {
-    sets: Array.from(new Set(setsFiltered.map(c => c.setCode))),
-    colors: Array.from(new Set(colorsFiltered.flatMap(c =>
-      c.color ? (c.color.includes('-') ? c.color.split('-') : [c.color]) : []
-    ))),
-    rarities: Array.from(new Set(raritiesFiltered.map(c => c.rarity))),
-    types: Array.from(new Set(typesFiltered.map(c => c.type))),
-    stories: Array.from(new Set(storiesFiltered.map(c => c.story).filter((s): s is string => !!s))).sort(),
-    subtypes: Array.from(new Set(subtypesFiltered.flatMap(c => c.subtypes || []))).sort(),
-    costs: Array.from(new Set(costsFiltered.map(c => c.cost))).sort((a, b) => a - b),
-    setCounts,
-    colorCounts,
-    rarityCounts,
-    typeCounts,
-    storyCounts,
-    subtypeCounts,
-    costCounts
+    sets: Object.keys(counts.sets),
+    colors: Object.keys(counts.colors),
+    rarities: Object.keys(counts.rarities),
+    types: Object.keys(counts.types),
+    stories: Object.keys(counts.stories).sort(),
+    subtypes: Object.keys(counts.subtypes).sort(),
+    costs: Object.keys(counts.costs).map(Number).sort((a, b) => a - b),
+    setCounts: counts.sets,
+    colorCounts: counts.colors,
+    rarityCounts: counts.rarities,
+    typeCounts: counts.types,
+    storyCounts: counts.stories,
+    subtypeCounts: counts.subtypes,
+    costCounts,
   };
 };
 

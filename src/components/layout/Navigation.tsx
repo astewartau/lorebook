@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BookOpen, Package, Layers3, Users } from 'lucide-react';
+import { useScrollManager } from '../../hooks/useScrollManager';
 
 interface Tab {
   id: string;
@@ -10,14 +11,12 @@ interface Tab {
 
 interface NavigationProps {
   shouldHideNavigation: boolean;
-  navVisible: boolean;
 }
 
-const Navigation: React.FC<NavigationProps> = ({
-  shouldHideNavigation,
-  navVisible
-}) => {
+const Navigation: React.FC<NavigationProps> = ({ shouldHideNavigation }) => {
   const location = useLocation();
+  // Owned here so scrolling re-renders only this bar, not the page.
+  const { navVisible } = useScrollManager();
 
   const isActivePath = (path: string) => {
     if (path === '/cards') {

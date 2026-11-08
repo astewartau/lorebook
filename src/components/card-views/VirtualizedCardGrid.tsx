@@ -30,7 +30,7 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   const { containerRef, columns, gapSize, fixedCardWidth, containerStyle } = useDynamicGrid({});
   const { user } = useAuth(); // Check if user is logged in
   const { getCardQuantity } = useCollection(); // For filtering logic
-  const [scrollTop, setScrollTop] = useState(0);
+  const [firstRow, setFirstRow] = useState(0);
   const [containerTop, setContainerTop] = useState(0);
   
   // Simple configuration using actual measurements
@@ -66,19 +66,26 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
     return () => window.removeEventListener('resize', updateContainerTop);
   }, [containerRef, cards.length]);
   
-  // Handle window scroll
+  // Track the first row in view. Scrolling within a row changes nothing, so
+  // it doesn't re-render the grid.
+  const rowHeight = actualCardHeight + gapSize;
   useEffect(() => {
-    const handleScroll = () => {
-      const windowScrollTop = window.scrollY;
-      const relativeScrollTop = Math.max(0, windowScrollTop - containerTop);
-      setScrollTop(relativeScrollTop);
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const relative = Math.max(0, window.scrollY - containerTop);
+      setFirstRow(Math.floor(relative / rowHeight));
     };
-    
-    handleScroll();
-    window.addEventListener('scroll', handleScroll);
-    
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [containerTop]);
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [containerTop, rowHeight]);
   
   // Simple virtual scrolling
   // Determine which cards to render and which to fade
@@ -147,10 +154,9 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
   const { visibleCards, visibleStart } = useMemo(() => {
     const viewportHeight = window.innerHeight;
     const bufferRows = 3;
-    const rowHeight = actualCardHeight + gapSize;
-    
-    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - bufferRows);
-    const endRow = Math.ceil((scrollTop + viewportHeight) / rowHeight) + bufferRows;
+
+    const startRow = Math.max(0, firstRow - bufferRows);
+    const endRow = firstRow + Math.ceil(viewportHeight / rowHeight) + 1 + bufferRows;
     
     const start = startRow * actualColumns;
     const end = Math.min(endRow * actualColumns, cardsToRender.length);
@@ -159,7 +165,7 @@ const VirtualizedCardGrid: React.FC<VirtualizedCardGridProps> = ({
       visibleCards: cardsToRender.slice(start, end),
       visibleStart: start
     };
-  }, [scrollTop, actualCardHeight, gapSize, actualColumns, cardsToRender]);
+  }, [firstRow, rowHeight, actualColumns, cardsToRender]);
   
   return (
     <div ref={containerRef} style={containerStyle} className="pb-24 sm:pb-16">

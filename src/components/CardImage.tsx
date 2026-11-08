@@ -9,6 +9,8 @@ interface CardImageProps {
   className?: string;
   onClick?: () => void;
   loading?: 'lazy' | 'eager';
+  /** Rendered width, for choosing between the thumbnail and the full image. */
+  sizes?: string;
 }
 
 const CardImage: React.FC<CardImageProps> = ({
@@ -17,18 +19,18 @@ const CardImage: React.FC<CardImageProps> = ({
   enableTilt = false,
   className = '',
   onClick,
-  loading = 'lazy'
+  loading = 'lazy',
+  sizes = '250px'
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [transform, setTransform] = useState('');
   const [lightPosition, setLightPosition] = useState({ x: 50, y: 50 });
-  const [fullImageLoaded, setFullImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  
-  // Start with thumbnail, upgrade to full image
-  const thumbnailSrc = card.images.thumbnail;
-  const fullImageSrc = card.images.full;
+
+  // One image: the browser picks the thumbnail (367px wide) or the full scan
+  // (1468px) for the rendered size and pixel density, and downloads only that.
+  const srcSet = `${card.images.thumbnail} 367w, ${card.images.full} 1468w`;
   
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!enableTilt || !cardRef.current) return;
@@ -64,9 +66,6 @@ const CardImage: React.FC<CardImageProps> = ({
     setLightPosition({ x: 50, y: 50 });
   };
   
-  // Use the loading prop for native lazy loading
-  const loadingAttr = loading;
-  
   return (
     <div 
       className={`relative ${className}`}
@@ -86,37 +85,22 @@ const CardImage: React.FC<CardImageProps> = ({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Thumbnail image - shows immediately */}
-        <img 
-          src={thumbnailSrc} 
-          alt={card.fullName}
-          className="w-full h-full object-cover block"
-          loading={loadingAttr}
-          decoding="async"
-          onError={() => setImageError(true)}
-          style={{ 
-            pointerEvents: 'none'
-          }}
-        />
-        
-        {/* Full resolution image - loads on top when ready */}
         {!imageError && (
-          <img 
-            src={fullImageSrc} 
+          <img
+            src={card.images.thumbnail}
+            srcSet={srcSet}
+            sizes={sizes}
             alt={card.fullName}
-            className="w-full h-full object-cover block absolute inset-0"
-            loading={loadingAttr}
+            width={367}
+            height={512}
+            className="w-full h-full object-cover block"
+            loading={loading}
             decoding="async"
-            onLoad={() => setFullImageLoaded(true)}
             onError={() => setImageError(true)}
-            style={{ 
-              pointerEvents: 'none',
-              opacity: fullImageLoaded ? 1 : 0,
-              transition: 'opacity 0.3s ease-in-out'
-            }}
+            style={{ pointerEvents: 'none' }}
           />
         )}
-        
+
         {/* Error fallback */}
         {imageError && (
           <div className="absolute inset-0">
