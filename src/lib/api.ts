@@ -301,6 +301,7 @@ export function toDeck(d: Views<'deck_details'>): Deck {
     id: d.id!,
     name: d.name!,
     description: d.description ?? undefined,
+    guide: d.guide ?? undefined,
     cards: toDeckCards(d.cards),
     tags: d.tags ?? [],
     avatar: (d.avatar as Deck['avatar']) ?? undefined,
@@ -359,10 +360,11 @@ export async function createDeck(d: { name: string; description?: string; tags?:
   return deck;
 }
 
-export async function updateDeckMeta(deckId: string, d: Partial<Pick<Deck, 'name' | 'description' | 'tags' | 'avatar' | 'isPublic'>>) {
+export async function updateDeckMeta(deckId: string, d: Partial<Pick<Deck, 'name' | 'description' | 'guide' | 'tags' | 'avatar' | 'isPublic'>>) {
   const row: Partial<Tables<'decks'>> = {};
   if (d.name !== undefined) row.name = d.name;
   if (d.description !== undefined) row.description = d.description || null;
+  if (d.guide !== undefined) row.guide = d.guide || null;
   if (d.tags !== undefined) row.tags = d.tags;
   if (d.avatar !== undefined) row.avatar = (d.avatar ?? null) as Json;
   if (d.isPublic !== undefined) row.is_public = d.isPublic;

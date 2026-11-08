@@ -84,6 +84,8 @@ export interface Deck {
   id: string;
   name: string;
   description?: string;
+  /** Long-form guide in Markdown. */
+  guide?: string;
   cards: DeckCardEntry[];
   tags?: string[];
   createdAt: Date;

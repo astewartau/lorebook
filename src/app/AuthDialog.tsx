@@ -67,14 +67,14 @@ export function AuthDialog({ open, onClose }: { open: boolean; onClose: () => vo
           <input className="input" type="email" required value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
         </label>
         {mode !== 'reset' && (
-          <label className="block space-y-1.5">
-            <span className="flex justify-between text-sm font-medium">
-              Password
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-sm font-medium">
+              <label htmlFor="auth-password">Password</label>
               {mode === 'signin' && <button type="button" className="text-accent font-normal hover:underline" onClick={() => switchTo('reset')}>Forgot it?</button>}
-            </span>
-            <input className="input" type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
+            </div>
+            <input id="auth-password" className="input" type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
-          </label>
+          </div>
         )}
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         {notice && <p role="status" className="text-sm text-success">{notice}</p>}
