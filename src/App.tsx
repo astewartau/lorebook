@@ -4,8 +4,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { CardDataProvider } from './contexts/CardDataContext';
 import { CollectionProvider } from './contexts/CollectionContext';
-import { DeckProvider } from './contexts/DeckContext';
-import { BinderProvider } from './contexts/BinderContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { queryClient } from './app/queryClient';
 import { routes } from './app/routes';
@@ -20,12 +18,7 @@ export default function App() {
           <ProfileProvider>
             <CardDataProvider>
               <CollectionProvider>
-                {/* Deck and binder contexts serve pages not yet rebuilt. */}
-                <DeckProvider>
-                  <BinderProvider>
-                    <RouterProvider router={router} />
-                  </BinderProvider>
-                </DeckProvider>
+                <RouterProvider router={router} />
               </CollectionProvider>
             </CardDataProvider>
           </ProfileProvider>

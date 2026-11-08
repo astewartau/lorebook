@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Logo } from '../ui/Logo';
 import { AccountMenu, useSignIn } from './AccountMenu';
 import { NotificationsBell } from '../features/account/NotificationsBell';
-import { ToastContainer } from '../components/ui/Toast';
+import { Toasts } from '../ui/Toasts';
 import { SiteFooter } from './SiteFooter';
 import { PageLoading } from '../ui/PageState';
 
@@ -82,7 +82,7 @@ export function AppShell() {
       </main>
       {!workspace && <SiteFooter />}
       <TabBar />
-      <ToastContainer />
+      <Toasts />
     </div>
   );
 }

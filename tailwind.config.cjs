@@ -27,15 +27,6 @@ module.exports = {
           sapphire: '#1f87c8',
           steel: '#8e9aa6',
         },
-        // Old palette, still used by pages not yet rebuilt.
-        lorcana: {
-          gold: '#d3ba84',
-          navy: '#26223d',
-          purple: '#3d3659',
-          'purple-light': '#4d4266',
-          cream: '#f9f6f0',
-          ink: '#1a1a1a',
-        },
       },
       fontFamily: {
         sans: ['"Inter Variable"', 'system-ui', 'sans-serif'],
