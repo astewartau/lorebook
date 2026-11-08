@@ -385,6 +385,57 @@ export async function deleteDeck(deckId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Deck comments
+// ---------------------------------------------------------------------------
+
+export interface DeckComment {
+  id: string;
+  deckId: string;
+  authorId: string;
+  /** Missing when the author's profile is private. */
+  author?: { displayName: string; avatarCardId?: number; avatarCrop?: UserProfile['avatarCropData'] };
+  body: string;
+  createdAt: Date;
+  editedAt?: Date;
+}
+
+export async function getDeckComments(deckId: string): Promise<DeckComment[]> {
+  const rows = check(await supabase
+    .from('deck_comments')
+    .select('id, deck_id, author_id, body, created_at, edited_at, author:profiles(display_name, avatar_card_id, avatar_crop)')
+    .eq('deck_id', deckId)
+    .order('created_at'));
+  return rows.map(r => {
+    const a = r.author as { display_name: string; avatar_card_id: number | null; avatar_crop: Json } | null;
+    return {
+      id: r.id,
+      deckId: r.deck_id,
+      authorId: r.author_id,
+      author: a ? {
+        displayName: a.display_name,
+        avatarCardId: a.avatar_card_id ?? undefined,
+        avatarCrop: (a.avatar_crop as UserProfile['avatarCropData']) ?? undefined,
+      } : undefined,
+      body: r.body,
+      createdAt: new Date(r.created_at),
+      editedAt: r.edited_at ? new Date(r.edited_at) : undefined,
+    };
+  });
+}
+
+export async function addDeckComment(deckId: string, authorId: string, body: string) {
+  check(await supabase.from('deck_comments').insert({ deck_id: deckId, author_id: authorId, body: body.trim() }));
+}
+
+export async function editDeckComment(commentId: string, body: string) {
+  check(await supabase.from('deck_comments').update({ body: body.trim() }).eq('id', commentId));
+}
+
+export async function deleteDeckComment(commentId: string) {
+  check(await supabase.from('deck_comments').delete().eq('id', commentId));
+}
+
+// ---------------------------------------------------------------------------
 // Binders
 // ---------------------------------------------------------------------------
 

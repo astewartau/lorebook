@@ -23,6 +23,8 @@ export interface NotificationView {
   inviteId?: string;
   collectionName?: string;
   inviterName?: string;
+  /** Where the notification leads, if anywhere. */
+  href?: string;
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
@@ -36,6 +38,9 @@ function partsFor(kind: string, d: Record<string, unknown>): Part[] {
       return [{ strong: str(d.invitee_name) ?? 'Someone' }, ' accepted your invite and now shares your collection.'];
     case 'invite_declined':
       return [{ strong: str(d.invitee_name) ?? 'Someone' }, ' declined your invite to share your collection.'];
+    case 'deck_comment':
+      return [{ strong: str(d.author_name) ?? 'Someone' }, ' commented on ',
+        str(d.deck_name) ? { strong: str(d.deck_name)! } : 'your deck', '.'];
     case 'collection_removed':
       return ['You were removed from a shared collection. Your own collection is active again.'];
     default:
@@ -58,6 +63,8 @@ export function describeNotification(row: NotificationRow): NotificationView {
     inviteId: row.kind === 'collection_invite' ? str(d.invite_id) : undefined,
     collectionName: str(d.collection_name),
     inviterName: str(d.inviter_name),
+    href: row.kind === 'deck_comment' && str(d.deck_id)
+      ? `/decks/${str(d.deck_id)}${str(d.comment_id) ? `#comment-${str(d.comment_id)}` : '#comments'}` : undefined,
   };
 }
 

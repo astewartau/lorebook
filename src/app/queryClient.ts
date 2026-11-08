@@ -16,6 +16,7 @@ export const keys = {
   profiles: (search: string) => ['profiles', search] as const,
   userDecks: (userId: string) => ['decks', 'user', userId] as const,
   deck: (deckId: string) => ['decks', 'one', deckId] as const,
+  deckComments: (deckId: string) => ['decks', 'comments', deckId] as const,
   publicDecks: (q: object) => ['decks', 'public', q] as const,
   binders: (userId: string) => ['binders', userId] as const,
   publicBinders: (userId: string) => ['binders', userId, 'public'] as const,

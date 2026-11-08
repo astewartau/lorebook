@@ -159,12 +159,20 @@ async function main() {
     { name: 'Emerald/Amethyst Tricks', inks: ['Emerald', 'Amethyst'], tags: ['archetype:control'], isPublic: false },
     { name: 'Amethyst/Steel Songs', inks: ['Amethyst', 'Steel'], tags: ['archetype:songs', 'core'], isPublic: true },
   ];
+  const deckIds = [];
   for (const d of decks) {
     const chosen = buildDeck(d.inks, used);
     chosen.forEach(c => used.add(c.fullName));
     const star = [...chosen].sort((a, b) => b.cost - a.cost)[0];
-    await createDeck(demo.sb, { ...d, description: `A ${d.inks.join('/')} list for Core.`, chosen, avatar: star });
+    deckIds.push({ id: await createDeck(demo.sb, { ...d, description: `A ${d.inks.join('/')} list for Core.`, chosen, avatar: star }), chosen });
   }
+
+  // A short conversation on the first public deck.
+  const first = deckIds[0];
+  check(await friend.sb.from('deck_comments').insert({ deck_id: first.id, author_id: friend.userId,
+    body: `Nice list! Have you tried more copies of [[${first.chosen[1].fullName}]]? It carried my games last week.` }), 'comment');
+  check(await demo.sb.from('deck_comments').insert({ deck_id: first.id, author_id: demo.userId,
+    body: 'Thanks! Running four already; the curve wants it.' }), 'reply');
   const samDeck = buildDeck(['Sapphire', 'Steel']);
   await createDeck(friend.sb, { name: 'Sapphire/Steel Ramp', tags: ['archetype:ramp'], description: 'Ink fast, land big threats.', chosen: samDeck, isPublic: true });
 

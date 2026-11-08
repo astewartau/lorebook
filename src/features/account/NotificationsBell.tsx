@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, Check, LogOut, UserPlus, X } from 'lucide-react';
+import { Bell, BellOff, Check, LogOut, MessageSquare, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfile } from '../../contexts/ProfileContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -25,6 +26,7 @@ const ICONS: Record<string, typeof Bell> = {
   invite_accepted: Check,
   invite_declined: X,
   collection_removed: LogOut,
+  deck_comment: MessageSquare,
 };
 
 function Sentence({ parts }: { parts: Part[] }) {
@@ -164,7 +166,14 @@ function BellButton({ userId }: { userId: string }) {
                         <Icon size={17} />
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-snug"><Sentence parts={n.parts} /></p>
+                        <p className="text-sm leading-snug">
+                          {n.href
+                            ? <Link to={n.href} className="hover:underline" onClick={() => {
+                              setOpen(false);
+                              if (n.unread) void api.markNotificationsRead([n.id]).then(refresh);
+                            }}><Sentence parts={n.parts} /></Link>
+                            : <Sentence parts={n.parts} />}
+                        </p>
                         <p className="mt-0.5 text-xs text-muted">
                           <time dateTime={n.createdAt.toISOString()} title={n.createdAt.toLocaleString()}>{relativeTime(n.createdAt)}</time>
                           {n.unread && <span className="sr-only"> · unread</span>}

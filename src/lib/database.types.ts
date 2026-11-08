@@ -219,6 +219,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"deck_comments": {
+                  Row: {
+                    "author_id": string,"body": string,"created_at": string,"deck_id": string,"edited_at": string | null,"id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id": string,"body": string,"created_at"?: string,"deck_id": string,"edited_at"?: string | null,"id"?: string
+                  }
+                  Update: {
+                    "author_id"?: string,"body"?: string,"created_at"?: string,"deck_id"?: string,"edited_at"?: string | null,"id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deck_comments_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["user_id"]
+    },{
+      foreignKeyName: "deck_comments_deck_id_fkey"
+      columns: ["deck_id"]
+isOneToOne: false
+      referencedRelation: "deck_details"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deck_comments_deck_id_fkey"
+      columns: ["deck_id"]
+isOneToOne: false
+      referencedRelation: "decks"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"decks": {
                   Row: {
                     "avatar": Json | null,"created_at": string,"description": string | null,"guide": string | null,"id": string,"is_public": boolean,"name": string,"owner_id": string,"tags": (string)[],"updated_at": string,"version": number

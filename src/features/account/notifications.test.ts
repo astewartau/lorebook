@@ -49,3 +49,12 @@ describe('relativeTime', () => {
     expect(relativeTime(new Date(2026, 2, 3), now)).not.toMatch(/2026/);
   });
 });
+
+describe('deck comment notifications', () => {
+  it('says who commented and links to the comment', () => {
+    const n = describeNotification({ id: '1', kind: 'deck_comment', read_at: null, created_at: '2026-11-09T00:00:00Z',
+      data: { deck_id: 'd1', deck_name: 'Ruby Tempo', comment_id: 'c1', author_name: 'Sam' } });
+    expect(n.text).toBe('Sam commented on Ruby Tempo.');
+    expect(n.href).toBe('/decks/d1#comment-c1');
+  });
+});

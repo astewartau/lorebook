@@ -13,6 +13,7 @@ import { PageLoading, PageMessage } from '../../ui/PageState';
 import { Menu, MenuItem, MenuSeparator } from '../../ui/Menu';
 import { CardDetail } from '../cards/CardDetail';
 import { DeckGuide } from './DeckGuide';
+import { DeckComments } from './DeckComments';
 import { useOwnership } from '../cards/useOwnership';
 import {
   checkDeck, countsByName, deckInks, deckLines, deckStats, groupByKind, missingSummary, ownershipNeeds, relativeDate,
@@ -241,6 +242,8 @@ export default function DeckPage() {
           </aside>
         </div>
       )}
+
+      <DeckComments deck={deck} cardHref={hrefFor} />
 
       {cardParam && <CardDetail cardId={Number(cardParam)} list={lines.map(l => l.card)} hrefFor={hrefFor} onClose={closeCard} />}
       {mine && artOpen && (
