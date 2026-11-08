@@ -31,7 +31,6 @@ How the app is put together and how new pages should look. The card browser (`sr
 - Card data: `useCardData()` gives `allCards`, `getCard(id)`, `cardsById`, sets.
 - Deck rules: `validateDeck`, `maxCopiesFor`, `copiesByName`, `inksOf` in `src/utils/deckValidation.ts`.
 - Decks and custom binders save their cards with a version number (`saveDeckCards`, `saveBinderCards`); on `ApiError.isVersionConflict` reload instead of overwriting.
-- The old `DeckContext`, `BinderContext`, `groupService` and everything under `src/components` are being replaced. New code must not use them.
 - The schema is in `supabase/migrations`. Don't change it without saying why; if a page needs a schema change, add a new migration and a test in `supabase/tests`.
 
 ## Checks
