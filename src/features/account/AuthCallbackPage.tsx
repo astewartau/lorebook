@@ -4,7 +4,7 @@ import { Link2Off } from 'lucide-react';
 import { useSignIn } from '../../app/AccountMenu';
 import * as api from '../../lib/api';
 import { Spinner } from '../../ui/PageState';
-import { LinkCard } from './ResetPasswordPage';
+import { LinkCard } from './LinkCard';
 import { linkError, takeReturnPath } from './authLinks';
 
 /** Finishes a sign-in from an email or OAuth link, then goes back to where you were. */
