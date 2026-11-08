@@ -27,20 +27,17 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "node scripts/start.js",
-    "local": "dotenv -e .env.local -- react-scripts start",
-    "dev": "dotenv -e .env.development -- react-scripts start",
-    "prod": "dotenv -e .env.production -- react-scripts start",
+    "start": "react-scripts start",
     "build": "CI=false react-scripts build",
-    "build:dev": "dotenv -e .env.development -- react-scripts build",
-    "build:prod": "dotenv -e .env.production -- react-scripts build",
-    "db:migrate:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" < collection-groups-migration.sql'",
-    "db:status:dev": "echo 'Run: psql -d \"postgresql://postgres:[PASSWORD]@db.bqmmeaguzwtkcovjtbip.supabase.co:5432/postgres\" -c \"\\dt\"'",
     "test": "react-scripts test",
-    "test:env:local": "dotenv -e .env.local -- node scripts/test-env.js",
-    "test:env:dev": "dotenv -e .env.development -- node scripts/test-env.js",
-    "test:env:prod": "dotenv -e .env.production -- node scripts/test-env.js",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "cards": "node scripts/cards.mjs all",
+    "cards:build": "node scripts/cards.mjs build",
+    "db": "scripts/supabase.sh",
+    "db:start": "scripts/supabase.sh start",
+    "db:stop": "scripts/supabase.sh stop",
+    "db:reset": "scripts/supabase.sh db reset && node scripts/cards.mjs sync",
+    "db:test": "scripts/supabase.sh test db"
   },
   "eslintConfig": {
     "extends": [
@@ -61,7 +58,6 @@
     ]
   },
   "devDependencies": {
-    "dotenv-cli": "^10.0.0",
-    "http-proxy-middleware": "^3.0.5"
+    "supabase": "^3.0.0"
   }
 }
