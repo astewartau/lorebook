@@ -165,5 +165,5 @@ function Shelf({ query, what, empty, emptyAction, children }: {
       </div>
     );
   }
-  return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">{children}</div>;
+  return <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">{children}</div>;
 }

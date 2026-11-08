@@ -182,7 +182,7 @@ export default function CollectionPage() {
   return (
     <div className="mx-auto max-w-[1600px] px-4 pb-12">
       <header className="pt-6 flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-0">
+        <div className="basis-full sm:basis-0 sm:flex-1 min-w-0">
           <h1 className="font-display text-3xl font-semibold">Collection</h1>
           {info && shared && <p className="text-sm text-muted mt-0.5 truncate">{info.name} · shared by {info.members.length}</p>}
         </div>
