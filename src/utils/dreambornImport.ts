@@ -59,18 +59,11 @@ const parseCSVLine = (line: string, separator: string): string[] => {
   return values;
 };
 
-
 export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
-  console.log('Starting CSV parse...');
-  console.log('Content length:', csvContent.length);
-  console.log('First 500 chars:', csvContent.substring(0, 500));
   
   // Handle different line endings (Windows \r\n, Unix \n, Mac \r)
   const lines = csvContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n').filter(line => line.trim().length > 0);
   
-  console.log('Total lines found:', lines.length);
-  console.log('First line (headers):', lines[0]);
-  console.log('Second line (first data):', lines[1] || 'NO SECOND LINE');
   
   if (lines.length < 2) {
     throw new Error('CSV file must contain at least a header row and one data row');
@@ -89,10 +82,8 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
     separator = tabCount > commaCount ? '\t' : ',';
   }
   
-  console.log('Using separator:', separator === '\t' ? 'TAB' : 'COMMA');
   
   const headers = lines[0].split(separator).map(h => h.trim().replace(/"/g, ''));
-  console.log('Headers found:', headers);
   
   // More flexible header matching
   const headerMap: Record<string, number> = {};
@@ -115,7 +106,6 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
     }
   });
   
-  console.log('Header mapping:', headerMap);
   
   const requiredFields = ['Set Number', 'Card Number', 'Variant', 'Count', 'Name'];
   const missingFields = requiredFields.filter(field => headerMap[field] === undefined);
@@ -124,8 +114,6 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
   }
 
   const rows: DreambornCSVRow[] = [];
-  let totalProcessed = 0;
-  let cardsWithQuantity = 0;
   
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -134,11 +122,6 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
     try {
       // Proper CSV parsing that handles quoted fields
       const values = parseCSVLine(line, separator);
-      totalProcessed++;
-      
-      if (totalProcessed <= 5 || i === 128 || i === 129) { // Log problem rows specifically
-        console.log(`Row ${i + 1} (line ${i}) values (${values.length} fields):`, values);
-      }
       
       // Validate expected number of fields
       if (values.length < Math.max(...Object.values(headerMap)) + 1) {
@@ -153,23 +136,8 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
 
       // Parse quantity and variant from the new format
       const countStr = (row.Count || '0').toString().trim();
-      const variant = (row.Variant || 'normal').toString().trim().toLowerCase();
-
       const count = parseInt(countStr) || 0;
-
-      if (totalProcessed <= 5 || i === 128 || i === 129) {
-        console.log(`Row ${i + 1} - Variant: '${variant}', Count: '${countStr}' -> ${count}`);
-        console.log(`Row ${i + 1} parsed:`, row);
-      }
-
-      if (count > 0) {
-        cardsWithQuantity++;
-        rows.push(row as DreambornCSVRow);
-
-        if (cardsWithQuantity <= 5 || cardsWithQuantity === 129) {
-          console.log(`Found card with quantity: ${row.Name}, Variant: ${variant}, Count: ${count}`);
-        }
-      }
+      if (count > 0) rows.push(row as DreambornCSVRow);
     } catch (error) {
       console.error(`Error processing row ${i + 1}:`, error);
       console.error(`Row content: "${line}"`);
@@ -177,8 +145,6 @@ export const parseDreambornCSV = (csvContent: string): DreambornCSVRow[] => {
     }
   }
   
-  console.log(`Processed ${totalProcessed} total rows, found ${cardsWithQuantity} cards with quantities > 0`);
-  console.log(`Final rows to return: ${rows.length}`);
 
   return rows;
 };
@@ -209,27 +175,11 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCa
     return null;
   }
 
-  console.log(`Matching: ${csvName} - CSV Set: ${setStr}, Card Number: ${cardNumber}, Promo Group: ${promoGroup}, Rarity: ${csvRarity}`);
-
-  // Debug: Show first few cards that might match
-  const debugMatches = allCards.filter(card =>
-    card.fullName.toLowerCase().includes(csvName.toLowerCase().substring(0, 10))
-  ).slice(0, 3);
-  if (debugMatches.length > 0) {
-    console.log(`  Debug - Similar cards found:`, debugMatches.map(c => ({
-      name: c.fullName,
-      set: c.setCode,
-      number: c.number,
-      promo: c.promoGrouping
-    })));
-  }
-
   let matches: LorcanaCard[] = [];
 
   // Handle promo cards (detected from card number like "8/P2" or set like "P1")
   if (promoGroup || setStr.match(/^(P[123]|C[12]|D23)$/)) {
     const effectivePromoGroup = promoGroup || setStr;
-    console.log(`Looking for promo card with promoGrouping: ${effectivePromoGroup} and number: ${cardNumber}`);
 
     // Find cards with matching promoGrouping and card number
     matches = allCards.filter(card => {
@@ -240,8 +190,6 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCa
     // Handle regular sets (001, 002, 008, etc.)
     const setNumber = parseInt(setStr);
     const setCode = isNaN(setNumber) ? setStr : setNumber.toString();
-
-    console.log(`Looking for regular card in set: ${setCode}, number: ${cardNumber}`);
 
     matches = allCards.filter(card => {
       return card.setCode === setCode &&
@@ -294,28 +242,23 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCa
       if (csvRarity === 'Enchanted') {
         const enchantedMatch = nameMatches.find(c => c.rarity === 'Enchanted');
         if (enchantedMatch) {
-          console.warn(`  -> Using enchanted name match: ${enchantedMatch.setCode}/${enchantedMatch.number}`);
           matches = [enchantedMatch];
         }
       } else if (csvRarity === 'Promo') {
         const promoMatch = nameMatches.find(c => c.promoGrouping);
         if (promoMatch) {
-          console.warn(`  -> Using promo name match: ${promoMatch.setCode}/${promoMatch.number}`);
           matches = [promoMatch];
         }
       } else {
         // For regular cards, prefer non-promo, non-enchanted versions
         const regularMatch = nameMatches.find(c => !c.promoGrouping && c.rarity !== 'Enchanted');
         if (regularMatch) {
-          console.warn(`  -> Using regular name match: ${regularMatch.setCode}/${regularMatch.number}`);
           matches = [regularMatch];
         } else {
-          console.warn(`  -> Using first name match: ${nameMatches[0].setCode}/${nameMatches[0].number}`);
           matches = [nameMatches[0]];
         }
       }
     } else {
-      console.warn(`  -> No name match found either`);
       return null;
     }
   }
@@ -325,7 +268,6 @@ export const matchCardToDatabase = (csvRow: DreambornCSVRow, allCards: LorcanaCa
   }
 
   const matchedCard = matches[0];
-  console.log(`✓ Matched: ${csvName} (${setStr}/${cardNumber}) -> Card ID ${matchedCard.id}`);
   return matchedCard;
 };
 
@@ -336,40 +278,23 @@ export interface ImportResult {
 
 export const importDreambornCollection = (csvContent: string, allCards: LorcanaCard[]): ImportResult => {
   try {
-    console.log('=== STARTING DREAMBORN IMPORT ===');
     const csvRows = parseDreambornCSV(csvContent);
-    console.log(`CSV parsing complete. Found ${csvRows.length} rows with quantities.`);
 
     // Group cards by their identity to combine normal and foil variants
     const cardQuantityMap = new Map<string, { card: LorcanaCard; normalQuantity: number; foilQuantity: number }>();
     const failedCards: { name: string; set: string; cardNumber: string; rarity: string }[] = [];
-    let matchedCards = 0;
-    let unmatchedCards = 0;
 
     for (let i = 0; i < csvRows.length; i++) {
       const row = csvRows[i];
 
-      if (i < 5) {
-        console.log(`Processing row ${i + 1}:`, {
-          name: row.Name,
-          variant: row.Variant,
-          count: row.Count,
-          rarity: row.Rarity
-        });
-      }
-
       const card = matchCardToDatabase(row, allCards);
       if (!card) {
-        unmatchedCards++;
         failedCards.push({
           name: row.Name || 'Unknown',
           set: row['Set Number'] || 'Unknown',
           cardNumber: row['Card Number'] || 'Unknown',
           rarity: row.Rarity || 'Unknown'
         });
-        if (unmatchedCards <= 5) {
-          console.log(`Could not match card: ${row.Name}`);
-        }
         continue;
       }
 
@@ -393,35 +318,9 @@ export const importDreambornCollection = (csvContent: string, allCards: LorcanaC
         cardEntry.normalQuantity += count;
       }
 
-      matchedCards++;
-
-      if (matchedCards <= 5) {
-        console.log(`Matched card: ${row.Name} -> ${card.fullName}, Variant: ${variant}, Count: ${count}`);
-      }
     }
 
     const importedCards: ImportedCard[] = Array.from(cardQuantityMap.values());
-
-    // Debug: Show foil quantities
-    const cardsWithFoil = importedCards.filter(c => c.foilQuantity > 0);
-    const totalFoilQty = importedCards.reduce((sum, c) => sum + c.foilQuantity, 0);
-    const totalNormalQty = importedCards.reduce((sum, c) => sum + c.normalQuantity, 0);
-
-    console.log(`=== IMPORT SUMMARY ===`);
-    console.log(`Total CSV rows with quantities: ${csvRows.length}`);
-    console.log(`Successfully matched: ${matchedCards}`);
-    console.log(`Could not match: ${unmatchedCards}`);
-    console.log(`Final imported cards: ${importedCards.length}`);
-    console.log(`Total normal quantity: ${totalNormalQty}`);
-    console.log(`Total foil quantity: ${totalFoilQty}`);
-    console.log(`Cards with foil copies: ${cardsWithFoil.length}`);
-    if (cardsWithFoil.length > 0) {
-      console.log(`First 5 cards with foils:`, cardsWithFoil.slice(0, 5).map(c => ({
-        name: c.card.fullName,
-        normal: c.normalQuantity,
-        foil: c.foilQuantity
-      })));
-    }
 
     return { importedCards, failedCards };
   } catch (error) {

@@ -78,7 +78,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     if (!user) return [];
     try {
       const invites = await groupService.getPendingInvitations(user.id);
-      console.log('Loaded pending invitations:', invites); // Debug log
       setPendingInvitations(invites);
       return invites;
     } catch (error) {

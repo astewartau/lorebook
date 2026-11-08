@@ -279,12 +279,6 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
     
     // Check if this card would now be filtered out due to collection filters
     if (filters.collectionFilter !== 'all') {
-      console.log('Checking if card would be filtered out...', {
-        cardName: card.name,
-        filter: filters.collectionFilter,
-        normalChange,
-        foilChange
-      });
       
       // Get current quantities for this specific card ID before the change to predict future state
       const currentQuantities = getCardQuantity(card.id);
@@ -300,20 +294,8 @@ export const useCardBrowser = (cardData: LorcanaCard[] = []) => {
         (filters.collectionFilter === 'not-owned' && willBeInCollection)     // Filter wants "not in collection" but card will be in collection
       );
       
-      console.log('Stale card prediction:', {
-        cardName: card.name,
-        currentTotalOwned,
-        normalChange,
-        foilChange,
-        predictedTotalOwned,
-        willBeInCollection,
-        filterWantsInCollection: filters.collectionFilter,
-        wouldBeFilteredOut,
-        currentStaleIds: Array.from(staleCardIds)
-      });
       
       if (wouldBeFilteredOut && !staleCardIds.has(card.id)) {
-        console.log('Adding card to stale list:', card.name);
         setStaleCardIds(prev => {
           const newSet = new Set(prev);
           newSet.add(card.id);
