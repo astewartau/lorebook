@@ -92,7 +92,6 @@ export const useDynamicGrid = ({
       if (parentElement) {
         const width = parentElement.clientWidth;
         const viewport = window.innerWidth;
-        console.log('DEBUG - Parent width:', width, 'Viewport:', viewport, 'Mobile:', viewport < 768);
         setAvailableWidth(width);
         setViewportWidth(viewport);
       }

@@ -40,7 +40,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user ?? null)
         setLoading(false)
         
-        // console.log('Auth event:', event, 'User:', session?.user?.email)
       }
     )
 

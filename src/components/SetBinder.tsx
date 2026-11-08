@@ -580,7 +580,6 @@ const SetBinder: React.FC = () => {
                     key={i}
                     onClick={() => {
                       if (i !== currentPageSpread) {
-                        console.log(`[SetBinder] Navigating via dot: ${currentPageSpread} → ${i}`);
                         setCurrentPageSpread(i);
                         setCurrentMobilePage(i * 2);
                       }
@@ -601,7 +600,6 @@ const SetBinder: React.FC = () => {
                     key={i}
                     onClick={() => {
                       if (i !== currentMobilePage) {
-                        console.log(`[SetBinder] Mobile navigating via dot: ${currentMobilePage} → ${i}`);
                         setCurrentMobilePage(i);
                         setCurrentPageSpread(Math.floor(i / 2));
                       }
