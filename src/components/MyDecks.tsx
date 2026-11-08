@@ -250,7 +250,16 @@ const MyDecks: React.FC<MyDecksProps> = ({ onBuildDeck, onViewDeck }) => {
     const deckList = visibleDecks;
 
     if (deckList.length === 0) {
-      if (isMyTab && decks.length === 0) {
+      if (!user || !isMyTab) {
+        return (
+          <div className="text-center py-12">
+            <p className="text-lorcana-navy">
+              {searchTerm ? 'No published decks match your search.' : 'No one has published a deck yet.'}
+            </p>
+          </div>
+        );
+      }
+      if (decks.length === 0) {
         return (
           <div className="text-center py-12">
             <p className="text-lorcana-navy mb-4">You haven't created any decks yet.</p>

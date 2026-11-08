@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { Eye, ChevronDown, Grid, List } from 'lucide-react';
 import { SortOption } from '../../types';
 
@@ -20,11 +21,16 @@ const CardViewControls: React.FC<CardViewControlsProps> = ({
   setGroupBy,
 }) => {
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const closeMenu = useCallback(() => setShowViewMenu(false), []);
+  useEscapeKey(closeMenu, showViewMenu);
 
   return (
     <div className="relative flex-shrink-0">
       <button
         onClick={() => setShowViewMenu(!showViewMenu)}
+        aria-label="View, sort and grouping"
+        aria-expanded={showViewMenu}
+        aria-haspopup="true"
         className="h-12 min-w-[48px] px-3 py-2 border-2 border-lorcana-gold rounded-sm hover:bg-lorcana-cream focus:ring-2 focus:ring-lorcana-gold transition-colors flex items-center justify-center touch-manipulation"
       >
         <Eye size={18} />

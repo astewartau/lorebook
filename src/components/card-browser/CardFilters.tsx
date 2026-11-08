@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { RotateCcw } from 'lucide-react';
 import FilterPanel from '../shared/FilterPanel';
 import { FilterOptions } from '../../types';
@@ -24,6 +25,13 @@ const CardFilters: React.FC<CardFiltersProps> = ({
   clearAllFilters,
   contextualOptions,
 }) => {
+  const close = useCallback(() => setShowFilters(false), [setShowFilters]);
+  useEscapeKey(close, showFilters);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showFilters) panelRef.current?.focus();
+  }, [showFilters]);
+
   if (!showFilters) return null;
 
   return (
@@ -35,7 +43,13 @@ const CardFilters: React.FC<CardFiltersProps> = ({
       />
       
       {/* Sidebar - True overlay for both mobile and desktop */}
-      <div className={`
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filters"
+        tabIndex={-1}
+        className={`outline-none 
         fixed top-0 left-0 z-50
         w-80 sm:w-96 lg:w-80 xl:w-96
         h-screen

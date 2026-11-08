@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import { BookOpen, Package, Layers3, Users } from 'lucide-react';
 import CardBrowser from './components/CardBrowser';
-import Collections from './components/Collections';
-import SetBinder from './components/SetBinder';
-import MyDecks from './components/MyDecks';
-import DeckSummary from './components/DeckSummary';
-import UsersComponent from './components/Users';
-import UserProfileComponent from './components/UserProfile';
 import LoginModal from './components/LoginModal';
-import ResetPassword from './components/ResetPassword';
-import AuthCallback from './components/AuthCallback';
 import { CollectionProvider } from './contexts/CollectionContext';
 import { DeckProvider, useDeck } from './contexts/DeckContext';
 import { BinderProvider } from './contexts/BinderContext';
@@ -28,6 +20,30 @@ import AuthSection from './components/layout/AuthSection';
 import Navigation from './components/layout/Navigation';
 import DeckEditingSidebar from './components/layout/DeckEditingSidebar';
 import Footer from './components/Footer';
+
+// Pages other than the card browser load when first visited.
+const Collections = lazy(() => import('./components/Collections'));
+const SetBinder = lazy(() => import('./components/SetBinder'));
+const MyDecks = lazy(() => import('./components/MyDecks'));
+const DeckSummary = lazy(() => import('./components/DeckSummary'));
+const UsersComponent = lazy(() => import('./components/Users'));
+const UserProfileComponent = lazy(() => import('./components/UserProfile'));
+const ResetPassword = lazy(() => import('./components/ResetPassword'));
+const AuthCallback = lazy(() => import('./components/AuthCallback'));
+
+const PageLoading = () => (
+  <div className="flex items-center justify-center h-96">
+    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-lorcana-gold" aria-label="Loading"></div>
+  </div>
+);
+
+const NotFound = () => (
+  <div className="flex flex-col items-center justify-center text-center h-96 gap-4 px-4">
+    <h1 className="text-2xl font-bold text-lorcana-ink">Page not found</h1>
+    <p className="text-lorcana-navy">There's nothing at this address.</p>
+    <Link to="/cards" className="btn-lorcana-gold">Browse cards</Link>
+  </div>
+);
 
 function AppContent() {
   const navigate = useNavigate();
@@ -226,6 +242,7 @@ function AppContent() {
             isEditingDeck && !sidebarCollapsed ? 'lg:mr-80 xl:mr-80' : ''
           }`}>
             <main className="pb-20 sm:pb-10">
+              <Suspense fallback={<PageLoading />}>
                 <Routes>
                   <Route path="/" element={<CardBrowser />} />
                   <Route path="/cards" element={<CardBrowser />} />
@@ -239,7 +256,9 @@ function AppContent() {
                   <Route path="/community/:userId" element={<UserProfileComponent onBack={() => navigate('/community')} />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
+              </Suspense>
             </main>
           </div>
 
