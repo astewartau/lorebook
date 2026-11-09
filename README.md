@@ -10,8 +10,8 @@ Needs Node and either Docker or rootless podman (the scripts use podman's socket
 
 ```bash
 npm install
-cp .env.example .env.local     # local stack keys; change the host to reach it from another machine
 npm run db:start               # local Supabase: Postgres, auth, API
+npm run db:env                 # write .env.local for it (add a host, e.g. a Tailscale IP, to use it from another device)
 npm run cards                  # fetch LorcanaJSON, build public/data, load the card catalogue
 npm start                      # http://localhost:3000
 ```
