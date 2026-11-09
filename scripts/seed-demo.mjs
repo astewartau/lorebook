@@ -11,11 +11,11 @@ import { createClient } from '@supabase/supabase-js';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { localStack } from './local-env.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const KEY = process.env.SUPABASE_ANON_KEY
-  ?? readFileSync(join(ROOT, '.env.example'), 'utf8').match(/REACT_APP_SUPABASE_ANON_KEY=(\S+)/)[1];
+const URL = process.env.SUPABASE_URL ?? (process.env.SUPABASE_ANON_KEY ? undefined : localStack().url);
+const KEY = process.env.SUPABASE_ANON_KEY ?? localStack().anonKey;
 
 export const DEMO = { email: 'demo@lorebook.test', password: 'lorebook-demo', name: 'Demo Player' };
 const FRIEND = { email: 'sam@lorebook.test', password: 'lorebook-demo', name: 'Sam' };

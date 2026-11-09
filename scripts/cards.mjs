@@ -10,10 +10,10 @@
 // hashed file it names, which can be cached forever.
 
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { localStack } from './local-env.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_URL = 'https://lorcanajson.org/files/current/en/allCards.json';
@@ -131,11 +131,8 @@ function dbCredentials() {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY };
   }
-  const out = execFileSync('npx', ['supabase', 'status', '-o', 'json'], {
-    cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  const status = JSON.parse(out.slice(out.indexOf('{')));
-  return { url: status.API_URL, key: status.SERVICE_ROLE_KEY };
+  const { url, serviceKey } = localStack();
+  return { url, key: serviceKey };
 }
 
 async function sync() {

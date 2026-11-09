@@ -29,7 +29,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "seed:demo": "node scripts/seed-demo.mjs"
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "db:env": "node scripts/local-env.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
