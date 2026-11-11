@@ -152,7 +152,8 @@ async function sync() {
       method: 'POST',
       headers: {
         apikey: key,
-        Authorization: `Bearer ${key}`,
+        // New-style keys (sb_secret_...) go only in apikey; legacy JWT keys also as a bearer token.
+        ...(key.startsWith('sb_') ? {} : { Authorization: `Bearer ${key}` }),
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates,return=minimal',
       },
